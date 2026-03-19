@@ -9,6 +9,8 @@ Refactor the catalog crawling pipeline from monolithic Oban workers into two exp
 
 The key architectural change from the current implementation: Gemini generates CSS selectors **once** from the first page and stores them on the source record. Subsequent pages are scraped programmatically using Floki + those selectors — Gemini is not called per page.
 
+**Worker transition convention:** Some workers drive two FSM transitions in one execution (transition to an in-progress state at the start, do work, transition to the next state at the end). This mirrors the existing `CrawlPageWorker` pattern and is intentional — it avoids enqueuing an intermediate worker for the "in-flight" state.
+
 ---
 
 ## State Machines
@@ -30,9 +32,9 @@ analyzing         ← strip HTML, call Gemini for: classification, title,
   │ :analyzed (is_gallery=true)          │ :not_gallery / :failed
   ▼                                      ▼
 extracting        ← use stored CSS selectors + Floki to extract items       failed
-  │ :page_done (next_page_url present)
-  ├──────────────────────────────────────┐ (self-loop: enqueue next page)
-  │ :page_done (next_page_url absent)
+  │ :page_done                           │ :exhausted
+  ├──────────────────────────────────────┘ (self-loop: enqueue next page)
+  │ :exhausted (next_page_url absent)
   ▼
 done
 ```
@@ -104,8 +106,17 @@ Valid transitions:
 | `selector_copyright` | string, nullable| CSS selector for item copyright              |
 | `selector_next_page` | string, nullable| CSS selector for next-page link              |
 
-**Source statuses** (replaces `running`):
+**Source statuses** — replace `running` with three fine-grained states; update `@statuses` in `Source` schema and `status_changeset/3` validation:
+
 `pending → fetching → analyzing → extracting → done / failed`
+
+The existing `next_page_url` column is retained and updated on each `ExtractPageWorker` run (for observability and resume purposes).
+
+**Source changesets** — two new targeted changesets added to `Source`:
+- `html_changeset/2` — casts `raw_html`; used by `FetchPageWorker`
+- `analyze_changeset/2` — casts `gallery_title`, `gallery_description`, `selector_title`, `selector_image`, `selector_description`, `selector_copyright`, `selector_next_page`; used by `AnalyzePageWorker`
+
+One migration covers all new source columns + the status list change.
 
 ### Items table — new columns
 
@@ -115,8 +126,13 @@ Valid transitions:
 | `bg_color`   | string, nullable| Stored by `color_analysis` worker              |
 | `bg_opacity` | float, nullable | Stored by `color_analysis` worker              |
 
-**Item statuses** (inserts two new states after `processing`):
+**Item statuses** — add `color_analysis` and `render` between `processing` and `ready`; update `@statuses` in `Item` schema and `status_changeset/3` validation:
+
 `pending → downloading → processing → color_analysis → render → ready / failed`
+
+A new `color_changeset/2` is added to `Item` to cast `text_color`, `bg_color`, `bg_opacity`. Used by `ColorAnalysisWorker`.
+
+One migration covers all new item columns + the status list change.
 
 ---
 
@@ -164,20 +180,22 @@ end
 
 ### Source pipeline (replaces `CrawlPageWorker`)
 
-| Worker               | Queue    | FSM transition            | Responsibility                                                                 |
-|----------------------|----------|---------------------------|--------------------------------------------------------------------------------|
-| `FetchPageWorker`    | `:fetch` | `pending→fetching→analyzing` | `Req.get(url)`, save `raw_html` on source, enqueue `AnalyzePageWorker`      |
-| `AnalyzePageWorker`  | `:fetch` | `analyzing→extracting` or `→failed` | Strip HTML via `HTMLStripper`, call Gemini for classification + selectors + title/description, store on source, enqueue `ExtractPageWorker` |
-| `ExtractPageWorker`  | `:fetch` | `extracting→extracting` or `→done` | Use Floki + stored CSS selectors to extract items from `url` arg, create Item records, enqueue item workers, follow `next_page_url` |
+Workers that show two transitions (`A→B→C`) drive both transitions in one execution: transition to `B` at the start, do work, transition to `C` on success.
+
+| Worker               | Queue    | FSM transitions                         | Responsibility                                                                                     |
+|----------------------|----------|-----------------------------------------|----------------------------------------------------------------------------------------------------|
+| `FetchPageWorker`    | `:fetch` | `pending→fetching`, then `fetching→analyzing` | Transition to `fetching`, `Req.get(url)`, save `raw_html` on source, transition to `analyzing`, enqueue `AnalyzePageWorker`. On HTTP error: emit `:failed`. |
+| `AnalyzePageWorker`  | `:fetch` | `analyzing→extracting` or `analyzing→failed` | Strip HTML via `HTMLStripper`, call Gemini for classification + selectors + title/description, store on source. On `is_gallery=false`: emit `:not_gallery`. On Gemini error: emit `:failed`. Enqueue `ExtractPageWorker` on success. |
+| `ExtractPageWorker`  | `:fetch` | `extracting→extracting` or `extracting→done` | Use Floki + stored CSS selectors to extract items from `url` arg, create Item records, update `next_page_url` on source, enqueue item workers. If next page exists: emit `:page_done` and enqueue self with next URL. If exhausted: emit `:exhausted`. On error: emit `:failed`. |
 
 ### Item pipeline (replaces `DownloadImageWorker` + `ProcessImageWorker`)
 
-| Worker                 | Queue      | FSM transition                   | Responsibility                                                        |
-|------------------------|------------|----------------------------------|-----------------------------------------------------------------------|
-| `DownloadImageWorker`  | `:fetch`   | `pending→downloading→processing` | Fetch `original_url`, upload to MinIO, enqueue `ProcessImageWorker`  |
-| `ProcessImageWorker`   | `:process` | `processing→color_analysis`      | Resize/crop to 1920×1080, upload processed image, enqueue `ColorAnalysisWorker` |
-| `ColorAnalysisWorker`  | `:process` | `color_analysis→render`          | Generate 200px thumbnail, call Gemini for colors, store `text_color`/`bg_color`/`bg_opacity`, enqueue `RenderWorker` |
-| `RenderWorker`         | `:process` | `render→ready`                   | Read processed image + stored colors, render text overlay, upload final image |
+| Worker                 | Queue      | FSM transitions                                | Responsibility                                                                                       |
+|------------------------|------------|------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `DownloadImageWorker`  | `:fetch`   | `pending→downloading`, then `downloading→processing` | Transition to `downloading`, fetch `original_url`, upload original to MinIO, transition to `processing`, enqueue `ProcessImageWorker`. On error: emit `:failed`. |
+| `ProcessImageWorker`   | `:process` | `processing→color_analysis`                    | Resize/crop to 1920×1080, upload processed image, enqueue `ColorAnalysisWorker`. On error: emit `:failed`. |
+| `ColorAnalysisWorker`  | `:process` | `color_analysis→render`                        | Generate 200px thumbnail, call Gemini for colors, persist `text_color`/`bg_color`/`bg_opacity` via `Item.color_changeset/2`, enqueue `RenderWorker`. On error: emit `:failed`. |
+| `RenderWorker`         | `:process` | `render→ready`                                 | Read processed image from MinIO, read stored colors from item, render text overlay, upload final image. On error: emit `:failed`. |
 
 ---
 
@@ -193,7 +211,7 @@ end
 
 - `Req` and `Gemini` calls mocked via `Mox` (define `GeminiBehaviour` / `HttpBehaviour`)
 - Happy path: correct FSM transition + correct DB state after worker runs
-- Failure path: error stored on record, Oban returns `{:error, reason}` for retry
+- Failure path: error stored on record, Oban returns `{:error, reason}` for retry; `:not_gallery` returns `:ok` (permanent abort, no retry)
 
 ### CSS extraction (`ExtractPageWorker`)
 
@@ -224,10 +242,10 @@ Each cycle: write failing test (red) → implement (green) → simplify (refacto
 - `priv/repo/migrations/*_add_fsm_fields_to_items.exs`
 
 **Modified:**
-- `lib/scientia_cognita/catalog/source.ex` — new statuses + fields
-- `lib/scientia_cognita/catalog/item.ex` — new statuses + fields
-- `lib/scientia_cognita/workers/process_image_worker.ex` — split into `ProcessImageWorker` + `ColorAnalysisWorker` + `RenderWorker`
+- `lib/scientia_cognita/catalog/source.ex` — update `@statuses` to `~w(pending fetching analyzing extracting done failed)`, add `html_changeset/2` and `analyze_changeset/2`
+- `lib/scientia_cognita/catalog/item.ex` — update `@statuses` to `~w(pending downloading processing color_analysis render ready failed)`, add `color_changeset/2`
+- `lib/scientia_cognita/workers/process_image_worker.ex` — trimmed to resize/crop only; color analysis and render split out
 
 **Deleted:**
 - `lib/scientia_cognita/workers/crawl_page_worker.ex`
-- `lib/scientia_cognita/workers/download_image_worker.ex` — replaced by new version
+- `lib/scientia_cognita/workers/download_image_worker.ex` — replaced by updated version
