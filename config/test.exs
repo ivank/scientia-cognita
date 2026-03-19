@@ -35,3 +35,11 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Mock modules for worker tests
+config :scientia_cognita, :http_module, ScientiaCognita.MockHttp
+config :scientia_cognita, :gemini_module, ScientiaCognita.MockGemini
+config :scientia_cognita, :storage_module, ScientiaCognita.MockStorage
+
+# Oban testing mode — jobs do not run automatically
+config :scientia_cognita, Oban, testing: :manual

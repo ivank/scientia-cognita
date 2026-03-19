@@ -4,6 +4,8 @@ defmodule ScientiaCognita.Storage do
   All keys are relative to the configured bucket.
   """
 
+  @behaviour ScientiaCognita.StorageBehaviour
+
   @doc "Returns the configured bucket name."
   def bucket do
     Application.get_env(:scientia_cognita, :storage)[:bucket] || "scientia-cognita"

@@ -4,6 +4,8 @@ defmodule ScientiaCognita.Gemini do
   Configured via :scientia_cognita, :gemini with keys :api_key and :model.
   """
 
+  @behaviour ScientiaCognita.GeminiBehaviour
+
   @base_url "https://generativelanguage.googleapis.com/v1beta/models"
 
   @doc """

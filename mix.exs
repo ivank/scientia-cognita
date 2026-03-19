@@ -89,7 +89,10 @@ defmodule ScientiaCognita.MixProject do
 
       # T09 — Google OAuth (for Google Photos)
       {:ueberauth, "~> 0.10"},
-      {:ueberauth_google, "~> 0.12"}
+      {:ueberauth_google, "~> 0.12"},
+
+      # Testing
+      {:mox, "~> 1.2", only: :test}
     ]
   end
 
