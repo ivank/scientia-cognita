@@ -39,3 +39,6 @@ npm-debug.log
 *.db
 *.db-*
 
+# MinIO local data volume
+/test/minio/
+

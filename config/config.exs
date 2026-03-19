@@ -89,8 +89,7 @@ config :ex_aws,
   json_codec: Jason
 
 # T06 — Gemini API (key set via GEMINI_API_KEY env var in runtime.exs)
-config :scientia_cognita, :gemini,
-  model: "gemini-2.0-flash-lite"
+config :scientia_cognita, :gemini, model: "gemini-3.1-flash-lite-preview"
 
 # T09 — Ueberauth Google OAuth (for Google Photos)
 config :ueberauth, Ueberauth,
@@ -98,8 +97,7 @@ config :ueberauth, Ueberauth,
     google: {
       Ueberauth.Strategy.Google,
       [
-        default_scope:
-          "email profile https://www.googleapis.com/auth/photoslibrary",
+        default_scope: "email profile https://www.googleapis.com/auth/photoslibrary",
         access_type: "offline",
         prompt: "consent"
       ]

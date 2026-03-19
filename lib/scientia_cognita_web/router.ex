@@ -23,12 +23,22 @@ defmodule ScientiaCognitaWeb.Router do
     plug :put_layout, html: {ScientiaCognitaWeb.Layouts, :console}
   end
 
+  ## Google OAuth (user must be logged in to connect Google Photos)
+
+  scope "/auth", ScientiaCognitaWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    get "/google", GoogleAuthController, :request
+    get "/google/callback", GoogleAuthController, :callback
+  end
+
   ## Public routes
 
   scope "/", ScientiaCognitaWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", Page.CatalogsIndexLive
+    live "/catalogs/:slug", Page.CatalogShowLive
   end
 
   ## Console — admin/owner only

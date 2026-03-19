@@ -334,6 +334,17 @@ defmodule ScientiaCognita.Accounts do
     :ok
   end
 
+  ## Google OAuth tokens
+
+  @doc """
+  Stores Google OAuth tokens on the user after a successful OAuth callback.
+  """
+  def update_google_token(%User{} = user, attrs) do
+    user
+    |> User.google_token_changeset(attrs)
+    |> Repo.update()
+  end
+
   ## Token helper
 
   defp update_user_and_delete_all_tokens(changeset) do

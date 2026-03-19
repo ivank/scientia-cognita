@@ -86,8 +86,8 @@ config :swoosh, :api_client, false
 
 # T05 — MinIO (local S3-compatible storage, run via: minio server ~/minio-data)
 config :ex_aws,
-  access_key_id: System.get_env("MINIO_ACCESS_KEY", "minioadmin"),
-  secret_access_key: System.get_env("MINIO_SECRET_KEY", "minioadmin"),
+  access_key_id: System.get_env("MINIO_ACCESS_KEY", "scientia-user"),
+  secret_access_key: System.get_env("MINIO_SECRET_KEY", "scientia-pass"),
   region: "us-east-1",
   s3: [
     scheme: "http://",
@@ -96,5 +96,4 @@ config :ex_aws,
     path_style: true
   ]
 
-config :scientia_cognita, :storage,
-  bucket: System.get_env("STORAGE_BUCKET", "scientia-cognita")
+config :scientia_cognita, :storage, bucket: System.get_env("STORAGE_BUCKET", "images")

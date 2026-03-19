@@ -1,0 +1,32 @@
+services:
+  minio:
+    image: "quay.io/minio/minio:latest"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: scientia-user
+      MINIO_ROOT_PASSWORD: scientia-pass
+    volumes:
+      - ./test/minio:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 300ms
+      timeout: 5s
+      retries: 5
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint: >
+      sh -c "
+      mc mb scientia/images;
+      mc anonymous set public scientia/images;
+      "
+    environment:
+      MC_HOST_scientia: http://scientia-user:scientia-pass@minio:9000

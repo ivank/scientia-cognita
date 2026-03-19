@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="ScientiaCognita" suffix=" · Phoenix Framework">
+    <.live_title default="Scientia Cognita" suffix=" · Scientia Cognita">
       {assigns[:page_title]}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
@@ -25,32 +25,55 @@
           setTheme(localStorage.getItem("phx:theme") || "system");
         }
         window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
       })();
     </script>
   </head>
-  <body>
-    <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
-      <%= if @current_scope do %>
-        <li>
-          {@current_scope.user.email}
-        </li>
-        <li>
-          <.link href={~p"/users/settings"}>Settings</.link>
-        </li>
-        <li>
-          <.link href={~p"/users/log-out"} method="delete">Log out</.link>
-        </li>
-      <% else %>
-        <li>
-          <.link href={~p"/users/register"}>Register</.link>
-        </li>
-        <li>
-          <.link href={~p"/users/log-in"}>Log in</.link>
-        </li>
-      <% end %>
-    </ul>
-    {@inner_content}
+  <body class="min-h-screen flex flex-col">
+    <nav class="navbar bg-base-200 border-b border-base-300 px-4 sm:px-6">
+      <div class="flex-1 flex items-center gap-3">
+        <a href="/" class="flex items-center gap-2 font-bold text-lg">
+          <img src="/apple-touch-icon.png" class="size-8 rounded" />
+          Scientia Cognita
+        </a>
+      </div>
+      <div class="flex-none flex items-center gap-2">
+        <button
+          class="btn btn-ghost btn-sm btn-circle"
+          onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); localStorage.setItem('phx:theme', document.documentElement.getAttribute('data-theme'))"
+        >
+          <.icon name="hero-sun" class="size-4" />
+        </button>
+        <%= if @current_scope do %>
+          <div class="dropdown dropdown-end">
+            <label tabindex="0" class="btn btn-ghost btn-sm gap-1">
+              <span class="text-sm max-w-32 truncate">{@current_scope.user.email}</span>
+              <.icon name="hero-chevron-down" class="size-3" />
+            </label>
+            <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box shadow-lg w-48 p-2 z-50">
+              <li><.link href={~p"/users/settings"}>Settings</.link></li>
+              <%= if @current_scope.user.role in ~w(admin owner) do %>
+                <li><.link navigate={~p"/console"}>Console</.link></li>
+              <% end %>
+              <li class="border-t border-base-300 mt-1 pt-1">
+                <.link href={~p"/users/log-out"} method="delete" class="text-error">
+                  Log out
+                </.link>
+              </li>
+            </ul>
+          </div>
+        <% else %>
+          <.link href={~p"/users/log-in"} class="btn btn-ghost btn-sm">Log in</.link>
+          <.link href={~p"/users/register"} class="btn btn-primary btn-sm">Register</.link>
+        <% end %>
+      </div>
+    </nav>
+    <main class="flex-1">
+      <.flash_group flash={@flash} />
+      {@inner_content}
+    </main>
+    <footer class="footer footer-center p-4 bg-base-200 text-base-content/40 text-xs border-t border-base-300">
+      <p>Scientia Cognita — curated image catalogs</p>
+    </footer>
   </body>
 </html>

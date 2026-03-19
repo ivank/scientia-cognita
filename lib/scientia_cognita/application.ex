@@ -22,7 +22,15 @@ defmodule ScientiaCognita.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: ScientiaCognita.Supervisor]
-    Supervisor.start_link(children, opts)
+    result = Supervisor.start_link(children, opts)
+
+    # Ensure the storage bucket exists after the supervisor starts.
+    # Runs in a Task so a connection failure (e.g. MinIO not up yet) doesn't
+    # crash the supervisor or block boot in test/CI environments.
+    ScientiaCognita.ObanTelemetry.attach()
+    Task.start(fn -> ScientiaCognita.Storage.ensure_bucket_exists() end)
+
+    result
   end
 
   # Tell Phoenix to update the endpoint configuration

@@ -20,12 +20,18 @@ if System.get_env("PHX_SERVER") do
   config :scientia_cognita, ScientiaCognitaWeb.Endpoint, server: true
 end
 
-# T06 — Gemini API key
-if gemini_key = System.get_env("GEMINI_API_KEY") do
+# Gemini API key — required for crawling (item extraction) and image processing (color analysis).
+# Get a key at https://aistudio.google.com/app/apikey
+# Env var: GEMINI_API_KEY
+if gemini_key = System.get_env("GEMINI_API_KEY", "REDACTED") do
   config :scientia_cognita, :gemini, api_key: gemini_key
 end
 
-# T09 — Google OAuth credentials (for Google Photos)
+# Google OAuth credentials — required for the "Save to Google Photos" feature.
+# Create a project at https://console.cloud.google.com, enable the Photos Library API,
+# and create OAuth 2.0 credentials with the callback URI:
+#   http(s)://<host>/auth/google/callback
+# Env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
   config :ueberauth, Ueberauth.Strategy.Google.OAuth,
     client_id: google_client_id,
@@ -33,6 +39,20 @@ if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
 end
 
 if config_env() == :prod do
+  # Required environment variables summary (production):
+  #
+  #   DATABASE_PATH       — absolute path to the SQLite database file
+  #   SECRET_KEY_BASE     — 64-byte secret (run: mix phx.gen.secret)
+  #   PHX_HOST            — public hostname, e.g. scientia.example.com
+  #   PORT                — HTTP port (default 4000)
+  #   AWS_ACCESS_KEY_ID   — S3 / MinIO access key
+  #   AWS_SECRET_ACCESS_KEY — S3 / MinIO secret
+  #   AWS_S3_BUCKET       — bucket name (default "images")
+  #   GEMINI_API_KEY      — Google AI Studio key
+  #   GOOGLE_CLIENT_ID    — OAuth client ID (Photos Library API)
+  #   GOOGLE_CLIENT_SECRET — OAuth client secret
+  #   OWNER_EMAIL         — email address for the first owner account (seeds.exs)
+
   database_path =
     System.get_env("DATABASE_PATH") ||
       raise """
@@ -58,6 +78,14 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
+
+  # S3-compatible object storage (AWS S3 or MinIO in prod)
+  config :ex_aws,
+    access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
+    secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY")
+
+  config :scientia_cognita, :storage,
+    bucket: System.get_env("AWS_S3_BUCKET") || "images"
 
   config :scientia_cognita, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 

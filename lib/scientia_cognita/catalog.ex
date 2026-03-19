@@ -15,6 +15,18 @@ defmodule ScientiaCognita.Catalog do
     Repo.all(from s in Source, order_by: [desc: s.inserted_at])
   end
 
+  def list_sources_with_ready_items do
+    Repo.all(
+      from s in Source,
+        where:
+          fragment(
+            "EXISTS (SELECT 1 FROM items i WHERE i.source_id = ? AND i.status = 'ready')",
+            s.id
+          ),
+        order_by: [asc: s.name]
+    )
+  end
+
   def get_source!(id), do: Repo.get!(Source, id)
 
   def create_source(attrs) do
@@ -43,7 +55,57 @@ defmodule ScientiaCognita.Catalog do
 
   def delete_source(%Source{} = source), do: Repo.delete(source)
 
+  @doc """
+  Deletes a source and all associated items, including their stored files in MinIO.
+  DB cascade handles items → catalog_items automatically.
+  """
+  def delete_source_with_storage(%Source{} = source) do
+    items = list_items_by_source(source)
+
+    Enum.each(items, fn item ->
+      if item.storage_key, do: ScientiaCognita.Storage.delete(item.storage_key)
+      if item.processed_key, do: ScientiaCognita.Storage.delete(item.processed_key)
+    end)
+
+    Repo.delete(source)
+  end
+
   def change_source(%Source{} = source, attrs \\ %{}), do: Source.changeset(source, attrs)
+
+  @doc """
+  Returns item IDs for `source` that are stuck in an in-progress status
+  ("downloading" or "processing") but have no active Oban job — meaning
+  their worker was discarded or cancelled before the telemetry handler could
+  mark them as failed.
+  """
+  def list_stuck_item_ids(%Source{id: source_id}) do
+    in_progress_ids =
+      Repo.all(
+        from i in Item,
+          where: i.source_id == ^source_id and i.status in ["downloading", "processing"],
+          select: i.id
+      )
+
+    if in_progress_ids == [] do
+      []
+    else
+      active_item_ids =
+        Repo.all(
+          from j in "oban_jobs",
+            where:
+              j.worker in [
+                "ScientiaCognita.Workers.DownloadImageWorker",
+                "ScientiaCognita.Workers.ProcessImageWorker"
+              ] and
+                j.state in ["available", "scheduled", "executing", "retryable"] and
+                fragment("CAST(json_extract(args, '$.item_id') AS INTEGER)") in ^in_progress_ids,
+            select: fragment("CAST(json_extract(args, '$.item_id') AS INTEGER)")
+        )
+        |> MapSet.new()
+
+      Enum.reject(in_progress_ids, &MapSet.member?(active_item_ids, &1))
+    end
+  end
 
   # ---------------------------------------------------------------------------
   # Items
@@ -55,6 +117,33 @@ defmodule ScientiaCognita.Catalog do
 
   def list_items_by_source(source_id) when is_integer(source_id) do
     Repo.all(from i in Item, where: i.source_id == ^source_id, order_by: [asc: i.inserted_at])
+  end
+
+  @doc """
+  Returns ready items for `source_id` together with a MapSet of item IDs
+  already present in `catalog_id`, for use in the item-picker UI.
+  """
+  def list_ready_items_for_picker(source_id, catalog_id) do
+    items =
+      Repo.all(
+        from i in Item,
+          where: i.source_id == ^source_id and i.status == "ready",
+          order_by: [asc: i.inserted_at]
+      )
+
+    in_catalog =
+      Repo.all(
+        from ci in CatalogItem,
+          where: ci.catalog_id == ^catalog_id,
+          select: ci.item_id
+      )
+      |> MapSet.new()
+
+    {items, in_catalog}
+  end
+
+  def count_catalog_items(%Catalog{id: catalog_id}) do
+    Repo.aggregate(from(ci in CatalogItem, where: ci.catalog_id == ^catalog_id), :count)
   end
 
   def get_item!(id), do: Repo.get!(Item, id)
@@ -130,6 +219,24 @@ defmodule ScientiaCognita.Catalog do
         order_by: [asc: ci.position, asc: ci.inserted_at],
         preload: [:source]
     )
+  end
+
+  @doc """
+  Returns the processed image URL for the first item in the catalog, or nil.
+  Used as the catalog cover image on public listing pages.
+  """
+  def get_catalog_cover_url(%Catalog{id: catalog_id}) do
+    item =
+      Repo.one(
+        from i in Item,
+          join: ci in CatalogItem,
+          on: ci.item_id == i.id,
+          where: ci.catalog_id == ^catalog_id and not is_nil(i.processed_key),
+          order_by: [asc: ci.position, asc: ci.inserted_at],
+          limit: 1
+      )
+
+    if item, do: ScientiaCognita.Storage.get_url(item.processed_key), else: nil
   end
 
   def add_items_to_catalog(%Catalog{id: catalog_id}, item_ids) when is_list(item_ids) do
