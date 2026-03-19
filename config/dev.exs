@@ -83,3 +83,18 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# T05 — MinIO (local S3-compatible storage, run via: minio server ~/minio-data)
+config :ex_aws,
+  access_key_id: System.get_env("MINIO_ACCESS_KEY", "minioadmin"),
+  secret_access_key: System.get_env("MINIO_SECRET_KEY", "minioadmin"),
+  region: "us-east-1",
+  s3: [
+    scheme: "http://",
+    host: System.get_env("MINIO_HOST", "localhost"),
+    port: String.to_integer(System.get_env("MINIO_PORT", "9000")),
+    path_style: true
+  ]
+
+config :scientia_cognita, :storage,
+  bucket: System.get_env("STORAGE_BUCKET", "scientia-cognita")

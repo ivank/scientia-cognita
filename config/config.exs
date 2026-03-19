@@ -7,6 +7,19 @@
 # General application configuration
 import Config
 
+config :scientia_cognita, :scopes,
+  user: [
+    default: true,
+    module: ScientiaCognita.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: ScientiaCognita.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :scientia_cognita,
   ecto_repos: [ScientiaCognita.Repo],
   generators: [timestamp_type: :utc_datetime]
@@ -59,6 +72,42 @@ config :logger, :default_formatter,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+
+# T04 — Oban background jobs (Lite engine for SQLite)
+config :scientia_cognita, Oban,
+  engine: Oban.Engines.Lite,
+  repo: ScientiaCognita.Repo,
+  queues: [
+    default: 10,
+    fetch: 5,
+    process: 3,
+    export: 5
+  ]
+
+# T05 — ExAws S3 (overridden per-env for MinIO in dev)
+config :ex_aws,
+  json_codec: Jason
+
+# T06 — Gemini API (key set via GEMINI_API_KEY env var in runtime.exs)
+config :scientia_cognita, :gemini,
+  model: "gemini-2.0-flash-lite"
+
+# T09 — Ueberauth Google OAuth (for Google Photos)
+config :ueberauth, Ueberauth,
+  providers: [
+    google: {
+      Ueberauth.Strategy.Google,
+      [
+        default_scope:
+          "email profile https://www.googleapis.com/auth/photoslibrary",
+        access_type: "offline",
+        prompt: "consent"
+      ]
+    }
+  ]
+
+# T09 — Suppress Tesla deprecated builder warning (used by ueberauth_google)
+config :tesla, disable_deprecated_builder_warning: true
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

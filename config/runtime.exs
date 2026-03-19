@@ -20,6 +20,18 @@ if System.get_env("PHX_SERVER") do
   config :scientia_cognita, ScientiaCognitaWeb.Endpoint, server: true
 end
 
+# T06 — Gemini API key
+if gemini_key = System.get_env("GEMINI_API_KEY") do
+  config :scientia_cognita, :gemini, api_key: gemini_key
+end
+
+# T09 — Google OAuth credentials (for Google Photos)
+if google_client_id = System.get_env("GOOGLE_CLIENT_ID") do
+  config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+    client_id: google_client_id,
+    client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+end
+
 if config_env() == :prod do
   database_path =
     System.get_env("DATABASE_PATH") ||

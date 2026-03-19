@@ -65,7 +65,31 @@ defmodule ScientiaCognita.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+
+      # T01 — Auth: password hashing
+      {:bcrypt_elixir, "~> 3.0"},
+
+      # T04 — Background jobs (Lite engine for SQLite)
+      {:oban, "~> 2.20"},
+
+      # T05 — S3-compatible storage (MinIO)
+      {:ex_aws, "~> 2.5"},
+      {:ex_aws_s3, "~> 2.5"},
+      {:sweet_xml, "~> 0.7"},
+      {:hackney, "~> 1.9"},
+
+      # T06 — Gemini AI (using req directly — gemini_ex has telemetry version conflict)
+
+      # T07 — HTML parsing/stripping
+      {:floki, "~> 0.37"},
+
+      # T08 — Image processing (requires libvips: brew install vips)
+      {:image, "~> 0.63"},
+
+      # T09 — Google OAuth (for Google Photos)
+      {:ueberauth, "~> 0.10"},
+      {:ueberauth_google, "~> 0.12"}
     ]
   end
 

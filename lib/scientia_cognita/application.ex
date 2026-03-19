@@ -14,8 +14,7 @@ defmodule ScientiaCognita.Application do
        repos: Application.fetch_env!(:scientia_cognita, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:scientia_cognita, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: ScientiaCognita.PubSub},
-      # Start a worker by calling: ScientiaCognita.Worker.start_link(arg)
-      # {ScientiaCognita.Worker, arg},
+      {Oban, Application.fetch_env!(:scientia_cognita, Oban)},
       # Start to serve requests, typically the last entry
       ScientiaCognitaWeb.Endpoint
     ]
