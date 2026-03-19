@@ -42,3 +42,4 @@ npm-debug.log
 # MinIO local data volume
 /test/minio/
 
+.worktrees/
