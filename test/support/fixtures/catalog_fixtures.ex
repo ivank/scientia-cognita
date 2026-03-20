@@ -57,6 +57,11 @@ defmodule ScientiaCognita.CatalogFixtures do
 
   def item_fixture(source, attrs \\ %{}) do
     {status, attrs} = Map.pop(attrs, :status, "pending")
+    {storage_key, attrs} = Map.pop(attrs, :storage_key)
+    {processed_key, attrs} = Map.pop(attrs, :processed_key)
+    {text_color, attrs} = Map.pop(attrs, :text_color)
+    {bg_color, attrs} = Map.pop(attrs, :bg_color)
+    {bg_opacity, attrs} = Map.pop(attrs, :bg_opacity)
 
     {:ok, item} =
       attrs
@@ -66,6 +71,30 @@ defmodule ScientiaCognita.CatalogFixtures do
         source_id: source.id
       })
       |> Catalog.create_item()
+
+    item =
+      if storage_key || processed_key do
+        storage_attrs =
+          %{}
+          |> then(fn a -> if storage_key, do: Map.put(a, :storage_key, storage_key), else: a end)
+          |> then(fn a -> if processed_key, do: Map.put(a, :processed_key, processed_key), else: a end)
+        {:ok, item} = ScientiaCognita.Catalog.update_item_storage(item, storage_attrs)
+        item
+      else
+        item
+      end
+
+    item =
+      if text_color && bg_color && bg_opacity do
+        {:ok, item} = ScientiaCognita.Catalog.update_item_colors(item, %{
+          text_color: text_color,
+          bg_color: bg_color,
+          bg_opacity: bg_opacity
+        })
+        item
+      else
+        item
+      end
 
     if status != "pending" do
       {:ok, item} = ScientiaCognita.Catalog.update_item_status(item, status)
