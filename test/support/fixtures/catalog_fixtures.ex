@@ -2,6 +2,9 @@ defmodule ScientiaCognita.CatalogFixtures do
   alias ScientiaCognita.Catalog
 
   def source_fixture(attrs \\ %{}) do
+    {raw_html, attrs} = Map.pop(attrs, :raw_html)
+    {status, attrs} = Map.pop(attrs, :status, "pending")
+
     {:ok, source} =
       attrs
       |> Enum.into(%{
@@ -11,7 +14,20 @@ defmodule ScientiaCognita.CatalogFixtures do
       })
       |> Catalog.create_source()
 
-    source
+    source =
+      if raw_html do
+        {:ok, source} = Catalog.update_source_html(source, %{raw_html: raw_html})
+        source
+      else
+        source
+      end
+
+    if status != "pending" do
+      {:ok, source} = Catalog.update_source_status(source, status)
+      source
+    else
+      source
+    end
   end
 
   def analyzed_source_fixture(attrs \\ %{}) do
