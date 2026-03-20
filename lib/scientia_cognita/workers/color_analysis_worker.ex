@@ -1,9 +1,95 @@
 defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
+  @moduledoc """
+  Downloads the processed image, generates a thumbnail, asks Gemini for optimal
+  text overlay colors, stores them on the item, and enqueues RenderWorker.
+
+  Args: %{item_id: integer}
+  """
+
   use Oban.Worker, queue: :process, max_attempts: 3
 
+  require Logger
+
+  alias ScientiaCognita.{Catalog, ItemFSM, Storage}
+  alias ScientiaCognita.Workers.RenderWorker
+
+  @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
+  @gemini Application.compile_env(:scientia_cognita, :gemini_module, ScientiaCognita.Gemini)
+
+  @default_colors %{"text_color" => "#FFFFFF", "bg_color" => "#000000", "bg_opacity" => 0.75}
+
+  @color_schema %{
+    type: "OBJECT",
+    properties: %{
+      text_color: %{type: "STRING", enum: ["#FFFFFF", "#1A1A1A"]},
+      bg_color: %{type: "STRING"},
+      bg_opacity: %{type: "NUMBER"}
+    },
+    required: ["text_color", "bg_color", "bg_opacity"]
+  }
+
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"item_id" => _item_id}}) do
-    # TODO: implemented in Task 14
-    :ok
+  def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
+    item = Catalog.get_item!(item_id)
+    Logger.info("[ColorAnalysisWorker] item=#{item_id}")
+
+    with {:ok, binary} <- download_processed(item.processed_key),
+         {:ok, img} <- Image.from_binary(binary),
+         {:ok, thumb_binary} <- make_thumbnail(img),
+         colors = get_colors(thumb_binary),
+         {:ok, item} <- Catalog.update_item_colors(item, colors),
+         {:ok, "render"} <- ItemFSM.transition(item, :colors_ready),
+         {:ok, item} <- Catalog.update_item_status(item, "render") do
+      broadcast(item.source_id, {:item_updated, item})
+      %{item_id: item_id} |> RenderWorker.new() |> Oban.insert()
+      :ok
+    else
+      {:error, :invalid_transition} ->
+        Logger.warning("[ColorAnalysisWorker] invalid transition for item=#{item_id}")
+        :ok
+
+      {:error, reason} ->
+        Logger.error("[ColorAnalysisWorker] failed item=#{item_id}: #{inspect(reason)}")
+        item = Catalog.get_item!(item_id)
+        {:ok, _} = Catalog.update_item_status(item, "failed", error: inspect(reason))
+        broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
+        :ok
+    end
+  end
+
+  defp download_processed(nil), do: {:error, "item has no processed_key"}
+
+  defp download_processed(key) do
+    case @http.get(Storage.get_url(key), receive_timeout: 30_000) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status}} -> {:error, "storage HTTP #{status}"}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp make_thumbnail(img) do
+    with {:ok, thumb} <- Image.thumbnail(img, 200, height: 200, crop: :center) do
+      Image.write(thumb, :memory, suffix: ".jpg", quality: 70)
+    end
+  end
+
+  defp get_colors(thumb_binary) do
+    prompt = """
+    Analyze this image and choose colors for a semi-transparent text overlay banner
+    placed at the bottom of a 1920×1080 photo.
+
+    - text_color: "#FFFFFF" for dark images, "#1A1A1A" for light images
+    - bg_color: a hex color that contrasts well with the image content
+    - bg_opacity: a float between 0.60 and 0.85
+    """
+
+    case @gemini.generate_structured_with_image(prompt, thumb_binary, @color_schema, []) do
+      {:ok, %{"text_color" => _, "bg_color" => _, "bg_opacity" => _} = colors} -> colors
+      _ -> @default_colors
+    end
+  end
+
+  defp broadcast(source_id, event) do
+    Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, "source:#{source_id}", event)
   end
 end
