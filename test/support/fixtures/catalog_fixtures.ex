@@ -37,31 +37,6 @@ defmodule ScientiaCognita.CatalogFixtures do
     source
   end
 
-  def analyzed_source_fixture(attrs \\ %{}) do
-    selector_keys = ~w(selector_title selector_image selector_description selector_copyright selector_next_page)a
-    {selector_attrs, source_attrs} = Map.split(attrs, selector_keys)
-
-    source = source_fixture(source_attrs)
-
-    analysis_attrs =
-      %{
-        gallery_title: "Test Gallery",
-        gallery_description: "A test gallery",
-        selector_title: ".item-title",
-        selector_image: ".item-image img",
-        selector_description: ".item-desc",
-        selector_copyright: ".item-copy",
-        selector_next_page: "a.next"
-      }
-      |> Map.merge(selector_attrs)
-
-    {:ok, source} = ScientiaCognita.Catalog.update_source_analysis(source, analysis_attrs)
-
-    # FSM transitions require "extracting" status for extract workers
-    {:ok, source} = ScientiaCognita.Catalog.update_source_status(source, "extracting")
-    source
-  end
-
   def item_fixture(source, attrs \\ %{}) do
     {status, attrs} = Map.pop(attrs, :status, "pending")
     {storage_key, attrs} = Map.pop(attrs, :storage_key)

@@ -4,7 +4,7 @@ defmodule ScientiaCognita.HTMLStripper do
   passing to an LLM (Gemini) for structured data extraction.
 
   Removes: scripts, styles, nav, header, footer, ads, all non-essential attributes.
-  Keeps: content tags with href/src/alt only.
+  Keeps: class/id on all elements; href on <a>; src/srcset/alt on <img>/<figure>.
   """
 
   @remove_selectors ~w(
@@ -16,16 +16,19 @@ defmodule ScientiaCognita.HTMLStripper do
     [aria-hidden=true]
   )
 
+  # Attributes kept per tag. The special key "*" applies to all tags.
   @keep_attrs %{
-    "a" => ["href"],
-    "img" => ["src", "alt"]
+    "*" => ["class", "id"],
+    "a" => ["href", "class", "id"],
+    "figure" => ["src", "alt", "srcset", "class", "id"],
+    "img" => ["src", "alt", "srcset", "class", "id"]
   }
 
   @doc """
   Parses `html`, removes noise elements and non-content attributes,
   and returns a clean HTML string trimmed to at most `max_bytes` bytes.
   """
-  def strip(html, max_bytes \\ 80_000) do
+  def strip(html, max_bytes \\ 300_000) do
     case Floki.parse_document(html) do
       {:ok, tree} ->
         cleaned =
@@ -35,7 +38,6 @@ defmodule ScientiaCognita.HTMLStripper do
           |> clean_attributes()
           |> Floki.raw_html()
 
-        # Truncate to avoid overflowing Gemini's context window
         binary_part(cleaned, 0, min(byte_size(cleaned), max_bytes))
 
       {:error, _} ->
@@ -44,14 +46,12 @@ defmodule ScientiaCognita.HTMLStripper do
   end
 
   defp clean_attributes(tree) do
+    global = Map.get(@keep_attrs, "*", [])
+
     Floki.traverse_and_update(tree, fn
       {tag, attrs, children} ->
-        kept =
-          case Map.get(@keep_attrs, tag) do
-            nil -> []
-            allowed -> Enum.filter(attrs, fn {name, _} -> name in allowed end)
-          end
-
+        allowed = global ++ Map.get(@keep_attrs, tag, [])
+        kept = Enum.filter(attrs, fn {name, _} -> name in allowed end)
         {tag, kept, children}
 
       other ->

@@ -156,7 +156,6 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
 
   defp status_class("pending"), do: "badge-ghost"
   defp status_class("fetching"), do: "badge-warning animate-pulse"
-  defp status_class("analyzing"), do: "badge-warning animate-pulse"
   defp status_class("extracting"), do: "badge-warning animate-pulse"
   defp status_class("done"), do: "badge-success"
   defp status_class("failed"), do: "badge-error"
