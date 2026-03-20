@@ -53,6 +53,18 @@ defmodule ScientiaCognita.Catalog do
     |> Repo.update()
   end
 
+  def update_source_html(%Source{} = source, attrs) do
+    source
+    |> Source.html_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def update_source_analysis(%Source{} = source, attrs) do
+    source
+    |> Source.analyze_changeset(attrs)
+    |> Repo.update()
+  end
+
   def delete_source(%Source{} = source), do: Repo.delete(source)
 
   @doc """
@@ -74,15 +86,17 @@ defmodule ScientiaCognita.Catalog do
 
   @doc """
   Returns item IDs for `source` that are stuck in an in-progress status
-  ("downloading" or "processing") but have no active Oban job — meaning
-  their worker was discarded or cancelled before the telemetry handler could
-  mark them as failed.
+  ("downloading", "processing", "color_analysis", or "render") but have no
+  active Oban job — meaning their worker was discarded or cancelled before
+  the telemetry handler could mark them as failed.
   """
   def list_stuck_item_ids(%Source{id: source_id}) do
     in_progress_ids =
       Repo.all(
         from i in Item,
-          where: i.source_id == ^source_id and i.status in ["downloading", "processing"],
+          where:
+            i.source_id == ^source_id and
+              i.status in ["downloading", "processing", "color_analysis", "render"],
           select: i.id
       )
 
@@ -95,7 +109,9 @@ defmodule ScientiaCognita.Catalog do
             where:
               j.worker in [
                 "ScientiaCognita.Workers.DownloadImageWorker",
-                "ScientiaCognita.Workers.ProcessImageWorker"
+                "ScientiaCognita.Workers.ProcessImageWorker",
+                "ScientiaCognita.Workers.ColorAnalysisWorker",
+                "ScientiaCognita.Workers.RenderWorker"
               ] and
                 j.state in ["available", "scheduled", "executing", "retryable"] and
                 fragment("CAST(json_extract(args, '$.item_id') AS INTEGER)") in ^in_progress_ids,
@@ -163,6 +179,12 @@ defmodule ScientiaCognita.Catalog do
   def update_item_storage(%Item{} = item, attrs) do
     item
     |> Item.storage_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def update_item_colors(%Item{} = item, attrs) do
+    item
+    |> Item.color_changeset(attrs)
     |> Repo.update()
   end
 
