@@ -1,4 +1,6 @@
 defmodule ScientiaCognita.GeminiBehaviour do
+  @moduledoc "Callback spec for Gemini AI client, used for dependency injection in workers."
+
   @callback generate_structured(prompt :: String.t(), schema :: map(), opts :: keyword()) ::
               {:ok, map()} | {:error, term()}
 
