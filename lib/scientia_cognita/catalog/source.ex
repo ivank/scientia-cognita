@@ -2,7 +2,7 @@ defmodule ScientiaCognita.Catalog.Source do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @statuses ~w(pending fetching analyzing extracting done failed)
+  @statuses ~w(pending fetching extracting done failed)
 
   schema "sources" do
     field :url, :string
@@ -13,17 +13,12 @@ defmodule ScientiaCognita.Catalog.Source do
     field :total_items, :integer, default: 0
     field :error, :string
 
-    # FSM fields — set during fetching
+    # Set during fetching
     field :raw_html, :string
 
-    # FSM fields — set during analyzing
+    # Set during extracting (from Gemini)
     field :gallery_title, :string
     field :gallery_description, :string
-    field :selector_title, :string
-    field :selector_image, :string
-    field :selector_description, :string
-    field :selector_copyright, :string
-    field :selector_next_page, :string
 
     has_many :items, ScientiaCognita.Catalog.Item
 
@@ -61,17 +56,9 @@ defmodule ScientiaCognita.Catalog.Source do
     |> cast(attrs, [:raw_html])
   end
 
-  @doc "Stores the Gemini-extracted gallery metadata and CSS selectors."
+  @doc "Stores the Gemini-extracted gallery metadata."
   def analyze_changeset(source, attrs) do
     source
-    |> cast(attrs, [
-      :gallery_title,
-      :gallery_description,
-      :selector_title,
-      :selector_image,
-      :selector_description,
-      :selector_copyright,
-      :selector_next_page
-    ])
+    |> cast(attrs, [:gallery_title, :gallery_description])
   end
 end
