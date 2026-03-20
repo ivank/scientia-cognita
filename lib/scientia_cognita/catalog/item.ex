@@ -2,7 +2,7 @@ defmodule ScientiaCognita.Catalog.Item do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @statuses ~w(pending downloading processing ready failed)
+  @statuses ~w(pending downloading processing color_analysis render ready failed)
 
   schema "items" do
     field :title, :string
@@ -15,8 +15,14 @@ defmodule ScientiaCognita.Catalog.Item do
     field :status, :string, default: "pending"
     field :error, :string
 
+    # FSM fields — set during color_analysis
+    field :text_color, :string
+    field :bg_color, :string
+    field :bg_opacity, :float
+
     belongs_to :source, ScientiaCognita.Catalog.Source
-    many_to_many :catalogs, ScientiaCognita.Catalog.Catalog, join_through: ScientiaCognita.Catalog.CatalogItem
+    many_to_many :catalogs, ScientiaCognita.Catalog.Catalog,
+      join_through: ScientiaCognita.Catalog.CatalogItem
 
     timestamps(type: :utc_datetime)
   end
@@ -43,5 +49,11 @@ defmodule ScientiaCognita.Catalog.Item do
   def storage_changeset(item, attrs) do
     item
     |> cast(attrs, [:storage_key, :processed_key])
+  end
+
+  @doc "Stores Gemini-determined text overlay colors."
+  def color_changeset(item, attrs) do
+    item
+    |> cast(attrs, [:text_color, :bg_color, :bg_opacity])
   end
 end
