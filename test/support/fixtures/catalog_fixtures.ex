@@ -15,36 +15,38 @@ defmodule ScientiaCognita.CatalogFixtures do
   end
 
   def analyzed_source_fixture(attrs \\ %{}) do
-    source = source_fixture(Map.merge(%{status: "extracting"}, Map.drop(attrs, [:selector_title, :selector_image, :selector_description, :selector_copyright, :selector_next_page, :gallery_title, :gallery_description])))
-
-    analysis_attrs = attrs
-      |> Map.take([:selector_title, :selector_image, :selector_description, :selector_copyright, :selector_next_page, :gallery_title, :gallery_description])
-      |> Enum.into(%{
+    source = source_fixture(attrs)
+    {:ok, source} =
+      ScientiaCognita.Catalog.update_source_analysis(source, %{
         gallery_title: "Test Gallery",
         gallery_description: "A test gallery",
         selector_title: ".item-title",
-        selector_image: ".item img",
+        selector_image: ".item-image img",
         selector_description: ".item-desc",
         selector_copyright: ".item-copy",
-        selector_next_page: "a.next-page"
+        selector_next_page: "a.next"
       })
-
-    {:ok, source} = Catalog.update_source_analysis(source, analysis_attrs)
     source
   end
 
   def item_fixture(source, attrs \\ %{}) do
+    {status, attrs} = Map.pop(attrs, :status, "pending")
+
     {:ok, item} =
       attrs
       |> Enum.into(%{
         title: "Test Image",
         original_url: "https://example.com/image-#{System.unique_integer([:positive])}.jpg",
-        source_id: source.id,
-        status: "pending"
+        source_id: source.id
       })
       |> Catalog.create_item()
 
-    item
+    if status != "pending" do
+      {:ok, item} = ScientiaCognita.Catalog.update_item_status(item, status)
+      item
+    else
+      item
+    end
   end
 
   defp unique_url do

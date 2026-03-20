@@ -55,5 +55,6 @@ defmodule ScientiaCognita.Catalog.Item do
   def color_changeset(item, attrs) do
     item
     |> cast(attrs, [:text_color, :bg_color, :bg_opacity])
+    |> validate_required([:text_color, :bg_color, :bg_opacity])
   end
 end
