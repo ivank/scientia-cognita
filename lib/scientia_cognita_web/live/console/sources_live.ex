@@ -5,7 +5,7 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
 
   alias ScientiaCognita.Catalog
   alias ScientiaCognita.Catalog.Source
-  alias ScientiaCognita.Workers.CrawlPageWorker
+  alias ScientiaCognita.Workers.FetchPageWorker
 
   @impl true
   def render(assigns) do
@@ -128,8 +128,8 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
   def handle_event("create_source", %{"source" => params}, socket) do
     case Catalog.create_source(params) do
       {:ok, source} ->
-        %{source_id: source.id, url: source.url}
-        |> CrawlPageWorker.new()
+        %{source_id: source.id}
+        |> FetchPageWorker.new()
         |> Oban.insert()
 
         {:noreply,
@@ -150,15 +150,14 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
 
   defp status_badge(assigns) do
     ~H"""
-    <span class={"badge badge-sm #{status_class(@status)}"}>
-      <%= if @status == "running", do: render_slot(nil) %>
-      {@status}
-    </span>
+    <span class={"badge badge-sm #{status_class(@status)}"}>{@status}</span>
     """
   end
 
   defp status_class("pending"), do: "badge-ghost"
-  defp status_class("running"), do: "badge-warning animate-pulse"
+  defp status_class("fetching"), do: "badge-warning animate-pulse"
+  defp status_class("analyzing"), do: "badge-warning animate-pulse"
+  defp status_class("extracting"), do: "badge-warning animate-pulse"
   defp status_class("done"), do: "badge-success"
   defp status_class("failed"), do: "badge-error"
   defp status_class(_), do: "badge-ghost"
