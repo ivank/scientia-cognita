@@ -1,8 +1,9 @@
 defmodule ScientiaCognita.Workers.ExtractPageWorker do
   @moduledoc """
-  Fetches one page URL, extracts gallery items using stored CSS selectors (via Floki),
-  persists items, enqueues download workers, and either loops to the next page
-  or marks the source as done.
+  Fetches one page URL, strips HTML, calls Gemini to extract gallery items
+  directly (image_url, title, description, copyright), persists items,
+  enqueues download workers, and either loops to the next page or marks
+  the source as done.
 
   Args: %{source_id: integer, url: string}
   """
@@ -14,10 +15,35 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, SourceFSM}
+  alias ScientiaCognita.{Catalog, HTMLStripper, SourceFSM}
   alias ScientiaCognita.Workers.DownloadImageWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
+  @gemini Application.compile_env(:scientia_cognita, :gemini_module, ScientiaCognita.Gemini)
+
+  @extract_schema %{
+    type: "OBJECT",
+    properties: %{
+      is_gallery: %{type: "BOOLEAN"},
+      gallery_title: %{type: "STRING", nullable: true},
+      gallery_description: %{type: "STRING", nullable: true},
+      next_page_url: %{type: "STRING", nullable: true},
+      items: %{
+        type: "ARRAY",
+        items: %{
+          type: "OBJECT",
+          properties: %{
+            image_url: %{type: "STRING", nullable: true},
+            title: %{type: "STRING", nullable: true},
+            description: %{type: "STRING", nullable: true},
+            copyright: %{type: "STRING", nullable: true}
+          },
+          required: ["image_url"]
+        }
+      }
+    },
+    required: ["is_gallery", "items"]
+  }
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"source_id" => source_id, "url" => url}}) do
@@ -25,11 +51,15 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     Logger.info("[ExtractPageWorker] source=#{source_id} url=#{url}")
 
     with {:ok, html} <- fetch(url),
-         {:ok, tree} <- Floki.parse_document(html),
-         items = extract_items(tree, source),
-         next_url = extract_next_url(tree, source),
-         {:ok, db_items} <- create_items(items, source_id),
+         clean_html = HTMLStripper.strip(html),
+         {:ok, result} <- call_gemini(clean_html, url),
+         :ok <- check_is_gallery(result, source_id, source),
+         {:ok, source} <- store_gallery_info(result, source),
+         items = build_items(result["items"] || [], source_id),
+         {:ok, db_items} <- create_items(items),
          :ok <- enqueue_downloads(db_items) do
+
+      next_url = result["next_page_url"]
       progress = %{
         pages_fetched: source.pages_fetched + 1,
         total_items: source.total_items + length(db_items),
@@ -50,6 +80,19 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
 
       :ok
     else
+      {:not_gallery} ->
+        Logger.warning("[ExtractPageWorker] source=#{source_id} is not a scientific image gallery")
+        source = Catalog.get_source!(source_id)
+        {:ok, "failed"} = SourceFSM.transition(source, :not_gallery)
+        {:ok, failed} = Catalog.update_source_status(source, "failed",
+          error: "Page is not a scientific image gallery. Check the source URL and try again.")
+        broadcast(source_id, {:source_updated, failed})
+        :ok
+
+      {:error, :invalid_transition} ->
+        Logger.warning("[ExtractPageWorker] invalid transition for source=#{source_id}")
+        :ok
+
       {:error, reason} ->
         Logger.error("[ExtractPageWorker] failed source=#{source_id}: #{inspect(reason)}")
         source = Catalog.get_source!(source_id)
@@ -57,6 +100,38 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
         broadcast(source_id, {:source_updated, failed})
         :ok
     end
+  end
+
+  @doc "Returns the Gemini structured-output schema for item extraction."
+  def extract_schema, do: @extract_schema
+
+  @doc "Builds the Gemini prompt for extracting gallery items from a page."
+  def build_extract_prompt(clean_html, base_url) do
+    """
+    Analyze the following HTML page and extract scientific image gallery data.
+
+    Determine if this page is a scientific image gallery (astronomy, microscopy,
+    wildlife photography, geological surveys, medical imaging, museum collections,
+    or science journalism photo essays). Set is_gallery to false for news articles,
+    product pages, blog posts, or pages where images are incidental.
+
+    If is_gallery is true:
+    - Set gallery_title and gallery_description from the page content.
+    - Find ALL gallery items and for each extract:
+      * image_url (REQUIRED): The image URL. If a srcset attribute is present,
+        return the URL with the largest width descriptor (e.g. prefer "1600w" over "400w").
+        Otherwise use the src attribute. Always return absolute URLs.
+      * title: The image heading or title (null if absent).
+      * description: A description or caption, summarized to under 300 characters (null if absent).
+      * copyright: The copyright or credit line (null if absent).
+    - Set next_page_url to the absolute URL of the "next page" link if pagination
+      exists (null if this is a single page or the last page).
+
+    Base URL for resolving relative URLs: #{base_url}
+
+    HTML:
+    #{clean_html}
+    """
   end
 
   # ---------------------------------------------------------------------------
@@ -69,119 +144,39 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     end
   end
 
-  defp extract_items(tree, source) do
-    images = tree |> Floki.find(source.selector_image || "") |> Enum.map(&src_from_element/1)
-    titles = tree |> Floki.find(source.selector_title || "") |> Enum.map(&Floki.text/1)
-    descs  = list_or_empty(tree, source.selector_description)
-    copies = list_or_empty(tree, source.selector_copyright)
+  defp call_gemini(clean_html, base_url) do
+    @gemini.generate_structured(build_extract_prompt(clean_html, base_url), @extract_schema, [])
+  end
 
-    count = length(images)
+  defp check_is_gallery(%{"is_gallery" => false}, _source_id, _source), do: {:not_gallery}
+  defp check_is_gallery(%{"is_gallery" => true}, _source_id, _source), do: :ok
+  defp check_is_gallery(_, _source_id, _source), do: {:not_gallery}
 
-    0..(max(count - 1, -1))
-    |> Enum.map(fn i ->
+  defp store_gallery_info(result, source) do
+    Catalog.update_source_analysis(source, %{
+      gallery_title: result["gallery_title"],
+      gallery_description: result["gallery_description"]
+    })
+  end
+
+  defp build_items(raw_items, source_id) do
+    raw_items
+    |> Enum.map(fn item ->
       %{
-        title: Enum.at(titles, i, "Untitled"),
-        image_url: Enum.at(images, i),
-        description: Enum.at(descs, i),
-        copyright: Enum.at(copies, i)
+        title: item["title"] || "Untitled",
+        description: item["description"],
+        copyright: item["copyright"],
+        original_url: item["image_url"],
+        source_id: source_id,
+        status: "pending"
       }
     end)
-    |> Enum.reject(fn item -> is_nil(item.image_url) end)
+    |> Enum.reject(fn item -> is_nil(item.original_url) end)
   end
 
-  defp extract_next_url(_tree, %{selector_next_page: nil}), do: nil
-
-  defp extract_next_url(tree, source) do
-    case Floki.find(tree, source.selector_next_page) do
-      [el | _] -> el |> Floki.attribute("href") |> List.first()
-      [] -> nil
-    end
-  end
-
-  defp list_or_empty(_tree, nil), do: []
-
-  defp list_or_empty(tree, selector) do
-    tree |> Floki.find(selector) |> Enum.map(&Floki.text/1)
-  end
-
-  # If the selector matched a <figure>, find the <img> inside it.
-  defp src_from_element({"figure", _attrs, _children} = el) do
-    case Floki.find([el], "img") do
-      [img | _] -> src_from_element(img)
-      [] -> nil
-    end
-  end
-
-  # For <img> (or any other element): prefer srcset (largest), then src, then data-src.
-  defp src_from_element(el) do
-    srcset_url =
-      el
-      |> Floki.attribute("srcset")
-      |> List.first()
-      |> best_srcset_url()
-
-    if srcset_url do
-      srcset_url
-    else
-      case Floki.attribute(el, "src") do
-        [src | _] when src != "" -> src
-        _ ->
-          case Floki.attribute(el, "data-src") do
-            [src | _] -> src
-            _ -> nil
-          end
-      end
-    end
-  end
-
-  # Parse a srcset string and return the URL with the largest width descriptor.
-  # Falls back to the first URL if no width descriptors are present.
-  defp best_srcset_url(nil), do: nil
-  defp best_srcset_url(""), do: nil
-
-  defp best_srcset_url(srcset) do
-    entries =
-      srcset
-      |> String.split(",")
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
-      |> Enum.map(fn entry ->
-        case String.split(entry, ~r/\s+/) do
-          [url | [_ | _] = descriptors] ->
-            width =
-              descriptors
-              |> Enum.find_value(0, fn d ->
-                case Regex.run(~r/^(\d+)w$/i, d) do
-                  [_, n] -> String.to_integer(n)
-                  _ -> nil
-                end
-              end)
-
-            {url, width}
-
-          [url] ->
-            {url, 0}
-        end
-      end)
-
-    case entries do
-      [] -> nil
-      _ -> entries |> Enum.max_by(fn {_, w} -> w end) |> elem(0)
-    end
-  end
-
-  defp create_items(raw_items, source_id) do
+  defp create_items(items) do
     results =
-      Enum.map(raw_items, fn item ->
-        attrs = %{
-          title: item.title,
-          description: item.description,
-          copyright: item.copyright,
-          original_url: item.image_url,
-          source_id: source_id,
-          status: "pending"
-        }
-
+      Enum.map(items, fn attrs ->
         case Catalog.create_item(attrs) do
           {:ok, item} -> item
           {:error, cs} ->
