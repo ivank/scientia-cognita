@@ -30,6 +30,13 @@ defmodule ScientiaCognita.CatalogFixtures do
     end
   end
 
+  @doc "Creates a source in `extracting` status — ready for ExtractPageWorker."
+  def extracting_source_fixture(attrs \\ %{}) do
+    source = source_fixture(attrs)
+    {:ok, source} = Catalog.update_source_status(source, "extracting")
+    source
+  end
+
   def analyzed_source_fixture(attrs \\ %{}) do
     selector_keys = ~w(selector_title selector_image selector_description selector_copyright selector_next_page)a
     {selector_attrs, source_attrs} = Map.split(attrs, selector_keys)
