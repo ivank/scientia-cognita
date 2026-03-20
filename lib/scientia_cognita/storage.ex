@@ -83,7 +83,7 @@ defmodule ScientiaCognita.Storage do
       iex> Storage.item_key(42, :original, ".jpg")
       "items/42/original.jpg"
   """
-  def item_key(item_id, variant, ext) when variant in [:original, :processed] do
+  def item_key(item_id, variant, ext) when variant in [:original, :processed, :final] do
     "items/#{item_id}/#{variant}#{ext}"
   end
 end
