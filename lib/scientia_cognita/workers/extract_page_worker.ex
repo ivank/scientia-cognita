@@ -104,14 +104,69 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     tree |> Floki.find(selector) |> Enum.map(&Floki.text/1)
   end
 
+  # If the selector matched a <figure>, find the <img> inside it.
+  defp src_from_element({"figure", _attrs, _children} = el) do
+    case Floki.find([el], "img") do
+      [img | _] -> src_from_element(img)
+      [] -> nil
+    end
+  end
+
+  # For <img> (or any other element): prefer srcset (largest), then src, then data-src.
   defp src_from_element(el) do
-    case Floki.attribute(el, "src") do
-      [src | _] when src != "" -> src
-      _ ->
-        case Floki.attribute(el, "data-src") do
-          [src | _] -> src
-          _ -> nil
+    srcset_url =
+      el
+      |> Floki.attribute("srcset")
+      |> List.first()
+      |> best_srcset_url()
+
+    if srcset_url do
+      srcset_url
+    else
+      case Floki.attribute(el, "src") do
+        [src | _] when src != "" -> src
+        _ ->
+          case Floki.attribute(el, "data-src") do
+            [src | _] -> src
+            _ -> nil
+          end
+      end
+    end
+  end
+
+  # Parse a srcset string and return the URL with the largest width descriptor.
+  # Falls back to the first URL if no width descriptors are present.
+  defp best_srcset_url(nil), do: nil
+  defp best_srcset_url(""), do: nil
+
+  defp best_srcset_url(srcset) do
+    entries =
+      srcset
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.map(fn entry ->
+        case String.split(entry, ~r/\s+/) do
+          [url | [_ | _] = descriptors] ->
+            width =
+              descriptors
+              |> Enum.find_value(0, fn d ->
+                case Regex.run(~r/^(\d+)w$/i, d) do
+                  [_, n] -> String.to_integer(n)
+                  _ -> nil
+                end
+              end)
+
+            {url, width}
+
+          [url] ->
+            {url, 0}
         end
+      end)
+
+    case entries do
+      [] -> nil
+      _ -> entries |> Enum.max_by(fn {_, w} -> w end) |> elem(0)
     end
   end
 

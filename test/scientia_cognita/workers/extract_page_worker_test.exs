@@ -56,6 +56,102 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
     end
   end
 
+  describe "image URL extraction — srcset and figure" do
+    test "picks the largest width from srcset over src" do
+      html = """
+      <html><body>
+        <div class="gallery">
+          <div class="item">
+            <img srcset="https://example.com/small.jpg 400w, https://example.com/large.jpg 1600w, https://example.com/medium.jpg 800w"
+                 src="https://example.com/small.jpg"
+                 alt="Test">
+            <h3 class="item-title">Srcset Image</h3>
+          </div>
+        </div>
+      </body></html>
+      """
+
+      source = analyzed_source_fixture(%{
+        selector_image: ".item img",
+        selector_title: ".item-title",
+        selector_description: nil,
+        selector_copyright: nil,
+        selector_next_page: nil
+      })
+
+      expect(MockHttp, :get, fn _url, _opts ->
+        {:ok, %{status: 200, body: html, headers: %{}}}
+      end)
+
+      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+
+      [item] = Catalog.list_items_by_source(source)
+      assert item.original_url == "https://example.com/large.jpg"
+    end
+
+    test "extracts image URL from img inside a figure element" do
+      html = """
+      <html><body>
+        <div class="gallery">
+          <figure class="item">
+            <img srcset="https://nasa.gov/img.tif?w=400 400w, https://nasa.gov/img.tif?w=1600 1600w"
+                 src="https://nasa.gov/img.tif?w=400"
+                 alt="Saturn">
+            <h3 class="item-title">Major Storm On Saturn</h3>
+          </figure>
+        </div>
+      </body></html>
+      """
+
+      source = analyzed_source_fixture(%{
+        selector_image: "figure.item",
+        selector_title: ".item-title",
+        selector_description: nil,
+        selector_copyright: nil,
+        selector_next_page: nil
+      })
+
+      expect(MockHttp, :get, fn _url, _opts ->
+        {:ok, %{status: 200, body: html, headers: %{}}}
+      end)
+
+      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+
+      [item] = Catalog.list_items_by_source(source)
+      assert item.original_url == "https://nasa.gov/img.tif?w=1600"
+    end
+
+    test "falls back to src when srcset is absent" do
+      html = """
+      <html><body>
+        <div class="gallery">
+          <div class="item">
+            <img src="https://example.com/photo.jpg" alt="Photo">
+            <h3 class="item-title">Plain Src</h3>
+          </div>
+        </div>
+      </body></html>
+      """
+
+      source = analyzed_source_fixture(%{
+        selector_image: ".item img",
+        selector_title: ".item-title",
+        selector_description: nil,
+        selector_copyright: nil,
+        selector_next_page: nil
+      })
+
+      expect(MockHttp, :get, fn _url, _opts ->
+        {:ok, %{status: 200, body: html, headers: %{}}}
+      end)
+
+      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+
+      [item] = Catalog.list_items_by_source(source)
+      assert item.original_url == "https://example.com/photo.jpg"
+    end
+  end
+
   describe "perform/1 — last page (no next)" do
     test "transitions source to done when no next page selector matches" do
       html_no_next = String.replace(@fixture_html, ~r/<a class="next-page".*?<\/a>/s, "")
