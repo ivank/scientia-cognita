@@ -25,8 +25,9 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     Logger.info("[ExtractPageWorker] source=#{source_id} url=#{url}")
 
     with {:ok, html} <- fetch(url),
-         items = extract_items(html, source),
-         next_url = extract_next_url(html, source),
+         {:ok, tree} <- Floki.parse_document(html),
+         items = extract_items(tree, source),
+         next_url = extract_next_url(tree, source),
          {:ok, db_items} <- create_items(items, source_id),
          :ok <- enqueue_downloads(db_items) do
       progress = %{
@@ -68,9 +69,7 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     end
   end
 
-  defp extract_items(html, source) do
-    {:ok, tree} = Floki.parse_document(html)
-
+  defp extract_items(tree, source) do
     images = tree |> Floki.find(source.selector_image || "") |> Enum.map(&src_from_element/1)
     titles = tree |> Floki.find(source.selector_title || "") |> Enum.map(&Floki.text/1)
     descs  = list_or_empty(tree, source.selector_description)
@@ -90,11 +89,9 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     |> Enum.reject(fn item -> is_nil(item.image_url) end)
   end
 
-  defp extract_next_url(_html, %{selector_next_page: nil}), do: nil
+  defp extract_next_url(_tree, %{selector_next_page: nil}), do: nil
 
-  defp extract_next_url(html, source) do
-    {:ok, tree} = Floki.parse_document(html)
-
+  defp extract_next_url(tree, source) do
     case Floki.find(tree, source.selector_next_page) do
       [el | _] -> el |> Floki.attribute("href") |> List.first()
       [] -> nil

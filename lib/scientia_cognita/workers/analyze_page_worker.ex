@@ -53,6 +53,7 @@ defmodule ScientiaCognita.Workers.AnalyzePageWorker do
       {:not_gallery} ->
         Logger.warning("[AnalyzePageWorker] source=#{source_id} is not a scientific image gallery")
         source = Catalog.get_source!(source_id)
+        {:ok, "failed"} = SourceFSM.transition(source, :not_gallery)
         {:ok, failed} = Catalog.update_source_status(source, "failed",
           error: "Page is not a scientific image gallery. Check the source URL and try again.")
         broadcast(source_id, {:source_updated, failed})

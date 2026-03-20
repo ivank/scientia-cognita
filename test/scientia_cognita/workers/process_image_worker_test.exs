@@ -36,4 +36,19 @@ defmodule ScientiaCognita.Workers.ProcessImageWorkerTest do
       assert_enqueued worker: ColorAnalysisWorker, args: %{"item_id" => item.id}
     end
   end
+
+  describe "perform/1 — HTTP error" do
+    test "marks item as failed when original image download fails" do
+      source = source_fixture()
+      item = item_fixture(source, %{status: "processing", storage_key: "items/1/original.jpg"})
+
+      expect(MockHttp, :get, fn _url, _opts -> {:error, :timeout} end)
+
+      assert :ok = perform_job(ProcessImageWorker, %{item_id: item.id})
+
+      item = Catalog.get_item!(item.id)
+      assert item.status == "failed"
+      assert item.error =~ "timeout"
+    end
+  end
 end
