@@ -11,16 +11,12 @@ defmodule ScientiaCognita.SourceFSMTest do
       assert {:ok, "fetching"} = SourceFSM.transition(source("pending"), :start)
     end
 
-    test "fetching + :fetched → analyzing" do
-      assert {:ok, "analyzing"} = SourceFSM.transition(source("fetching"), :fetched)
+    test "fetching + :fetched → extracting (no longer analyzing)" do
+      assert {:ok, "extracting"} = SourceFSM.transition(source("fetching"), :fetched)
     end
 
-    test "analyzing + :analyzed → extracting" do
-      assert {:ok, "extracting"} = SourceFSM.transition(source("analyzing"), :analyzed)
-    end
-
-    test "analyzing + :not_gallery → failed" do
-      assert {:ok, "failed"} = SourceFSM.transition(source("analyzing"), :not_gallery)
+    test "extracting + :not_gallery → failed" do
+      assert {:ok, "failed"} = SourceFSM.transition(source("extracting"), :not_gallery)
     end
 
     test "extracting + :page_done → extracting (self-loop)" do
@@ -32,7 +28,7 @@ defmodule ScientiaCognita.SourceFSMTest do
     end
 
     test ":failed from any non-terminal state" do
-      for status <- ~w(pending fetching analyzing extracting) do
+      for status <- ~w(pending fetching extracting) do
         assert {:ok, "failed"} = SourceFSM.transition(source(status), :failed),
                "Expected :failed to work from #{status}"
       end
@@ -45,6 +41,11 @@ defmodule ScientiaCognita.SourceFSMTest do
       assert {:error, :invalid_transition} = SourceFSM.transition(source("fetching"), :start)
       assert {:error, :invalid_transition} = SourceFSM.transition(source("done"), :start)
       assert {:error, :invalid_transition} = SourceFSM.transition(source("failed"), :start)
+    end
+
+    test "analyzing state no longer exists" do
+      assert {:error, :invalid_transition} = SourceFSM.transition(source("analyzing"), :analyzed)
+      assert {:error, :invalid_transition} = SourceFSM.transition(source("analyzing"), :not_gallery)
     end
   end
 end
