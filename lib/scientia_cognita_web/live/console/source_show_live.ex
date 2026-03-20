@@ -4,7 +4,13 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   on_mount {ScientiaCognitaWeb.UserAuth, :require_console_user}
 
   alias ScientiaCognita.{Catalog, Storage}
-  alias ScientiaCognita.Workers.{CrawlPageWorker, DownloadImageWorker, ProcessImageWorker}
+  alias ScientiaCognita.Workers.{
+    FetchPageWorker,
+    DownloadImageWorker,
+    ProcessImageWorker,
+    ColorAnalysisWorker,
+    RenderWorker
+  }
 
   @impl true
   def render(assigns) do
@@ -209,13 +215,11 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   def handle_event("restart_source", _, socket) do
     source = socket.assigns.source
 
-    {:ok, source} = Catalog.update_source_status(source, "running", error: nil)
+    {:ok, source} = Catalog.update_source_status(source, "pending", error: nil)
     Catalog.update_source_progress(source, %{pages_fetched: 0, total_items: 0, next_page_url: nil})
 
-    start_url = source.next_page_url || source.url
-
-    %{source_id: source.id, url: start_url}
-    |> CrawlPageWorker.new()
+    %{source_id: source.id}
+    |> FetchPageWorker.new()
     |> Oban.insert()
 
     {:noreply,
@@ -226,16 +230,17 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   def handle_event("retry_item", %{"item-id" => item_id}, socket) do
     item = Catalog.get_item!(item_id)
-    {:ok, _} = Catalog.update_item_status(item, "pending", error: nil)
 
-    worker =
-      if item.storage_key,
-        do: ProcessImageWorker,
-        else: DownloadImageWorker
+    {status, worker} =
+      cond do
+        is_nil(item.storage_key) -> {"pending", DownloadImageWorker}
+        is_nil(item.processed_key) -> {"processing", ProcessImageWorker}
+        is_nil(item.text_color) -> {"color_analysis", ColorAnalysisWorker}
+        true -> {"render", RenderWorker}
+      end
 
-    %{item_id: item.id}
-    |> worker.new()
-    |> Oban.insert()
+    {:ok, _} = Catalog.update_item_status(item, status, error: nil)
+    %{item_id: item.id} |> worker.new() |> Oban.insert()
 
     source = Catalog.get_source!(socket.assigns.source.id)
     {:noreply, assign_source_data(socket, source)}
@@ -260,9 +265,15 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   def handle_event("retry_failed_items", _, socket) do
     Enum.each(socket.assigns.failed_items, fn item ->
-      {:ok, _} = Catalog.update_item_status(item, "pending", error: nil)
+      {status, worker} =
+        cond do
+          is_nil(item.storage_key) -> {"pending", DownloadImageWorker}
+          is_nil(item.processed_key) -> {"processing", ProcessImageWorker}
+          is_nil(item.text_color) -> {"color_analysis", ColorAnalysisWorker}
+          true -> {"render", RenderWorker}
+        end
 
-      worker = if item.storage_key, do: ProcessImageWorker, else: DownloadImageWorker
+      {:ok, _} = Catalog.update_item_status(item, status, error: nil)
       %{item_id: item.id} |> worker.new() |> Oban.insert()
     end)
 
@@ -304,7 +315,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp progress_pct(ready, total), do: Float.round(ready / total * 100, 1)
 
   defp sorted_status_counts(counts) do
-    order = ~w(ready processing downloading pending failed)
+    order = ~w(pending downloading processing color_analysis render ready failed)
     Enum.sort_by(counts, fn {status, _} -> Enum.find_index(order, &(&1 == status)) || 99 end)
   end
 
@@ -324,12 +335,15 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   end
 
   defp status_class("pending"), do: "badge-ghost"
-  defp status_class("running"), do: "badge-warning animate-pulse"
-  defp status_class("crawling"), do: "badge-warning animate-pulse"
+  defp status_class("fetching"), do: "badge-warning animate-pulse"
+  defp status_class("analyzing"), do: "badge-warning animate-pulse"
+  defp status_class("extracting"), do: "badge-warning animate-pulse"
   defp status_class("done"), do: "badge-success"
   defp status_class("ready"), do: "badge-success"
   defp status_class("failed"), do: "badge-error"
   defp status_class("downloading"), do: "badge-info"
   defp status_class("processing"), do: "badge-info"
+  defp status_class("color_analysis"), do: "badge-info"
+  defp status_class("render"), do: "badge-info"
   defp status_class(_), do: "badge-ghost"
 end
