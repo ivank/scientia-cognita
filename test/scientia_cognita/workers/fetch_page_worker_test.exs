@@ -6,12 +6,12 @@ defmodule ScientiaCognita.Workers.FetchPageWorkerTest do
   import ScientiaCognita.CatalogFixtures
 
   alias ScientiaCognita.{Catalog, MockHttp}
-  alias ScientiaCognita.Workers.{FetchPageWorker, AnalyzePageWorker}
+  alias ScientiaCognita.Workers.{FetchPageWorker, ExtractPageWorker}
 
   setup :verify_on_exit!
 
   describe "perform/1 — happy path" do
-    test "fetches HTML, saves raw_html, transitions to analyzing, enqueues AnalyzePageWorker" do
+    test "fetches HTML, saves raw_html, transitions to extracting, enqueues ExtractPageWorker" do
       source = source_fixture(%{status: "pending"})
       html = "<html><body>gallery content</body></html>"
 
@@ -22,10 +22,11 @@ defmodule ScientiaCognita.Workers.FetchPageWorkerTest do
       assert :ok = perform_job(FetchPageWorker, %{source_id: source.id})
 
       source = Catalog.get_source!(source.id)
-      assert source.status == "analyzing"
+      assert source.status == "extracting"
       assert source.raw_html == html
 
-      assert_enqueued worker: AnalyzePageWorker, args: %{"source_id" => source.id}
+      assert_enqueued worker: ExtractPageWorker,
+                      args: %{"source_id" => source.id, "url" => source.url}
     end
   end
 

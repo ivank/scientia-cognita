@@ -1,7 +1,7 @@
 defmodule ScientiaCognita.Workers.FetchPageWorker do
   @moduledoc """
   Fetches the source URL, saves raw HTML to the source record,
-  and enqueues AnalyzePageWorker.
+  and enqueues ExtractPageWorker.
 
   Args: %{source_id: integer}
   """
@@ -14,7 +14,7 @@ defmodule ScientiaCognita.Workers.FetchPageWorker do
   require Logger
 
   alias ScientiaCognita.{Catalog, SourceFSM}
-  alias ScientiaCognita.Workers.AnalyzePageWorker
+  alias ScientiaCognita.Workers.ExtractPageWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
 
@@ -27,10 +27,10 @@ defmodule ScientiaCognita.Workers.FetchPageWorker do
          {:ok, source} <- Catalog.update_source_status(source, "fetching"),
          {:ok, html} <- fetch(source.url),
          {:ok, source} <- Catalog.update_source_html(source, %{raw_html: html}),
-         {:ok, "analyzing"} <- SourceFSM.transition(source, :fetched),
-         {:ok, source} <- Catalog.update_source_status(source, "analyzing") do
+         {:ok, "extracting"} <- SourceFSM.transition(source, :fetched),
+         {:ok, source} <- Catalog.update_source_status(source, "extracting") do
       broadcast(source_id, {:source_updated, source})
-      %{source_id: source_id} |> AnalyzePageWorker.new() |> Oban.insert()
+      %{source_id: source_id, url: source.url} |> ExtractPageWorker.new() |> Oban.insert()
       :ok
     else
       {:error, :invalid_transition} ->
