@@ -5,7 +5,7 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorkerTest do
   import Mox
   import ScientiaCognita.CatalogFixtures
 
-  alias ScientiaCognita.{Catalog, MockHttp, MockGemini, MockStorage}
+  alias ScientiaCognita.{Catalog, MockHttp, MockGemini}
   alias ScientiaCognita.Workers.{ColorAnalysisWorker, RenderWorker}
 
   setup :verify_on_exit!
