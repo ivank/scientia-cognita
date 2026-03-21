@@ -161,6 +161,25 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
       assert render(view) =~ "Re-render"
     end
+
+    test "saving updates the row in the stream", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "ready", title: "Old Title", processed_key: "pk"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      # Open modal
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      # Submit save with new title
+      view
+      |> form("form[phx-submit='save_item']", item: %{title: "New Title"})
+      |> render_submit()
+
+      html = render(view)
+      assert html =~ "New Title"
+      refute html =~ "Old Title"
+    end
   end
 
   describe "PubSub: item_updated" do

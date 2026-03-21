@@ -346,9 +346,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   def handle_event("save_item", %{"item" => params}, socket) do
     case Catalog.update_item(socket.assigns.selected_item, params) do
-      {:ok, _item} ->
+      {:ok, item} ->
         {:noreply,
          socket
+         |> stream_insert(:items, item)
          |> assign(:selected_item, nil)
          |> assign(:item_form, nil)}
 
