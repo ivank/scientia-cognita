@@ -57,13 +57,10 @@ FROM alpine:3.19 AS runner
 # Runtime packages
 # vips: required by the image/vix library at runtime (Alpine package name; libvips on Debian)
 # libgcc + libstdc++: required by NIFs compiled with GCC (vix and bcrypt_elixir)
-# fuse3: required by LiteFS for the FUSE filesystem
-# LiteFS requires root (CAP_SYS_ADMIN) for FUSE mount — no USER directive is intentional
 RUN apk add --no-cache \
   vips \
   libgcc \
   libstdc++ \
-  fuse3 \
   openssl \
   ncurses-libs \
   ca-certificates
@@ -73,18 +70,4 @@ WORKDIR /app
 # Copy the compiled release from builder
 COPY --from=builder /app/_build/prod/rel/scientia_cognita ./
 
-# Install LiteFS binary (pinned to v0.5.11, amd64 — matches Fly.io machine architecture)
-ARG LITEFS_SHA256=3800856259f55ce0a47db30183fd840ec85d45ce998a3eb4e6a45b9ee5adf3b0
-RUN wget -qO /tmp/litefs.tar.gz \
-  https://github.com/superfly/litefs/releases/download/v0.5.11/litefs-v0.5.11-linux-amd64.tar.gz \
-  && echo "${LITEFS_SHA256}  /tmp/litefs.tar.gz" | sha256sum -c - \
-  && tar -xzf /tmp/litefs.tar.gz -C /tmp \
-  && mv /tmp/litefs /usr/local/bin/litefs \
-  && chmod +x /usr/local/bin/litefs \
-  && rm /tmp/litefs.tar.gz
-
-# Copy LiteFS config
-COPY litefs.yml /etc/litefs.yml
-
-# LiteFS is PID 1; it mounts the FUSE filesystem and then starts the app via exec
-ENTRYPOINT ["litefs", "mount"]
+CMD ["/app/bin/server"]
