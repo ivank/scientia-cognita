@@ -211,9 +211,9 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
             <div class="modal-action pt-0">
               <div class="flex gap-2 flex-1">
-                <%!-- Re-download: terminal states only --%>
+                <%!-- Re-download: terminal states or any item with an error --%>
                 <button
-                  :if={@selected_item.status in ~w(ready failed)}
+                  :if={@selected_item.status in ~w(ready failed) or not is_nil(@selected_item.error)}
                   type="button"
                   class="btn btn-ghost btn-sm gap-1"
                   phx-click="redownload_item"
@@ -224,9 +224,9 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   <.icon name="hero-arrow-down-tray" class="size-4" /> Re-download
                 </button>
 
-                <%!-- Re-render: terminal states + storage_key present --%>
+                <%!-- Re-render: terminal states or errored item, with storage_key present --%>
                 <button
-                  :if={@selected_item.status in ~w(ready failed) and not is_nil(@selected_item.storage_key)}
+                  :if={(@selected_item.status in ~w(ready failed) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.storage_key)}
                   type="button"
                   class="btn btn-ghost btn-sm gap-1"
                   phx-click="rerender_item"
