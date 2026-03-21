@@ -33,7 +33,8 @@ defmodule ScientiaCognita.Release do
 
     for repo <- repos() do
       Ecto.Migrator.with_repo(repo, fn _repo ->
-        Code.eval_file("priv/repo/seeds.exs", File.cwd!())
+        seeds = Application.app_dir(@app, "priv/repo/seeds.exs")
+        Code.eval_file(seeds)
       end)
     end
 
