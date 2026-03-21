@@ -165,5 +165,6 @@ if config_env() == :prod do
   config :scientia_cognita, ScientiaCognita.Mailer,
     adapter: Swoosh.Adapters.Mailgun,
     api_key: System.get_env("MAILGUN_API_KEY"),
-    domain: System.get_env("MAILGUN_DOMAIN") || "sc.ikiern.com"
+    domain: "sc.ikiern.com",
+    base_url: "https://api.eu.mailgun.net/v3"
 end

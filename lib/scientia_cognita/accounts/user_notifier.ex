@@ -9,7 +9,7 @@ defmodule ScientiaCognita.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"ScientiaCognita", "contact@example.com"})
+      |> from({"ScientiaCognita", "no-reply@sc.ikerin.com"})
       |> subject(subject)
       |> text_body(body)
 
