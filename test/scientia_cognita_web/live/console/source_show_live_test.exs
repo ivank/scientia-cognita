@@ -101,6 +101,68 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     end
   end
 
+  describe "item edit modal" do
+    test "clicking any row (including failed) opens the edit form", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "failed", title: "Broken Image"})
+      # Give item an error
+      {:ok, item} = ScientiaCognita.Catalog.update_item_status(item, "failed", error: "bad url")
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      html = render(view)
+      assert html =~ "modal modal-open"
+      # Edit form is immediately visible (no view/edit toggle)
+      assert html =~ ~s(phx-submit="save_item")
+      # Full error shown
+      assert html =~ "bad url"
+    end
+
+    test "re-download hidden for active (non-terminal) items", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+      item   = item_fixture(source, %{status: "downloading"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      refute render(view) =~ "Re-download"
+    end
+
+    test "re-download visible for terminal items", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "ready", processed_key: "pk"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      assert render(view) =~ "Re-download"
+    end
+
+    test "re-render hidden when no storage_key", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "failed"})
+      # No storage_key (download never completed)
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      refute render(view) =~ "Re-render"
+    end
+
+    test "re-render visible for terminal items with storage_key", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "ready",
+                            storage_key: "sk", processed_key: "pk"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      assert render(view) =~ "Re-render"
+    end
+  end
+
   describe "PubSub: item_updated" do
     test "stream-inserts the updated item without full reload", %{conn: conn} do
       source = source_fixture(%{status: "items_loading"})

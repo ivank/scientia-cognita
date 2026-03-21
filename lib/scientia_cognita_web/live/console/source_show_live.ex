@@ -149,97 +149,82 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       :if={@selected_item}
       class="modal modal-open"
       phx-key="Escape"
-      phx-window-keydown={if @item_form, do: "cancel_edit", else: "close_item"}
+      phx-window-keydown="close_item"
     >
       <div class="modal-box max-w-2xl p-0 overflow-hidden">
+        <%!-- Preview image --%>
         <figure class="aspect-video bg-base-300 w-full">
           <img
-            :if={@selected_item.processed_key}
-            src={Storage.get_url(@selected_item.processed_key)}
+            :if={@selected_item.processed_key || @selected_item.storage_key}
+            src={Storage.get_url(@selected_item.processed_key || @selected_item.storage_key)}
             class="w-full h-full object-contain"
           />
         </figure>
 
-        <%!-- View mode --%>
-        <div :if={!@item_form} class="p-6 space-y-4">
-          <h3 class="font-bold text-lg leading-snug">{@selected_item.title}</h3>
-          <p :if={@selected_item.description} class="text-sm text-base-content/80">
-            {@selected_item.description}
-          </p>
-          <div class="flex flex-wrap gap-x-6 gap-y-2 text-xs text-base-content/50">
-            <span :if={@selected_item.author}>
-              <span class="font-medium text-base-content/70">Author</span>
-              {@selected_item.author}
-            </span>
-            <span :if={@selected_item.copyright}>
-              <span class="font-medium text-base-content/70">©</span>
-              {@selected_item.copyright}
-            </span>
+        <div class="p-6 space-y-4">
+          <%!-- Full error (if any) --%>
+          <div :if={@selected_item.error} class="alert alert-error text-sm">
+            <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
+            <span>{@selected_item.error}</span>
           </div>
-          <div :if={@selected_item.original_url} class="text-xs font-mono text-base-content/40 truncate">
-            {@selected_item.original_url}
-          </div>
-          <div class="modal-action pt-2">
-            <div class="flex gap-2 flex-1">
-              <button
-                class="btn btn-ghost btn-sm gap-1"
-                phx-click="redownload_item"
-                phx-value-id={@selected_item.id}
-                phx-disable-with="…"
-                title="Clear stored images and re-run the full pipeline from download"
-              >
-                <.icon name="hero-arrow-down-tray" class="size-4" /> Re-download
-              </button>
-              <button
-                :if={@selected_item.processed_key}
-                class="btn btn-ghost btn-sm gap-1"
-                phx-click="rerender_item"
-                phx-value-id={@selected_item.id}
-                phx-disable-with="…"
-                title="Re-run the render step using the existing processed image"
-              >
-                <.icon name="hero-paint-brush" class="size-4" /> Re-render
-              </button>
-            </div>
-            <button class="btn btn-ghost btn-sm" phx-click="edit_item">
-              <.icon name="hero-pencil" class="size-4" /> Edit
-            </button>
-            <a
-              :if={@selected_item.original_url}
-              href={@selected_item.original_url}
-              target="_blank"
-              class="btn btn-primary btn-sm gap-1"
-            >
-              <.icon name="hero-arrow-top-right-on-square" class="size-4" /> Original
-            </a>
-            <button class="btn btn-ghost btn-sm" phx-click="close_item">Close</button>
-          </div>
-        </div>
 
-        <%!-- Edit mode --%>
-        <div :if={@item_form} class="p-6">
-          <h3 class="font-semibold mb-4">Edit item</h3>
+          <%!-- Edit form (always shown) --%>
           <.form for={@item_form} phx-submit="save_item" phx-change="validate_item" class="space-y-4">
             <div class="form-control">
-              <label class="label pb-1"><span class="label-text text-xs font-medium uppercase tracking-wide">Title</span></label>
+              <label class="label pb-1">
+                <span class="label-text text-xs font-medium uppercase tracking-wide">Title</span>
+              </label>
               <.input field={@item_form[:title]} placeholder="Image title" />
             </div>
             <div class="form-control">
-              <label class="label pb-1"><span class="label-text text-xs font-medium uppercase tracking-wide">Description</span></label>
+              <label class="label pb-1">
+                <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
+              </label>
               <.input field={@item_form[:description]} type="textarea" rows="3" placeholder="Caption or description" />
             </div>
             <div class="form-control">
-              <label class="label pb-1"><span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span></label>
+              <label class="label pb-1">
+                <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
+              </label>
               <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
             </div>
+
             <div class="modal-action pt-0">
-              <button type="button" class="btn btn-ghost btn-sm" phx-click="cancel_edit">Cancel</button>
+              <div class="flex gap-2 flex-1">
+                <%!-- Re-download: terminal states only --%>
+                <button
+                  :if={@selected_item.status in ~w(ready failed)}
+                  type="button"
+                  class="btn btn-ghost btn-sm gap-1"
+                  phx-click="redownload_item"
+                  phx-value-id={@selected_item.id}
+                  phx-disable-with="…"
+                  title="Clear stored images and re-run the full pipeline from download"
+                >
+                  <.icon name="hero-arrow-down-tray" class="size-4" /> Re-download
+                </button>
+
+                <%!-- Re-render: terminal states + storage_key present --%>
+                <button
+                  :if={@selected_item.status in ~w(ready failed) and not is_nil(@selected_item.storage_key)}
+                  type="button"
+                  class="btn btn-ghost btn-sm gap-1"
+                  phx-click="rerender_item"
+                  phx-value-id={@selected_item.id}
+                  phx-disable-with="…"
+                  title="Re-run from original downloaded image through the full processing chain"
+                >
+                  <.icon name="hero-paint-brush" class="size-4" /> Re-render
+                </button>
+              </div>
+
+              <button type="button" class="btn btn-ghost btn-sm" phx-click="close_item">Cancel</button>
               <button type="submit" class="btn btn-primary btn-sm" phx-disable-with="Saving…">Save</button>
             </div>
           </.form>
         </div>
       </div>
-      <div class="modal-backdrop" phx-click={if @item_form, do: "cancel_edit", else: "close_item"}></div>
+      <div class="modal-backdrop" phx-click="close_item"></div>
     </div>
 
     <%!-- Delete confirmation modal --%>
@@ -341,20 +326,12 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   def handle_event("select_item", %{"id" => id}, socket) do
     item = Catalog.get_item!(id)
-    {:noreply, socket |> assign(:selected_item, item) |> assign(:item_form, nil)}
+    form = Catalog.change_item(item) |> to_form()
+    {:noreply, socket |> assign(:selected_item, item) |> assign(:item_form, form)}
   end
 
   def handle_event("close_item", _, socket) do
     {:noreply, socket |> assign(:selected_item, nil) |> assign(:item_form, nil)}
-  end
-
-  def handle_event("edit_item", _, socket) do
-    form = socket.assigns.selected_item |> Catalog.change_item() |> to_form()
-    {:noreply, assign(socket, :item_form, form)}
-  end
-
-  def handle_event("cancel_edit", _, socket) do
-    {:noreply, assign(socket, :item_form, nil)}
   end
 
   def handle_event("validate_item", %{"item" => params}, socket) do
@@ -369,14 +346,11 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   def handle_event("save_item", %{"item" => params}, socket) do
     case Catalog.update_item(socket.assigns.selected_item, params) do
-      {:ok, item} ->
-        source = Catalog.get_source!(socket.assigns.source.id)
-
+      {:ok, _item} ->
         {:noreply,
          socket
-         |> assign(:selected_item, item)
-         |> assign(:item_form, nil)
-         |> assign_source_stats(source)}
+         |> assign(:selected_item, nil)
+         |> assign(:item_form, nil)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :item_form, to_form(changeset))}
