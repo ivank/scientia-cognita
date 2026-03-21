@@ -142,6 +142,25 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
           </tbody>
         </table>
       </div>
+
+      <%!-- Gemini extraction panels --%>
+      <div :if={@source.gemini_pages != []} class="space-y-2 pt-2">
+        <h3 class="text-sm font-semibold text-base-content/60">Gemini Extraction Data</h3>
+        <details
+          :for={{page, idx} <- Enum.with_index(@source.gemini_pages, 1)}
+          class="border border-base-300 rounded-lg overflow-hidden"
+        >
+          <summary class="flex items-center gap-2 px-4 py-2 cursor-pointer text-sm bg-base-200 hover:bg-base-300 select-none">
+            <span class="font-medium">Page {idx}</span>
+            <span :if={page.gallery_title}>· {page.gallery_title}</span>
+            <span :if={page.gallery_description} class="text-base-content/50 truncate max-w-xs">
+              — {String.slice(page.gallery_description || "", 0, 80)}
+            </span>
+            <span class="ml-auto text-base-content/40 shrink-0">{page.items_count} items</span>
+          </summary>
+          <pre class="text-xs overflow-auto max-h-96 bg-base-200 p-4 m-0">{gemini_page_json(page)}</pre>
+        </details>
+      </div>
     </div>
 
     <%!-- Item detail / edit modal --%>

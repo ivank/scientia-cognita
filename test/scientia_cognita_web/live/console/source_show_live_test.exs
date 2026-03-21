@@ -199,6 +199,78 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     end
   end
 
+  describe "loading banner" do
+    test "visible when source is items_loading", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "Items are being loaded"
+    end
+
+    test "not visible when source is done", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      refute html =~ "Items are being loaded"
+    end
+  end
+
+  describe "Gemini panels" do
+    test "renders one details element per gemini_page", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+
+      # Inject two gemini_pages directly
+      page1 = %ScientiaCognita.Catalog.GeminiPageResult{
+        page_url: "https://example.com/1",
+        is_gallery: true,
+        gallery_title: "Gallery One",
+        gallery_description: "First page",
+        next_page_url: nil,
+        items_count: 3,
+        raw_items: [],
+        generated_at: DateTime.utc_now(:second)
+      }
+      page2 = %ScientiaCognita.Catalog.GeminiPageResult{
+        page_url: "https://example.com/2",
+        is_gallery: true,
+        gallery_title: "Gallery Two",
+        gallery_description: "Second page",
+        next_page_url: nil,
+        items_count: 5,
+        raw_items: [],
+        generated_at: DateTime.utc_now(:second)
+      }
+
+      # `gemini_pages` is declared as `embeds_many :gemini_pages, GeminiPageResult`
+      # in the Source schema, so put_embed is the correct API.
+      {:ok, source} =
+        source
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_embed(:gemini_pages, [page1, page2])
+        |> ScientiaCognita.Repo.update()
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "Gallery One"
+      assert html =~ "Gallery Two"
+      assert html =~ "3 items"
+      assert html =~ "5 items"
+      # Two <details> elements
+      assert html |> Floki.parse_document!() |> Floki.find("details") |> length() == 2
+    end
+
+    test "no Gemini section when gemini_pages is empty", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      # gemini_pages defaults to []
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      refute html =~ "<details"
+    end
+  end
+
   describe "re-render action" do
     test "enqueues ProcessImageWorker (not RenderWorker) and resets to processing", %{conn: conn} do
       source = source_fixture(%{status: "done"})
