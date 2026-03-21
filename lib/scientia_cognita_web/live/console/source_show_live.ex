@@ -293,16 +293,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   end
 
   def handle_info({:item_updated, item}, socket) do
-    source = socket.assigns.source
-    status_counts = Catalog.count_items_by_status(source)
-    stuck_ids = Catalog.list_stuck_item_ids(source) |> MapSet.new()
-
     {:noreply,
      socket
      |> stream_insert(:items, item)
-     |> assign(:status_counts, status_counts)
-     |> assign(:failed_count, status_counts["failed"] || 0)
-     |> assign(:stuck_ids, stuck_ids)}
+     |> assign_source_stats(socket.assigns.source)}
   end
 
   @impl true
@@ -457,7 +451,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
     {:noreply,
      socket
-     |> assign_source_stats(source)
+     |> assign_source_stats(Catalog.get_source!(source.id))
      |> put_flash(:info, "Retrying #{length(items_to_retry)} items")}
   end
 

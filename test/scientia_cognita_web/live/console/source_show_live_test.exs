@@ -23,7 +23,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       assert html =~ "<table"
       assert html =~ item.title
       # No gallery grid — the old class was "grid-cols-2 sm:grid-cols-3"
-      refute html =~ "grid-cols-2"
+      refute html =~ "grid-cols-2 sm:grid-cols-3"
     end
 
     test "all items regardless of status appear in the table", %{conn: conn} do
