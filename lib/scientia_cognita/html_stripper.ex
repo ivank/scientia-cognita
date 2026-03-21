@@ -3,8 +3,9 @@ defmodule ScientiaCognita.HTMLStripper do
   Strips an HTML document down to clean semantic content suitable for
   passing to an LLM (Gemini) for structured data extraction.
 
-  Removes: scripts, styles, nav, header, footer, ads, all non-essential attributes.
-  Keeps: class/id on all elements; href on <a>; src/srcset/alt on <img>/<figure>.
+  Removes: <head>, scripts, styles, SVG and all descendants, nav, header,
+  footer, ads, aria-hidden elements, HTML comments, all class/id attributes.
+  Keeps: href on <a>; src/srcset/alt/data-src/data-srcset on <img>/<figure>/<source>.
   """
 
   @remove_selectors ~w(
@@ -14,27 +15,32 @@ defmodule ScientiaCognita.HTMLStripper do
     .nav .navbar .menu .sidebar .footer .header .ad .ads .advertisement
     form button input select textarea
     [aria-hidden=true]
+    svg
   )
 
-  # Attributes kept per tag. The special key "*" applies to all tags.
   @keep_attrs %{
-    "*" => ["class", "id"],
-    "a" => ["href", "class", "id"],
-    "figure" => ["src", "alt", "srcset", "class", "id"],
-    "img" => ["src", "alt", "srcset", "class", "id"]
+    "*"      => [],
+    "a"      => ["href"],
+    "source" => ["srcset", "media", "type"],
+    "figure" => ["src", "alt", "srcset", "data-src", "data-srcset"],
+    "img"    => ["src", "alt", "srcset", "data-src", "data-srcset", "data-lazy-src"]
   }
 
   @doc """
-  Parses `html`, removes noise elements and non-content attributes,
-  and returns a clean HTML string trimmed to at most `max_bytes` bytes.
+  Parses `html`, extracts body content, removes noise elements, strips
+  non-content attributes, removes HTML comments, and returns clean HTML
+  trimmed to at most `max_bytes` bytes (default 80KB).
   """
-  def strip(html, max_bytes \\ 300_000) do
+  def strip(html, max_bytes \\ 80_000) do
     case Floki.parse_document(html) do
       {:ok, tree} ->
+        body = extract_body(tree)
+
         cleaned =
-          Enum.reduce(@remove_selectors, tree, fn selector, acc ->
+          Enum.reduce(@remove_selectors, body, fn selector, acc ->
             Floki.filter_out(acc, selector)
           end)
+          |> remove_comments()
           |> clean_attributes()
           |> Floki.raw_html()
 
@@ -43,6 +49,20 @@ defmodule ScientiaCognita.HTMLStripper do
       {:error, _} ->
         ""
     end
+  end
+
+  defp extract_body(tree) do
+    case Floki.find(tree, "body") do
+      [{"body", _attrs, children} | _] -> children
+      _ -> tree
+    end
+  end
+
+  defp remove_comments(tree) do
+    Floki.traverse_and_update(tree, fn
+      {:comment, _} -> nil
+      other -> other
+    end)
   end
 
   defp clean_attributes(tree) do
