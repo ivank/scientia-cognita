@@ -46,7 +46,6 @@ Build steps:
 Runtime packages: `libvips`, `fuse3`, `openssl`, `ncurses-libs`, `ca-certificates`
 
 - Copy compiled release from builder stage
-- Download pinned `litefs` v0.5.11 binary from GitHub releases, verify SHA256, install to `/usr/local/bin/litefs`
 - Download pinned `litefs` binary (v0.5.11) from GitHub releases, verify SHA256, install to `/usr/local/bin/litefs`
 - Copy `litefs.yml` to `/etc/litefs.yml`
 - `ENTRYPOINT ["litefs", "mount"]`
