@@ -2,19 +2,18 @@ alias ScientiaCognita.{Accounts, Repo}
 alias ScientiaCognita.Accounts.User
 
 # Create the default owner account if none exists.
-# Set OWNER_EMAIL env var to customise (defaults to owner@scientia-cognita.local).
-owner_email = System.get_env("OWNER_EMAIL", "owner@scientia-cognita.local")
+# Set OWNER_EMAIL env var to customise (defaults to me@ikerin.com).
+owner_email = System.get_env("OWNER_EMAIL", "me@ikerin.com")
 
 case Accounts.get_user_by_email(owner_email) do
   nil ->
     %User{}
     |> User.email_changeset(%{email: owner_email})
     |> User.role_changeset(%{role: "owner"})
+    |> User.confirm_changeset()
     |> Repo.insert!()
 
     IO.puts("Created owner account: #{owner_email}")
-    IO.puts("Log in at /users/log-in — a magic link will be sent to #{owner_email}")
-    IO.puts("(In dev, check /dev/mailbox for the link)")
 
   %User{role: "owner"} = user ->
     IO.puts("Owner account already exists: #{user.email}")
