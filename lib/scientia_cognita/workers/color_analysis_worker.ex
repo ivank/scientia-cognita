@@ -10,7 +10,7 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, ItemFSM, Storage}
+  alias ScientiaCognita.{Catalog, Repo, Storage}
   alias ScientiaCognita.Workers.RenderWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
@@ -37,9 +37,11 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
          {:ok, img} <- Image.from_binary(binary),
          {:ok, thumb_binary} <- make_thumbnail(img),
          colors = get_colors(thumb_binary),
-         {:ok, item} <- Catalog.update_item_colors(item, colors),
-         {:ok, "render"} <- ItemFSM.transition(item, :colors_ready),
-         {:ok, item} <- Catalog.update_item_status(item, "render") do
+         {:ok, item} <- fsm_transition(item, "render", %{
+           text_color: colors["text_color"],
+           bg_color: colors["bg_color"],
+           bg_opacity: colors["bg_opacity"]
+         }) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> RenderWorker.new() |> Oban.insert()
       :ok
@@ -51,9 +53,25 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
       {:error, reason} ->
         Logger.error("[ColorAnalysisWorker] failed item=#{item_id}: #{inspect(reason)}")
         item = Catalog.get_item!(item_id)
-        {:ok, _} = Catalog.update_item_status(item, "failed", error: inspect(reason))
+        {:ok, _} = fsm_transition(item, "failed", %{error: inspect(reason)})
         broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
         :ok
+    end
+  end
+
+  defp fsm_transition(schema, new_state, params \\ %{}) do
+    Ecto.Multi.new()
+    |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:error, :transition, %Ecto.Changeset{} = cs, _} ->
+        if Keyword.has_key?(cs.errors, :status) do
+          {:error, :invalid_transition}
+        else
+          {:error, cs}
+        end
+      {:error, _, reason, _} -> {:error, reason}
     end
   end
 
