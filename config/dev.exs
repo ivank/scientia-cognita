@@ -97,3 +97,5 @@ config :ex_aws,
   ]
 
 config :scientia_cognita, :storage, bucket: System.get_env("STORAGE_BUCKET", "images")
+
+if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

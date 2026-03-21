@@ -43,3 +43,5 @@ config :scientia_cognita, :storage_module, ScientiaCognita.MockStorage
 
 # Oban testing mode — jobs do not run automatically
 config :scientia_cognita, Oban, testing: :manual
+
+if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

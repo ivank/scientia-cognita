@@ -23,7 +23,7 @@ end
 # Gemini API key — required for crawling (item extraction) and image processing (color analysis).
 # Get a key at https://aistudio.google.com/app/apikey
 # Env var: GEMINI_API_KEY
-if gemini_key = System.get_env("GEMINI_API_KEY", "REDACTED") do
+if gemini_key = System.get_env("GEMINI_API_KEY") do
   config :scientia_cognita, :gemini, api_key: gemini_key
 end
 

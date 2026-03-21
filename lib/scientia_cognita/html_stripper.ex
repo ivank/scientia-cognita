@@ -4,8 +4,16 @@ defmodule ScientiaCognita.HTMLStripper do
   passing to an LLM (Gemini) for structured data extraction.
 
   Removes: <head>, scripts, styles, SVG and all descendants, nav, header,
-  footer, ads, aria-hidden elements, HTML comments, all class/id attributes.
-  Keeps: href on <a>; src/srcset/alt/data-src/data-srcset on <img>/<figure>/<source>.
+  footer, ads, HTML comments, <source> elements (redundant — <img> src/srcset
+  already carries image URLs), style/id/on* attributes.
+
+  Keeps: class on all elements (critical for LLM context — gallery components
+  group images and captions via shared class names like "scrapbook-item");
+  href on <a>; src/srcset/alt/data-src and lazy-loading variants on <img>/<figure>;
+  aria-hidden/aria-label on all elements.
+
+  Note: <source> elements inside <picture> are dropped to avoid srcset bloat.
+  The <img> sibling inside <picture> already carries src + srcset.
   """
 
   @remove_selectors ~w(
@@ -13,25 +21,30 @@ defmodule ScientiaCognita.HTMLStripper do
     nav header footer aside
     [role=navigation] [role=banner] [role=contentinfo]
     .nav .navbar .menu .sidebar .footer .header .ad .ads .advertisement
-    form button input select textarea
-    [aria-hidden=true]
+    form input select textarea
     svg
+    source
   )
 
+  # Attributes kept on every element
+  @global_attrs ~w(class aria-hidden aria-label)
+
   @keep_attrs %{
-    "*" => [],
     "a" => ["href"],
-    "source" => ["srcset", "media", "type"],
     "figure" => ["src", "alt", "srcset", "data-src", "data-srcset"],
-    "img" => ["src", "alt", "srcset", "data-src", "data-srcset", "data-lazy-src"]
+    "img" => [
+      "src", "alt", "srcset", "data-src", "data-srcset",
+      "data-lazy-src", "data-lazy", "data-original",
+      "data-hi-res-src", "data-full-src"
+    ]
   }
 
   @doc """
   Parses `html`, extracts body content, removes noise elements, strips
   non-content attributes, removes HTML comments, and returns clean HTML
-  trimmed to at most `max_bytes` bytes (default 80KB).
+  trimmed to at most `max_bytes` bytes (default 300KB).
   """
-  def strip(html, max_bytes \\ 80_000) do
+  def strip(html, max_bytes \\ 300_000) do
     case Floki.parse_document(html) do
       {:ok, tree} ->
         body = extract_body(tree)
@@ -66,11 +79,9 @@ defmodule ScientiaCognita.HTMLStripper do
   end
 
   defp clean_attributes(tree) do
-    global = Map.get(@keep_attrs, "*", [])
-
     Floki.traverse_and_update(tree, fn
       {tag, attrs, children} ->
-        allowed = global ++ Map.get(@keep_attrs, tag, [])
+        allowed = @global_attrs ++ Map.get(@keep_attrs, tag, [])
         kept = Enum.filter(attrs, fn {name, _} -> name in allowed end)
         {tag, kept, children}
 

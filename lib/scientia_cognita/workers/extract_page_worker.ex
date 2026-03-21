@@ -24,22 +24,83 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
 
   @extract_schema %{
     type: "OBJECT",
+    description:
+      "Structured extraction of a scientific image gallery page. " <>
+        "Extract every gallery item present — including hidden, off-screen, aria-hidden, " <>
+        "lazy-loaded items, and items inside carousels, sliders, or slideshow containers. " <>
+        "Do not stop at the first few visible items.",
     properties: %{
-      is_gallery: %{type: "BOOLEAN"},
-      gallery_title: %{type: "STRING", nullable: true},
-      gallery_description: %{type: "STRING", nullable: true},
-      next_page_url: %{type: "STRING", nullable: true},
+      is_gallery: %{
+        type: "BOOLEAN",
+        description:
+          "True if this page is a scientific image gallery — astronomy, microscopy, " <>
+            "wildlife photography, geological surveys, medical imaging, museum collections, " <>
+            "or science journalism photo essays. False for news articles, product pages, " <>
+            "blog posts, or pages where images are merely decorative."
+      },
+      gallery_title: %{
+        type: "STRING",
+        nullable: true,
+        description: "Title of the gallery, from page headings or metadata. Null if absent."
+      },
+      gallery_description: %{
+        type: "STRING",
+        nullable: true,
+        description: "Brief description of the gallery from page content. Null if absent."
+      },
+      next_page_url: %{
+        type: "STRING",
+        nullable: true,
+        description:
+          "Absolute URL of the next-page link if pagination exists. " <>
+            "Resolve relative URLs using the base URL. Null on single-page or last page."
+      },
       items: %{
         type: "ARRAY",
+        description:
+          "Every gallery item in the HTML. Include items that are currently hidden or " <>
+            "off-screen (aria-hidden, display:none), not yet loaded (lazy-loaded images), " <>
+            "inside carousels or sliders regardless of slide position, and every numbered " <>
+            "section in compilation or roundup articles.",
         items: %{
           type: "OBJECT",
           properties: %{
-            image_url: %{type: "STRING", nullable: true},
-            title: %{type: "STRING", nullable: true},
-            description: %{type: "STRING", nullable: true},
-            copyright: %{type: "STRING", nullable: true}
+            image_url: %{
+              type: "STRING",
+              description:
+                "Absolute image URL. Check in this priority order: " <>
+                  "(1) srcset or data-srcset — pick the URL with the largest width descriptor (e.g. prefer 1600w over 400w); " <>
+                  "(2) src — if it has no size/quality suffix (e.g. no -1200-80 pattern), prefer it as the original full-resolution URL; " <>
+                  "(3) data-src, data-lazy-src, data-original, data-hi-res-src, data-full-src. " <>
+                  "Always resolve relative URLs to absolute using the page base URL."
+            },
+            title: %{
+              type: "STRING",
+              nullable: true,
+              description: "Image heading or caption title. Null if absent."
+            },
+            # Non-nullable + required: forces Gemini to pull text from alt,
+            # figcaption, sibling content divs, or surrounding paragraphs
+            # rather than defaulting to null.
+            description: %{
+              type: "STRING",
+              description:
+                "Description text for the image. Check in this priority order: " <>
+                  "(1) The alt attribute on the img tag — many sites encode the full caption here; use it verbatim if longer than ~20 characters. " <>
+                  "(2) A figcaption element that is NOT just a copyright or credit line. " <>
+                  "(3) The first p element immediately following the closing figure tag — article and listicle galleries commonly place descriptions there. " <>
+                  "(4) Any other nearby text clearly associated with the image. " <>
+                  "Summarize to under 300 characters. Use empty string only if truly nothing is present."
+            },
+            copyright: %{
+              type: "STRING",
+              nullable: true,
+              description:
+                "Copyright or credit line — often inside a figcaption or a span " <>
+                  "containing 'credit', 'copyright', or 'Image credit'. Null if absent."
+            }
           },
-          required: ["image_url"]
+          required: ["image_url", "description"]
         }
       }
     },
@@ -124,24 +185,7 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
   @doc "Builds the Gemini prompt for extracting gallery items from a page."
   def build_extract_prompt(clean_html, base_url) do
     """
-    Analyze the following HTML page and extract scientific image gallery data.
-
-    Determine if this page is a scientific image gallery (astronomy, microscopy,
-    wildlife photography, geological surveys, medical imaging, museum collections,
-    or science journalism photo essays). Set is_gallery to false for news articles,
-    product pages, blog posts, or pages where images are incidental.
-
-    If is_gallery is true:
-    - Set gallery_title and gallery_description from the page content.
-    - Find ALL gallery items and for each extract:
-      * image_url (REQUIRED): The image URL. If a srcset attribute is present,
-        return the URL with the largest width descriptor (e.g. prefer "1600w" over "400w").
-        Otherwise use the src attribute. Always return absolute URLs.
-      * title: The image heading or title (null if absent).
-      * description: A description or caption, summarized to under 300 characters (null if absent).
-      * copyright: The copyright or credit line (null if absent).
-    - Set next_page_url to the absolute URL of the "next page" link if pagination
-      exists (null if this is a single page or the last page).
+    Extract scientific image gallery data from the HTML below.
 
     Base URL for resolving relative URLs: #{base_url}
 
