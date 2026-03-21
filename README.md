@@ -1,4 +1,4 @@
-<img src="priv/static/images/logo.svg" alt="Scientia Cognita logo" width="72" />
+![Scientia Cognita logo](priv/static/images/logo-full.png)
 
 # scientia cognita
 
