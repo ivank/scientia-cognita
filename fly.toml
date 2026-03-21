@@ -6,7 +6,7 @@ primary_region = "bom"
 [build]
 
 [deploy]
-  release_command = "/app/bin/scientia_cognita eval \"ScientiaCognita.Release.migrate()\""
+  release_command = "/app/bin/scientia_cognita eval \"ScientiaCognita.Release.setup()\""
 
 [env]
   PHX_HOST = "scientia-cognita.fly.dev"
