@@ -9,7 +9,7 @@ config :scientia_cognita, ScientiaCognitaWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
 # Configures Swoosh API Client
-config :swoosh, api_client: Swoosh.ApiClient.Req
+config :swoosh, api_client: Swoosh.ApiClient.Hackney
 
 # Disable Swoosh Local Memory Storage
 config :swoosh, local: false
