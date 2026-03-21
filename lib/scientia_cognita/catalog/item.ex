@@ -86,7 +86,9 @@ defmodule ScientiaCognita.Catalog.Item do
     item
     |> change(status: status)
     |> then(fn cs ->
-      if error = opts[:error], do: put_change(cs, :error, error), else: cs
+      if Keyword.has_key?(opts, :error),
+        do: put_change(cs, :error, opts[:error]),
+        else: cs
     end)
     |> validate_inclusion(:status, @statuses)
   end
@@ -114,6 +116,7 @@ defmodule ScientiaCognita.Catalog.Item do
     changeset
     |> cast(params, [:storage_key])
     |> validate_required([:storage_key])
+    |> put_change(:error, nil)
   end
 
   def transition_changeset(changeset, "processing", "color_analysis", params) do
@@ -132,7 +135,9 @@ defmodule ScientiaCognita.Catalog.Item do
   # here so RenderWorker can write the final rendered image path atomically in
   # the render→ready transition, eliminating a separate update_item_storage call.
   def transition_changeset(changeset, "render", "ready", params) do
-    cast(changeset, params, [:processed_key])
+    changeset
+    |> cast(params, [:processed_key])
+    |> put_change(:error, nil)
   end
 
   def transition_changeset(changeset, _old, "failed", params) do
