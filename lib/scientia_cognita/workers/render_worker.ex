@@ -2,7 +2,8 @@ defmodule ScientiaCognita.Workers.RenderWorker do
   @moduledoc """
   Downloads the processed 1920×1080 image, renders a text overlay band
   using the stored Gemini-determined colors, and uploads the final image.
-  Marks the item as "ready".
+  Marks the item as "ready". When the last item finishes, transitions the
+  source from "items_loading" to "done".
 
   Args: %{item_id: integer}
   """
@@ -11,7 +12,7 @@ defmodule ScientiaCognita.Workers.RenderWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, ItemFSM, Storage}
+  alias ScientiaCognita.{Catalog, Repo, Storage}
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
   @storage Application.compile_env(:scientia_cognita, :storage_module, ScientiaCognita.Storage)
@@ -29,10 +30,9 @@ defmodule ScientiaCognita.Workers.RenderWorker do
          {:ok, output_binary} <- Image.write(composed, :memory, suffix: ".jpg", quality: 85),
          final_key = Storage.item_key(item.id, :final, ".jpg"),
          {:ok, _} <- @storage.upload(final_key, output_binary, content_type: "image/jpeg"),
-         {:ok, item} <- Catalog.update_item_storage(item, %{processed_key: final_key}),
-         {:ok, "ready"} <- ItemFSM.transition(item, :rendered),
-         {:ok, item} <- Catalog.update_item_status(item, "ready") do
+         {:ok, item} <- fsm_transition(item, "ready", %{processed_key: final_key}) do
       broadcast(item.source_id, {:item_updated, item})
+      maybe_complete_source(item)
       :ok
     else
       {:error, :invalid_transition} ->
@@ -42,9 +42,51 @@ defmodule ScientiaCognita.Workers.RenderWorker do
       {:error, reason} ->
         Logger.error("[RenderWorker] failed item=#{item_id}: #{inspect(reason)}")
         item = Catalog.get_item!(item_id)
-        {:ok, _} = Catalog.update_item_status(item, "failed", error: inspect(reason))
+        {:ok, _} = fsm_transition(item, "failed", %{error: inspect(reason)})
         broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
         :ok
+    end
+  end
+
+  defp maybe_complete_source(item) do
+    source = Catalog.get_source!(item.source_id)
+
+    if source.status == "items_loading" do
+      pending_count = Catalog.count_items_not_terminal(source)
+
+      if pending_count == 0 do
+        multi =
+          Ecto.Multi.new()
+          |> Fsmx.transition_multi(source, :transition, "done", %{}, state_field: :status)
+
+        case Repo.transaction(multi) do
+          {:ok, %{transition: done_source}} ->
+            broadcast(item.source_id, {:source_updated, done_source})
+
+          {:error, :transition, %Ecto.Changeset{} = _cs, _} ->
+            # Race: another RenderWorker or a concurrent failure already closed the source
+            :ok
+
+          {:error, _, reason, _} ->
+            Logger.error("[RenderWorker] failed to close source=#{item.source_id}: #{inspect(reason)}")
+        end
+      end
+    end
+  end
+
+  defp fsm_transition(schema, new_state, params \\ %{}) do
+    Ecto.Multi.new()
+    |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:error, :transition, %Ecto.Changeset{} = cs, _} ->
+        if Keyword.has_key?(cs.errors, :status) do
+          {:error, :invalid_transition}
+        else
+          {:error, cs}
+        end
+      {:error, _, reason, _} -> {:error, reason}
     end
   end
 

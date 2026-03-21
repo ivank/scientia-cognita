@@ -65,4 +65,24 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
       assert item.status == "ready"
     end
   end
+
+  describe "perform/1 — source completion" do
+    test "transitions source to done when last item finishes" do
+      source = source_fixture(%{status: "items_loading"})
+      item = item_fixture(source, %{
+        status: "render",
+        processed_key: "items/1/processed.jpg",
+        text_color: "#FFFFFF", bg_color: "#000000", bg_opacity: 0.75
+      })
+
+      jpeg = File.read!("test/fixtures/test_image.jpg")
+      expect(MockHttp, :get, fn _url, _opts -> {:ok, %{status: 200, body: jpeg, headers: %{}}} end)
+      expect(MockStorage, :upload, fn _key, _data, _opts -> {:ok, %{}} end)
+
+      assert :ok = perform_job(RenderWorker, %{item_id: item.id})
+
+      source = Catalog.get_source!(source.id)
+      assert source.status == "done"
+    end
+  end
 end
