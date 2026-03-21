@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Stage 1: Build ----
-FROM elixir:1.15-otp-26-alpine AS builder
+FROM --platform=linux/amd64 elixir:1.15-otp-26-alpine AS builder
 
 # Build-time packages
 # vips-dev and friends are needed to compile the vix NIF from source (PLATFORM_PROVIDED_LIBVIPS mode)
@@ -48,7 +48,7 @@ RUN mix assets.deploy
 RUN mix release
 
 # ---- Stage 2: Runtime ----
-FROM alpine:3.19 AS runner
+FROM --platform=linux/amd64 alpine:3.19 AS runner
 
 # Runtime packages
 # libvips: required by the image/vix library at runtime
@@ -56,7 +56,7 @@ FROM alpine:3.19 AS runner
 # fuse3: required by LiteFS for the FUSE filesystem
 # LiteFS requires root (CAP_SYS_ADMIN) for FUSE mount — no USER directive is intentional
 RUN apk add --no-cache \
-  libvips \
+  vips \
   libgcc \
   libstdc++ \
   fuse3 \
