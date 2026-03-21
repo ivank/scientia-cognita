@@ -500,7 +500,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp row_class("processing"), do: "bg-info/10"
   defp row_class("color_analysis"), do: "bg-info/10"
   defp row_class("render"), do: "bg-info/10"
-  defp row_class("ready"), do: "bg-success/10"
+  defp row_class("ready"), do: ""
   defp row_class("failed"), do: "bg-error/10"
   defp row_class(_), do: ""
 

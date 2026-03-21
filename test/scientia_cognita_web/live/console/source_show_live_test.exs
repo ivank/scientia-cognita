@@ -54,7 +54,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
 
-      assert html =~ "bg-success/10"
+      refute html =~ "bg-success/10"
       assert html =~ "bg-error/10"
       assert html =~ "bg-info/10"
     end
