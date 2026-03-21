@@ -1,5 +1,6 @@
 defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
   use ScientiaCognitaWeb.ConnCase
+  use Oban.Testing, repo: ScientiaCognita.Repo
   import Phoenix.LiveViewTest
   import ScientiaCognita.CatalogFixtures
   import ScientiaCognita.AccountsFixtures
@@ -195,6 +196,42 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
       html = render(view)
       assert html =~ "Updated Item"
+    end
+  end
+
+  describe "re-render action" do
+    test "enqueues ProcessImageWorker (not RenderWorker) and resets to processing", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "ready",
+                            storage_key: "images/original.jpg",
+                            processed_key: "images/final.jpg",
+                            text_color: "#FFFFFF",
+                            bg_color: "#000000",
+                            bg_opacity: 0.75})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      # Open modal
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+      # Click re-render
+      view |> element("button[phx-click='rerender_item']") |> render_click()
+
+      # ProcessImageWorker should be in the Oban queue
+      assert_enqueued(worker: ScientiaCognita.Workers.ProcessImageWorker,
+                      args: %{"item_id" => item.id})
+
+      # RenderWorker must NOT be enqueued
+      refute_enqueued(worker: ScientiaCognita.Workers.RenderWorker,
+                      args: %{"item_id" => item.id})
+
+      # Item status reset to "processing", processed_key and color fields cleared
+      reloaded = ScientiaCognita.Catalog.get_item!(item.id)
+      assert reloaded.status == "processing"
+      assert is_nil(reloaded.processed_key)
+      assert is_nil(reloaded.text_color)
+      assert is_nil(reloaded.bg_color)
+      assert is_nil(reloaded.bg_opacity)
+      assert reloaded.storage_key == "images/original.jpg"  # preserved
     end
   end
 end

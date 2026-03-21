@@ -377,16 +377,31 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   def handle_event("rerender_item", %{"id" => id}, socket) do
     item = Catalog.get_item!(id)
-    # Put back to render state and enqueue RenderWorker — it completes to ready.
-    {:ok, item} = Catalog.update_item_status(item, "render", error: nil)
-    %{item_id: item.id} |> RenderWorker.new() |> Oban.insert()
-    source = Catalog.get_source!(socket.assigns.source.id)
+
+    # Clear rendered output AND color analysis results. If this re-render gets stuck
+    # in color_analysis state, the retry dispatch checks `text_color: nil` to decide
+    # whether to enqueue ColorAnalysisWorker. Leaving stale text_color would cause
+    # retry to misroute to RenderWorker instead.
+    # Note: Item.color_changeset/2 validates all three fields as required, so we use
+    # a direct Ecto.Changeset.change to clear them.
+    {:ok, item} =
+      item
+      |> Ecto.Changeset.change(%{
+        processed_key: nil,
+        text_color: nil,
+        bg_color: nil,
+        bg_opacity: nil
+      })
+      |> ScientiaCognita.Repo.update()
+
+    {:ok, item} = Catalog.update_item_status(item, "processing", error: nil)
+    # ProcessImageWorker reads storage_key, then chains color_analysis → render → ready
+    %{item_id: item.id} |> ProcessImageWorker.new() |> Oban.insert()
 
     {:noreply,
      socket
      |> assign(:selected_item, nil)
      |> assign(:item_form, nil)
-     |> assign_source_stats(source)
      |> put_flash(:info, "Re-rendering item")}
   end
 
