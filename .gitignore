@@ -43,3 +43,6 @@ npm-debug.log
 /test/minio/
 
 .worktrees/
+
+# Local secrets — never commit
+/config/dev.secret.exs
