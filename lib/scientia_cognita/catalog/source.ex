@@ -1,26 +1,64 @@
 defmodule ScientiaCognita.Catalog.Source do
+  @moduledoc """
+  Source schema with fsmx state machine.
+
+  State transitions:
+    pending → fetching → extracting → items_loading → done
+    any non-terminal → failed
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
-  @statuses ~w(pending fetching extracting done failed)
+  alias ScientiaCognita.Catalog.{GeminiPageResult, Item}
+
+  use Fsmx.Struct,
+    state_field: :status,
+    transitions: %{
+      "pending"       => ["fetching", "failed"],
+      "fetching"      => ["extracting", "failed"],
+      "extracting"    => ["extracting", "items_loading", "failed"],
+      "items_loading" => ["done", "failed"]
+    }
+
+  @statuses ~w(pending fetching extracting items_loading done failed)
+
+  @type status :: String.t()
+  # valid values: "pending" | "fetching" | "extracting" | "items_loading" | "done" | "failed"
+
+  @type t :: %__MODULE__{
+    id:            integer() | nil,
+    url:           String.t(),
+    name:          String.t(),
+    status:        status(),
+    title:         String.t() | nil,
+    description:   String.t() | nil,
+    raw_html:      String.t() | nil,
+    next_page_url: String.t() | nil,
+    pages_fetched: non_neg_integer(),
+    total_items:   non_neg_integer(),
+    error:         String.t() | nil,
+    gemini_pages:  [GeminiPageResult.t()],
+    items:         [Item.t()] | Ecto.Association.NotLoaded.t(),
+    inserted_at:   DateTime.t() | nil,
+    updated_at:    DateTime.t() | nil
+  }
 
   schema "sources" do
-    field :url, :string
-    field :name, :string
-    field :status, :string, default: "pending"
+    field :url,           :string
+    field :name,          :string
+    field :status,        :string, default: "pending"
     field :next_page_url, :string
     field :pages_fetched, :integer, default: 0
-    field :total_items, :integer, default: 0
-    field :error, :string
+    field :total_items,   :integer, default: 0
+    field :error,         :string
+    field :raw_html,      :string
+    field :title,         :string
+    field :description,   :string
 
-    # Set during fetching
-    field :raw_html, :string
+    embeds_many :gemini_pages, GeminiPageResult
 
-    # Set during extracting (from Gemini)
-    field :gallery_title, :string
-    field :gallery_description, :string
-
-    has_many :items, ScientiaCognita.Catalog.Item
+    has_many :items, Item
 
     timestamps(type: :utc_datetime)
   end
@@ -29,13 +67,15 @@ defmodule ScientiaCognita.Catalog.Source do
 
   def changeset(source, attrs) do
     source
-    |> cast(attrs, [:url, :name, :status, :next_page_url, :pages_fetched, :total_items, :error])
+    |> cast(attrs, [:url, :name, :status, :next_page_url, :pages_fetched,
+                    :total_items, :error, :title, :description])
     |> validate_required([:url, :name])
     |> validate_inclusion(:status, @statuses)
     |> validate_format(:url, ~r/^https?:\/\//, message: "must be a valid URL")
     |> unique_constraint(:url)
   end
 
+  @doc "Used by Catalog.update_source_status/3 for fixture/test setup only."
   def status_changeset(source, status, opts \\ []) do
     source
     |> change(status: status)
@@ -45,20 +85,37 @@ defmodule ScientiaCognita.Catalog.Source do
     |> validate_inclusion(:status, @statuses)
   end
 
-  def progress_changeset(source, attrs) do
-    source
-    |> cast(attrs, [:next_page_url, :pages_fetched, :total_items])
+  # ---------------------------------------------------------------------------
+  # fsmx transition_changeset callbacks
+  # ---------------------------------------------------------------------------
+
+  def transition_changeset(changeset, "pending", "fetching", _params), do: changeset
+
+  def transition_changeset(changeset, "fetching", "extracting", params) do
+    changeset
+    |> cast(params, [:raw_html])
+    |> validate_required([:raw_html])
   end
 
-  @doc "Stores the raw HTML fetched from the source URL."
-  def html_changeset(source, attrs) do
-    source
-    |> cast(attrs, [:raw_html])
+  def transition_changeset(changeset, "extracting", "extracting", params) do
+    existing = get_field(changeset, :gemini_pages) || []
+    changeset
+    |> cast(params, [:pages_fetched, :total_items, :next_page_url])
+    |> put_embed(:gemini_pages, existing ++ [params[:gemini_page]])
   end
 
-  @doc "Stores the Gemini-extracted gallery metadata."
-  def analyze_changeset(source, attrs) do
-    source
-    |> cast(attrs, [:gallery_title, :gallery_description])
+  def transition_changeset(changeset, "extracting", "items_loading", params) do
+    existing = get_field(changeset, :gemini_pages) || []
+    changeset
+    |> cast(params, [:pages_fetched, :total_items, :title, :description])
+    |> put_embed(:gemini_pages, existing ++ [params[:gemini_page]])
+  end
+
+  def transition_changeset(changeset, "items_loading", "done", _params), do: changeset
+
+  def transition_changeset(changeset, _old, "failed", params) do
+    changeset
+    |> cast(params, [:error])
+    |> validate_required([:error])
   end
 end

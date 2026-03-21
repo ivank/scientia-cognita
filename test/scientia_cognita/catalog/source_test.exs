@@ -1,57 +1,75 @@
 defmodule ScientiaCognita.Catalog.SourceTest do
   use ScientiaCognita.DataCase
 
-  alias ScientiaCognita.Catalog.Source
-
-  describe "html_changeset/2" do
-    test "casts raw_html" do
-      source = %Source{status: "fetching"}
-      cs = Source.html_changeset(source, %{raw_html: "<html>content</html>"})
-      assert cs.valid?
-      assert get_change(cs, :raw_html) == "<html>content</html>"
-    end
-  end
-
-  describe "analyze_changeset/2" do
-    test "casts gallery_title and gallery_description only" do
-      source = %Source{status: "extracting"}
-
-      attrs = %{
-        gallery_title: "Hubble Gallery",
-        gallery_description: "Space images"
-      }
-
-      cs = Source.analyze_changeset(source, attrs)
-      assert cs.valid?
-      assert get_change(cs, :gallery_title) == "Hubble Gallery"
-      assert get_change(cs, :gallery_description) == "Space images"
-    end
-
-    test "does not cast selector fields (they no longer exist)" do
-      source = %Source{status: "extracting"}
-      cs = Source.analyze_changeset(source, %{gallery_title: "Test", selector_image: ".foo"})
-      assert cs.valid?
-      # selector_image is not a schema field; cast silently ignores unknown keys
-      assert get_change(cs, :gallery_title) == "Test"
-    end
-  end
+  alias ScientiaCognita.Catalog.{Source, GeminiPageResult}
 
   describe "status_changeset/3" do
-    test "accepts FSM statuses" do
-      for status <- ~w(pending fetching extracting done failed) do
+    test "accepts all FSM statuses including items_loading" do
+      for status <- ~w(pending fetching extracting items_loading done failed) do
         cs = Source.status_changeset(%Source{status: "pending"}, status)
         assert cs.valid?, "Expected #{status} to be valid"
       end
     end
 
-    test "rejects analyzing (removed from FSM)" do
+    test "rejects unknown status" do
       cs = Source.status_changeset(%Source{status: "pending"}, "analyzing")
       refute cs.valid?
     end
+  end
 
-    test "rejects old running status" do
-      cs = Source.status_changeset(%Source{status: "pending"}, "running")
+  describe "transition_changeset/4 — fetching → extracting" do
+    test "requires raw_html" do
+      cs = Source.transition_changeset(
+        Ecto.Changeset.change(%Source{status: "fetching"}),
+        "fetching", "extracting", %{}
+      )
       refute cs.valid?
+      assert {:raw_html, {"can't be blank", _}} = hd(cs.errors)
+    end
+
+    test "accepts raw_html" do
+      cs = Source.transition_changeset(
+        Ecto.Changeset.change(%Source{status: "fetching"}),
+        "fetching", "extracting", %{raw_html: "<html>ok</html>"}
+      )
+      assert cs.valid?
+    end
+  end
+
+  describe "transition_changeset/4 — failed" do
+    test "requires error message" do
+      cs = Source.transition_changeset(
+        Ecto.Changeset.change(%Source{status: "extracting"}),
+        "extracting", "failed", %{}
+      )
+      refute cs.valid?
+    end
+
+    test "accepts error message" do
+      cs = Source.transition_changeset(
+        Ecto.Changeset.change(%Source{status: "extracting"}),
+        "extracting", "failed", %{error: "Something went wrong"}
+      )
+      assert cs.valid?
+    end
+  end
+
+  describe "transition_changeset/4 — extracting → items_loading" do
+    test "appends gemini_page to gemini_pages" do
+      page = GeminiPageResult.new(%{
+        page_url: "https://example.com", is_gallery: true,
+        gallery_title: "Test", gallery_description: "Desc",
+        next_page_url: nil, raw_items: []
+      })
+
+      cs = Source.transition_changeset(
+        Ecto.Changeset.change(%Source{status: "extracting", gemini_pages: []}),
+        "extracting", "items_loading",
+        %{pages_fetched: 1, total_items: 0, title: "Test", description: "Desc", gemini_page: page}
+      )
+
+      assert cs.valid?
+      assert length(Ecto.Changeset.get_change(cs, :gemini_pages)) == 1
     end
   end
 end
