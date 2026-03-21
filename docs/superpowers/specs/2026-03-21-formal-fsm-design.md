@@ -430,6 +430,7 @@ Run with: `mix test --include live test/scientia_cognita/integration/source_life
 | `lib/.../html_stripper.ex` | Body-only, drop class/id, add data-src, remove svg + descendants, remove comments, lower max_bytes |
 | `lib/.../workers/fetch_page_worker.ex` | Use `Ecto.Multi` + `Fsmx.transition_multi` |
 | `lib/.../workers/extract_page_worker.ex` | Use `Fsmx.transition_multi`, build + append `GeminiPageResult` |
+| `lib/.../catalog.ex` | Add `count_items_not_terminal/1` — queries `WHERE source_id = ? AND status NOT IN ('ready', 'failed')` |
 | `lib/.../workers/render_worker.ex` | After item→ready, check source completion and transition to done |
 | `priv/repo/migrations/YYYYMMDD_formal_fsm.exs` | **New** — rename columns, add gemini_pages column |
 | `test/.../integration/source_lifecycle_test.exs` | **New** — full pipeline integration test (Layer 1 + Layer 2) |
