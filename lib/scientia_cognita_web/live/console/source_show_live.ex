@@ -84,6 +84,12 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         </div>
       </div>
 
+      <%!-- Loading banner --%>
+      <div :if={@source.status == "items_loading"} class="flex items-center gap-2 text-sm text-base-content/60">
+        <span class="loading loading-spinner loading-sm"></span>
+        Items are being loaded…
+      </div>
+
       <%!-- Items table --%>
       <div class="overflow-x-auto">
         <table class="table table-sm">
