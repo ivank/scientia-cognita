@@ -12,7 +12,6 @@ data:
 
 lease:
   type: static
-  primary: true
 
 exec:
   # Step 1: run migrations (FUSE mount is ready at this point)
