@@ -1,0 +1,26 @@
+# Build artifacts
+_build/
+deps/
+.elixir_ls/
+.git/
+
+# Development database files
+*.db
+*.db-shm
+*.db-wal
+
+# Dev secrets (never in image)
+config/dev.secret.exs
+config/dev.secret.exs.example
+.env
+*.secret.*
+
+# Assets source (compiled output is in priv/static)
+assets/node_modules/
+
+# Test artifacts
+cover/
+
+# Docs
+docs/
+README.md
