@@ -11,7 +11,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, ItemFSM, Storage}
+  alias ScientiaCognita.{Catalog, Repo, Storage}
   alias ScientiaCognita.Workers.ColorAnalysisWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
@@ -32,9 +32,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
          {:ok, output_binary} <- Image.write(resized, :memory, suffix: ".jpg", quality: 85),
          processed_key = Storage.item_key(item.id, :processed, ".jpg"),
          {:ok, _} <- @storage.upload(processed_key, output_binary, content_type: "image/jpeg"),
-         {:ok, item} <- Catalog.update_item_storage(item, %{processed_key: processed_key}),
-         {:ok, "color_analysis"} <- ItemFSM.transition(item, :processed),
-         {:ok, item} <- Catalog.update_item_status(item, "color_analysis") do
+         {:ok, item} <- fsm_transition(item, "color_analysis", %{processed_key: processed_key}) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> ColorAnalysisWorker.new() |> Oban.insert()
       :ok
@@ -46,9 +44,25 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
       {:error, reason} ->
         Logger.error("[ProcessImageWorker] failed item=#{item_id}: #{inspect(reason)}")
         item = Catalog.get_item!(item_id)
-        {:ok, _} = Catalog.update_item_status(item, "failed", error: inspect(reason))
+        {:ok, _} = fsm_transition(item, "failed", %{error: inspect(reason)})
         broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
         :ok
+    end
+  end
+
+  defp fsm_transition(schema, new_state, params \\ %{}) do
+    Ecto.Multi.new()
+    |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:error, :transition, %Ecto.Changeset{} = cs, _} ->
+        if Keyword.has_key?(cs.errors, :status) do
+          {:error, :invalid_transition}
+        else
+          {:error, cs}
+        end
+      {:error, _, reason, _} -> {:error, reason}
     end
   end
 
