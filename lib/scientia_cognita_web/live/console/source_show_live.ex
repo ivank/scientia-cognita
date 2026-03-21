@@ -524,7 +524,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   defp gemini_page_json(page) do
     # gemini_pages are always Ecto embedded schema structs, but guard defensively.
-    data = if is_struct(page), do: Map.from_struct(page), else: page
+    # Drop :__meta__ (Ecto metadata) which is not JSON-serializable.
+    data = if is_struct(page), do: page |> Map.from_struct() |> Map.delete(:__meta__), else: page
 
     case Jason.encode(data, pretty: true) do
       {:ok, json} -> json
