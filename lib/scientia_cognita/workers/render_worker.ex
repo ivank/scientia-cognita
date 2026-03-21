@@ -74,7 +74,7 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     end
   end
 
-  defp fsm_transition(schema, new_state, params \\ %{}) do
+  defp fsm_transition(schema, new_state, params) do
     Ecto.Multi.new()
     |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
     |> Repo.transaction()
