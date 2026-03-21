@@ -10,7 +10,7 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, ItemFSM, Storage}
+  alias ScientiaCognita.{Catalog, Repo, Storage}
   alias ScientiaCognita.Workers.ProcessImageWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
@@ -26,15 +26,12 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
     else
       Logger.info("[DownloadImageWorker] item=#{item_id} url=#{item.original_url}")
 
-      with {:ok, "downloading"} <- ItemFSM.transition(item, :start),
-           {:ok, item} <- Catalog.update_item_status(item, "downloading"),
+      with {:ok, item} <- fsm_transition(item, "downloading"),
            {:ok, {binary, content_type}} <- download(item.original_url),
            ext = ext_from_content_type(content_type),
            storage_key = Storage.item_key(item.id, :original, ext),
            {:ok, _} <- @storage.upload(storage_key, binary, content_type: content_type),
-           {:ok, item} <- Catalog.update_item_storage(item, %{storage_key: storage_key}),
-           {:ok, "processing"} <- ItemFSM.transition(item, :downloaded),
-           {:ok, item} <- Catalog.update_item_status(item, "processing") do
+           {:ok, item} <- fsm_transition(item, "processing", %{storage_key: storage_key}) do
         broadcast(item.source_id, {:item_updated, item})
         %{item_id: item_id} |> ProcessImageWorker.new() |> Oban.insert()
         :ok
@@ -46,7 +43,7 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
         {:error, reason} ->
           Logger.error("[DownloadImageWorker] failed item=#{item_id}: #{inspect(reason)}")
           item = Catalog.get_item!(item_id)
-          {:ok, _} = Catalog.update_item_status(item, "failed", error: inspect(reason))
+          {:ok, _} = fsm_transition(item, "failed", %{error: inspect(reason)})
           broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
           :ok
       end
@@ -80,5 +77,21 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
 
   defp broadcast(source_id, event) do
     Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, "source:#{source_id}", event)
+  end
+
+  defp fsm_transition(schema, new_state, params \\ %{}) do
+    Ecto.Multi.new()
+    |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:error, :transition, %Ecto.Changeset{} = cs, _} ->
+        if Keyword.has_key?(cs.errors, :status) do
+          {:error, :invalid_transition}
+        else
+          {:error, cs}
+        end
+      {:error, _, reason, _} -> {:error, reason}
+    end
   end
 end
