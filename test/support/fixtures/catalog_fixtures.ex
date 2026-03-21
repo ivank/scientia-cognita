@@ -16,7 +16,10 @@ defmodule ScientiaCognita.CatalogFixtures do
 
     source =
       if raw_html do
-        {:ok, source} = Catalog.update_source_html(source, %{raw_html: raw_html})
+        {:ok, source} =
+          source
+          |> Ecto.Changeset.change(raw_html: raw_html)
+          |> ScientiaCognita.Repo.update()
         source
       else
         source

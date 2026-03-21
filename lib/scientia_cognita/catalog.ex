@@ -47,24 +47,6 @@ defmodule ScientiaCognita.Catalog do
     |> Repo.update()
   end
 
-  def update_source_progress(%Source{} = source, attrs) do
-    source
-    |> Source.progress_changeset(attrs)
-    |> Repo.update()
-  end
-
-  def update_source_html(%Source{} = source, attrs) do
-    source
-    |> Source.html_changeset(attrs)
-    |> Repo.update()
-  end
-
-  def update_source_analysis(%Source{} = source, attrs) do
-    source
-    |> Source.analyze_changeset(attrs)
-    |> Repo.update()
-  end
-
   def delete_source(%Source{} = source), do: Repo.delete(source)
 
   @doc """
@@ -80,6 +62,22 @@ defmodule ScientiaCognita.Catalog do
     end)
 
     Repo.delete(source)
+  end
+
+  @doc """
+  Resets a source to pending for re-processing. Called by SourceShowLive restart.
+  Clears progress counters, pagination state, and error atomically.
+  """
+  def reset_source(%Source{} = source) do
+    source
+    |> Ecto.Changeset.change(
+      status: "pending",
+      pages_fetched: 0,
+      total_items: 0,
+      next_page_url: nil,
+      error: nil
+    )
+    |> Repo.update()
   end
 
   def change_source(%Source{} = source, attrs \\ %{}), do: Source.changeset(source, attrs)
@@ -196,6 +194,19 @@ defmodule ScientiaCognita.Catalog do
         select: {i.status, count(i.id)}
     )
     |> Map.new()
+  end
+
+  @doc """
+  Returns the count of items for `source` that are not yet in a terminal state.
+  Terminal states are "ready" and "failed". Used by RenderWorker to detect
+  when all items have completed and the source can transition to "done".
+  """
+  def count_items_not_terminal(%Source{id: source_id}) do
+    Repo.aggregate(
+      from(i in Item,
+        where: i.source_id == ^source_id and i.status not in ["ready", "failed"]),
+      :count
+    )
   end
 
   # ---------------------------------------------------------------------------

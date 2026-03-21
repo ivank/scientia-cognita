@@ -215,8 +215,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   def handle_event("restart_source", _, socket) do
     source = socket.assigns.source
 
-    {:ok, source} = Catalog.update_source_status(source, "pending", error: nil)
-    Catalog.update_source_progress(source, %{pages_fetched: 0, total_items: 0, next_page_url: nil})
+    {:ok, source} = Catalog.reset_source(source)
 
     %{source_id: source.id}
     |> FetchPageWorker.new()
