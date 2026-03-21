@@ -106,7 +106,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
             <tr
               :for={{dom_id, item} <- @streams.items}
               id={dom_id}
-              class={"cursor-pointer hover:brightness-95 transition-all #{row_class(item.status)}"}
+              class={"cursor-pointer hover:bg-base-300/40 transition-colors #{row_class(item.status)}"}
               phx-click="select_item"
               phx-value-id={item.id}
             >
