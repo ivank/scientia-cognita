@@ -56,7 +56,7 @@ defmodule ScientiaCognita.Catalog.Source do
     field :title,         :string
     field :description,   :string
 
-    embeds_many :gemini_pages, GeminiPageResult
+    embeds_many :gemini_pages, GeminiPageResult, on_replace: :delete
 
     has_many :items, Item
 
