@@ -325,24 +325,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      |> put_flash(:info, "Crawl restarted")}
   end
 
-  def handle_event("retry_item", %{"item-id" => item_id}, socket) do
-    item = Catalog.get_item!(item_id)
-
-    {status, worker} =
-      cond do
-        is_nil(item.storage_key) -> {"pending", DownloadImageWorker}
-        is_nil(item.processed_key) -> {"processing", ProcessImageWorker}
-        is_nil(item.text_color) -> {"color_analysis", ColorAnalysisWorker}
-        true -> {"render", RenderWorker}
-      end
-
-    {:ok, _} = Catalog.update_item_status(item, status, error: nil)
-    %{item_id: item.id} |> worker.new() |> Oban.insert()
-
-    source = Catalog.get_source!(socket.assigns.source.id)
-    {:noreply, assign_source_stats(socket, source)}
-  end
-
   def handle_event("select_item", %{"id" => id}, socket) do
     item = Catalog.get_item!(id)
     form = Catalog.change_item(item) |> to_form()
@@ -419,7 +401,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
     {:noreply,
      socket
-     |> assign_source_stats(socket.assigns.source)
+     |> assign_source_stats(Catalog.get_source!(socket.assigns.source.id))
      |> assign(:selected_item, nil)
      |> assign(:item_form, nil)
      |> put_flash(:info, "Re-rendering item")}
@@ -586,5 +568,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp status_class("processing"), do: "badge-info"
   defp status_class("color_analysis"), do: "badge-info"
   defp status_class("render"), do: "badge-info"
+  defp status_class("items_loading"), do: "badge-info animate-pulse"
   defp status_class(_), do: "badge-ghost"
 end
