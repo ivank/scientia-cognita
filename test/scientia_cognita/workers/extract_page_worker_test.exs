@@ -54,11 +54,13 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
       assert_enqueued worker: DownloadImageWorker
 
       source = Catalog.get_source!(source.id)
-      assert source.status == "done"
+      assert source.status == "items_loading"
       assert source.pages_fetched == 1
       assert source.total_items == 2
-      assert source.gallery_title == "Space Gallery"
-      assert source.gallery_description == "Stunning space photos"
+      assert source.title == "Space Gallery"
+      assert source.description == "Stunning space photos"
+      assert length(source.gemini_pages) == 1
+      assert hd(source.gemini_pages).items_count == 2
     end
   end
 

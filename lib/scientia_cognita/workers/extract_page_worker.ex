@@ -1,9 +1,9 @@
 defmodule ScientiaCognita.Workers.ExtractPageWorker do
   @moduledoc """
-  Fetches one page URL, strips HTML, calls Gemini to extract gallery items
-  directly (image_url, title, description, copyright), persists items,
-  enqueues download workers, and either loops to the next page or marks
-  the source as done.
+  For each page URL: strips HTML, calls Gemini to extract gallery items,
+  appends a GeminiPageResult to the source, persists items, enqueues
+  DownloadImageWorkers, and either loops to the next page (extracting → extracting)
+  or transitions to items_loading.
 
   Args: %{source_id: integer, url: string}
   """
@@ -15,7 +15,8 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, HTMLStripper, SourceFSM}
+  alias ScientiaCognita.{Catalog, HTMLStripper, Repo}
+  alias ScientiaCognita.Catalog.GeminiPageResult
   alias ScientiaCognita.Workers.DownloadImageWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
@@ -53,29 +54,39 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     with {:ok, html} <- fetch(url),
          clean_html = HTMLStripper.strip(html),
          {:ok, result} <- call_gemini(clean_html, url),
-         :ok <- check_is_gallery(result, source_id, source),
-         {:ok, source} <- store_gallery_info(result, source),
+         :ok <- check_is_gallery(result),
+         gemini_page = build_gemini_page(result, url),
          items = build_items(result["items"] || [], source_id),
-         {:ok, db_items} <- create_items(items),
-         :ok <- enqueue_downloads(db_items) do
+         {:ok, db_items} <- create_items(items) do
 
       next_url = result["next_page_url"]
-      progress = %{
-        pages_fetched: source.pages_fetched + 1,
-        total_items: source.total_items + length(db_items),
-        next_page_url: next_url
-      }
+      paginating = next_url && next_url != url
+      new_state = if paginating, do: "extracting", else: "items_loading"
 
-      {:ok, source} = Catalog.update_source_progress(source, progress)
+      transition_params =
+        %{
+          pages_fetched: source.pages_fetched + 1,
+          total_items: source.total_items + length(db_items),
+          next_page_url: next_url,
+          gemini_page: gemini_page
+        }
+        |> then(fn p ->
+          if new_state == "items_loading" do
+            Map.merge(p, %{
+              title: result["gallery_title"],
+              description: result["gallery_description"]
+            })
+          else
+            p
+          end
+        end)
+
+      {:ok, source} = fsm_transition(source, new_state, transition_params)
+      :ok = enqueue_downloads(db_items)
       broadcast(source_id, {:source_updated, source})
 
-      if next_url && next_url != url do
-        {:ok, "extracting"} = SourceFSM.transition(source, :page_done)
+      if paginating do
         %{source_id: source_id, url: next_url} |> __MODULE__.new() |> Oban.insert()
-      else
-        {:ok, "done"} = SourceFSM.transition(source, :exhausted)
-        {:ok, done} = Catalog.update_source_status(source, "done")
-        broadcast(source_id, {:source_updated, done})
       end
 
       :ok
@@ -83,10 +94,10 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
       {:not_gallery} ->
         Logger.warning("[ExtractPageWorker] source=#{source_id} is not a scientific image gallery")
         source = Catalog.get_source!(source_id)
-        {:ok, "failed"} = SourceFSM.transition(source, :not_gallery)
-        {:ok, failed} = Catalog.update_source_status(source, "failed",
-          error: "Page is not a scientific image gallery. Check the source URL and try again.")
-        broadcast(source_id, {:source_updated, failed})
+        {:ok, _} = fsm_transition(source, "failed", %{
+          error: "Page is not a scientific image gallery. Check the source URL and try again."
+        })
+        broadcast(source_id, {:source_updated, Catalog.get_source!(source_id)})
         :ok
 
       {:error, :invalid_transition} ->
@@ -96,8 +107,8 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
       {:error, reason} ->
         Logger.error("[ExtractPageWorker] failed source=#{source_id}: #{inspect(reason)}")
         source = Catalog.get_source!(source_id)
-        {:ok, failed} = Catalog.update_source_status(source, "failed", error: inspect(reason))
-        broadcast(source_id, {:source_updated, failed})
+        {:ok, _} = fsm_transition(source, "failed", %{error: inspect(reason)})
+        broadcast(source_id, {:source_updated, Catalog.get_source!(source_id)})
         :ok
     end
   end
@@ -148,14 +159,18 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     @gemini.generate_structured(build_extract_prompt(clean_html, base_url), @extract_schema, [])
   end
 
-  defp check_is_gallery(%{"is_gallery" => false}, _source_id, _source), do: {:not_gallery}
-  defp check_is_gallery(%{"is_gallery" => true}, _source_id, _source), do: :ok
-  defp check_is_gallery(_, _source_id, _source), do: {:not_gallery}
+  defp check_is_gallery(%{"is_gallery" => false}), do: {:not_gallery}
+  defp check_is_gallery(%{"is_gallery" => true}), do: :ok
+  defp check_is_gallery(_), do: {:not_gallery}
 
-  defp store_gallery_info(result, source) do
-    Catalog.update_source_analysis(source, %{
+  defp build_gemini_page(result, url) do
+    GeminiPageResult.new(%{
+      page_url: url,
+      is_gallery: result["is_gallery"],
       gallery_title: result["gallery_title"],
-      gallery_description: result["gallery_description"]
+      gallery_description: result["gallery_description"],
+      next_page_url: result["next_page_url"],
+      raw_items: result["items"] || []
     })
   end
 
@@ -195,8 +210,23 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
         %{item_id: item.id} |> DownloadImageWorker.new() |> Oban.insert()
       end
     end)
-
     :ok
+  end
+
+  defp fsm_transition(schema, new_state, params \\ %{}) do
+    Ecto.Multi.new()
+    |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:error, :transition, %Ecto.Changeset{} = cs, _} ->
+        if Keyword.has_key?(cs.errors, :status) do
+          {:error, :invalid_transition}
+        else
+          {:error, cs}
+        end
+      {:error, _, reason, _} -> {:error, reason}
+    end
   end
 
   defp broadcast(source_id, event) do
