@@ -400,6 +400,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
     {:noreply,
      socket
+     |> assign_source_stats(socket.assigns.source)
      |> assign(:selected_item, nil)
      |> assign(:item_form, nil)
      |> put_flash(:info, "Re-rendering item")}
