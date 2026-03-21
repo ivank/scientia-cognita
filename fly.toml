@@ -1,0 +1,39 @@
+# Fly.io app configuration for Scientia Cognita
+# Run `fly launch` to create the app and fill in <app-name> and <region>,
+# or set them manually and run `fly apps create <app-name>`.
+
+app = "<app-name>"
+primary_region = "<region>"
+
+[build]
+
+[env]
+  # Public hostname used in Phoenix URL helpers and cookies
+  PHX_HOST = "<app-name>.fly.dev"
+  PORT = "4000"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  # auto_stop_machines is effectively a no-op with min_machines_running = 1,
+  # but documents intent: stop the machine when idle (useful if you lower min to 0 for dev)
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Keep 1 machine running at all times to avoid cold-start latency from LiteFS FUSE remount
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 800
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Persistent volume for LiteFS internal data (SQLite WAL, etc.)
+# Create before first deploy: fly volumes create scientia_cognita_data --region <region> --size 1
+[[mounts]]
+  source = "scientia_cognita_data"
+  destination = "/data"
