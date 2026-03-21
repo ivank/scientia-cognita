@@ -41,17 +41,20 @@ end
 if config_env() == :prod do
   # Required environment variables summary (production):
   #
-  #   DATABASE_PATH       — absolute path to the SQLite database file
-  #   SECRET_KEY_BASE     — 64-byte secret (run: mix phx.gen.secret)
-  #   PHX_HOST            — public hostname, e.g. scientia.example.com
-  #   PORT                — HTTP port (default 4000)
-  #   AWS_ACCESS_KEY_ID   — S3 / MinIO access key
-  #   AWS_SECRET_ACCESS_KEY — S3 / MinIO secret
-  #   AWS_S3_BUCKET       — bucket name (default "images")
-  #   GEMINI_API_KEY      — Google AI Studio key
-  #   GOOGLE_CLIENT_ID    — OAuth client ID (Photos Library API)
-  #   GOOGLE_CLIENT_SECRET — OAuth client secret
-  #   OWNER_EMAIL         — email address for the first owner account (seeds.exs)
+  #   DATABASE_PATH         — absolute path to the SQLite database via LiteFS mount
+  #                           e.g. /litefs/scientia_cognita.db
+  #   SECRET_KEY_BASE       — 64-byte secret (run: mix phx.gen.secret)
+  #   PHX_HOST              — public hostname, e.g. <app>.fly.dev
+  #   PORT                  — HTTP port (default 4000)
+  #   AWS_ACCESS_KEY_ID     — Tigris access key (auto-set by fly storage create)
+  #   AWS_SECRET_ACCESS_KEY — Tigris secret key (auto-set by fly storage create)
+  #   BUCKET_NAME           — Tigris bucket name (auto-set by fly storage create)
+  #   MAILGUN_API_KEY       — Mailgun sending key
+  #   MAILGUN_DOMAIN        — Mailgun sending domain, e.g. sc.ikiern.com
+  #   GEMINI_API_KEY        — Google AI Studio key
+  #   GOOGLE_CLIENT_ID      — OAuth client ID (Photos Library API)
+  #   GOOGLE_CLIENT_SECRET  — OAuth client secret
+  #   OWNER_EMAIL           — email address for the first owner account (seeds.exs)
 
   database_path =
     System.get_env("DATABASE_PATH") ||
@@ -62,7 +65,7 @@ if config_env() == :prod do
 
   config :scientia_cognita, ScientiaCognita.Repo,
     database: database_path,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "2")
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -79,12 +82,20 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
-  # S3-compatible object storage (AWS S3 or MinIO in prod)
+  # S3-compatible object storage — Tigris (provisioned via fly storage create)
+  config :ex_aws, :s3,
+    scheme: "https://",
+    host: "fly.storage.tigris.dev",
+    region: "us-east-1"
+
   config :ex_aws,
     access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
-    secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY")
+    secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY"),
+    http_client: ExAws.Request.Hackney
 
-  config :scientia_cognita, :storage, bucket: System.get_env("AWS_S3_BUCKET") || "images"
+  # BUCKET_NAME is auto-set by `fly storage create`; AWS_S3_BUCKET kept as fallback
+  config :scientia_cognita, :storage,
+    bucket: System.get_env("BUCKET_NAME") || System.get_env("AWS_S3_BUCKET") || "images"
 
   config :scientia_cognita, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -149,4 +160,10 @@ if config_env() == :prod do
   #     config :swoosh, :api_client, Swoosh.ApiClient.Req
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
+
+  # Transactional email via Mailgun
+  config :scientia_cognita, ScientiaCognita.Mailer,
+    adapter: Swoosh.Adapters.Mailgun,
+    api_key: System.get_env("MAILGUN_API_KEY"),
+    domain: System.get_env("MAILGUN_DOMAIN") || "sc.ikiern.com"
 end
