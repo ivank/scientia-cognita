@@ -1,6 +1,8 @@
 defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   use ScientiaCognitaWeb, :live_view
 
+  on_mount {ScientiaCognitaWeb.UserAuth, :mount_current_scope}
+
   alias ScientiaCognita.Catalog
   alias ScientiaCognita.Storage
 

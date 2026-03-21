@@ -171,45 +171,61 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       phx-key="Escape"
       phx-window-keydown="close_item"
     >
-      <div class="modal-box max-w-2xl p-0 overflow-hidden">
-        <%!-- Preview image --%>
-        <figure class="aspect-video bg-base-300 w-full">
-          <img
-            :if={@selected_item.processed_key || @selected_item.storage_key}
-            src={Storage.get_url(@selected_item.processed_key || @selected_item.storage_key)}
-            class="w-full h-full object-contain"
-          />
-        </figure>
+      <div class="modal-box max-w-3xl p-0 overflow-hidden">
+        <div class="flex max-h-[80vh]">
+          <%!-- Left: status-aware image preview --%>
+          <figure class="w-56 shrink-0 bg-base-300 self-stretch overflow-hidden relative">
+            <%= cond do %>
+              <% @selected_item.status in ~w(pending downloading) -> %>
+                <div class="skeleton absolute inset-0 rounded-none"></div>
+              <% @selected_item.status == "render" -> %>
+                <img
+                  :if={@selected_item.processed_key || @selected_item.storage_key}
+                  src={Storage.get_url(@selected_item.processed_key || @selected_item.storage_key)}
+                  class="w-full h-full object-contain"
+                />
+                <div class="absolute inset-0 ring-2 ring-inset ring-primary animate-pulse pointer-events-none"></div>
+              <% @selected_item.processed_key || @selected_item.storage_key -> %>
+                <img
+                  src={Storage.get_url(@selected_item.processed_key || @selected_item.storage_key)}
+                  class="w-full h-full object-contain"
+                />
+              <% true -> %>
+            <% end %>
+          </figure>
 
-        <div class="p-6 space-y-4">
-          <%!-- Full error (if any) --%>
-          <div :if={@selected_item.error} class="alert alert-error text-sm">
-            <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
-            <span>{@selected_item.error}</span>
-          </div>
+          <%!-- Right: scrollable fields + pinned action bar --%>
+          <.form for={@item_form} phx-submit="save_item" phx-change="validate_item" class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div class="flex-1 overflow-y-auto p-5 space-y-4">
+              <%!-- Full error (if any) --%>
+              <div :if={@selected_item.error} class="alert alert-error text-sm">
+                <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
+                <span>{@selected_item.error}</span>
+              </div>
 
-          <%!-- Edit form (always shown) --%>
-          <.form for={@item_form} phx-submit="save_item" phx-change="validate_item" class="space-y-4">
-            <div class="form-control">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-medium uppercase tracking-wide">Title</span>
-              </label>
-              <.input field={@item_form[:title]} placeholder="Image title" />
-            </div>
-            <div class="form-control">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
-              </label>
-              <.input field={@item_form[:description]} type="textarea" rows="3" placeholder="Caption or description" />
-            </div>
-            <div class="form-control">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
-              </label>
-              <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
+              <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">Title</span>
+                </label>
+                <.input field={@item_form[:title]} placeholder="Image title" />
+              </div>
+              <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
+                </label>
+                <.input field={@item_form[:description]} type="textarea" rows="3" placeholder="Caption or description" />
+              </div>
+              <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
+                </label>
+                <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
+              </div>
             </div>
 
-            <div class="modal-action pt-0">
+            <%!-- Pinned action bar --%>
+            <div class="shrink-0 border-t border-base-300 px-5 py-3 flex items-center gap-2">
+              <.status_badge status={@selected_item.status} />
               <div class="flex gap-2 flex-1">
                 <%!-- Re-download: terminal states or any item with an error --%>
                 <button
@@ -304,6 +320,14 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   end
 
   def handle_info({:item_updated, item}, socket) do
+    item_id = item.id
+
+    socket =
+      case socket.assigns.selected_item do
+        %{id: ^item_id} -> assign(socket, :selected_item, item)
+        _ -> socket
+      end
+
     {:noreply,
      socket
      |> stream_insert(:items, item)
@@ -371,8 +395,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
     {:noreply,
      socket
-     |> assign(:selected_item, nil)
-     |> assign(:item_form, nil)
+     |> assign(:selected_item, item)
      |> assign_source_stats(source)
      |> put_flash(:info, "Re-downloading item")}
   end
@@ -403,8 +426,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     {:noreply,
      socket
      |> assign_source_stats(Catalog.get_source!(socket.assigns.source.id))
-     |> assign(:selected_item, nil)
-     |> assign(:item_form, nil)
+     |> assign(:selected_item, item)
      |> put_flash(:info, "Re-rendering item")}
   end
 

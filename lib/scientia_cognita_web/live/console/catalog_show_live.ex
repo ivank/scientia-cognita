@@ -4,6 +4,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
   on_mount {ScientiaCognitaWeb.UserAuth, :require_console_user}
 
   alias ScientiaCognita.{Catalog, Storage}
+  alias ScientiaCognita.Catalog.Source
 
   @impl true
   def render(assigns) do
@@ -89,19 +90,61 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
           </button>
         </div>
 
-        <%!-- Source selector --%>
+        <%!-- Source autocomplete --%>
         <div class="form-control mb-4">
-          <label class="label"><span class="label-text">Select source</span></label>
-          <select class="select select-bordered w-full" phx-change="select_source" name="source_id">
-            <option value="">— choose a source —</option>
-            <option
-              :for={source <- @picker_sources}
-              value={source.id}
-              selected={@picker_source_id == source.id}
+          <label class="label pb-1">
+            <span class="label-text text-sm">Source</span>
+          </label>
+          <div>
+            <%!-- Source is selected --%>
+            <div
+              :if={@picker_source_id}
+              class="flex items-center gap-2 input input-bordered h-10 px-3"
             >
-              {source.name} ({source.total_items} items)
-            </option>
-          </select>
+              <.icon name="hero-check-circle" class="size-4 text-success shrink-0" />
+              <span class="flex-1 text-sm truncate">{@picker_source_name}</span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle"
+                phx-click="clear_picker_source"
+              >
+                <.icon name="hero-x-mark" class="size-3" />
+              </button>
+            </div>
+
+            <%!-- No source selected: live search --%>
+            <div :if={!@picker_source_id}>
+              <form phx-change="search_sources">
+                <input
+                  type="text"
+                  name="query"
+                  value={@picker_query}
+                  class="input input-bordered w-full"
+                  placeholder="Search sources…"
+                  phx-debounce="100"
+                  autocomplete="off"
+                  phx-mounted={JS.focus()}
+                />
+              </form>
+              <div
+                :if={@picker_suggestions != []}
+                class="mt-1 border border-base-300 rounded-lg overflow-hidden"
+              >
+                <button
+                  :for={s <- @picker_suggestions}
+                  type="button"
+                  class="flex items-center justify-between w-full px-4 py-2.5 text-sm hover:bg-base-200 transition-colors"
+                  phx-click="pick_source"
+                  phx-value-source-id={s.id}
+                >
+                  <span class="truncate">{Source.display_name(s)}</span>
+                  <span class="text-xs text-base-content/40 shrink-0 ml-4">
+                    {s.total_items} items
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <%!-- Item grid --%>
@@ -116,7 +159,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
                 Select all new
               </button>
               <button class="btn btn-ghost btn-xs" phx-click="clear_selection">
-                Clear
+                Deselect all
               </button>
             </div>
           </div>
@@ -172,8 +215,8 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
           </div>
         </div>
 
-        <div :if={!@picker_source_id} class="text-center py-8 text-base-content/40">
-          Select a source above to browse its items.
+        <div :if={!@picker_source_id and @picker_suggestions == []} class="text-center py-8 text-base-content/40">
+          No sources with ready items found.
         </div>
       </div>
       <div class="modal-backdrop" phx-click="close_picker"></div>
@@ -192,7 +235,10 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
      |> assign(:catalog_items, items)
      |> assign(:show_picker, false)
      |> assign(:picker_sources, [])
+     |> assign(:picker_query, "")
+     |> assign(:picker_suggestions, [])
      |> assign(:picker_source_id, nil)
+     |> assign(:picker_source_name, nil)
      |> assign(:picker_items, [])
      |> assign(:picker_in_catalog, MapSet.new())
      |> assign(:picker_selected, MapSet.new())}
@@ -216,42 +262,74 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
 
   def handle_event("open_picker", _, socket) do
     sources = Catalog.list_sources_with_ready_items()
-    {:noreply, assign(socket, show_picker: true, picker_sources: sources)}
+
+    {:noreply,
+     assign(socket,
+       show_picker: true,
+       picker_sources: sources,
+       picker_query: "",
+       picker_suggestions: filter_suggestions(sources, ""),
+       picker_source_id: nil,
+       picker_source_name: nil,
+       picker_items: [],
+       picker_in_catalog: MapSet.new(),
+       picker_selected: MapSet.new()
+     )}
   end
 
   def handle_event("close_picker", _, socket) do
     {:noreply,
      assign(socket,
        show_picker: false,
+       picker_query: "",
+       picker_suggestions: [],
        picker_source_id: nil,
+       picker_source_name: nil,
        picker_items: [],
        picker_in_catalog: MapSet.new(),
        picker_selected: MapSet.new()
      )}
   end
 
-  def handle_event("select_source", %{"source_id" => ""}, socket) do
-    {:noreply,
-     assign(socket,
-       picker_source_id: nil,
-       picker_items: [],
-       picker_in_catalog: MapSet.new(),
-       picker_selected: MapSet.new()
-     )}
+  def handle_event("search_sources", %{"query" => query}, socket) do
+    suggestions = filter_suggestions(socket.assigns.picker_sources, query)
+    {:noreply, assign(socket, picker_query: query, picker_suggestions: suggestions)}
   end
 
-  def handle_event("select_source", %{"source_id" => source_id}, socket) do
+  def handle_event("pick_source", %{"source-id" => source_id}, socket) do
     source_id = String.to_integer(source_id)
+    source = Catalog.get_source!(source_id)
 
     {items, in_catalog} =
       Catalog.list_ready_items_for_picker(source_id, socket.assigns.catalog.id)
 
+    # Pre-select every item not already in the catalog
+    pre_selected =
+      items
+      |> Enum.reject(&MapSet.member?(in_catalog, &1.id))
+      |> MapSet.new(& &1.id)
+
     {:noreply,
      assign(socket,
        picker_source_id: source_id,
+       picker_source_name: Source.display_name(source),
+       picker_suggestions: [],
        picker_items: items,
        picker_in_catalog: in_catalog,
-       picker_selected: MapSet.new()
+       picker_selected: pre_selected
+     )}
+  end
+
+  def handle_event("clear_picker_source", _, socket) do
+    {:noreply,
+     assign(socket,
+       picker_source_id: nil,
+       picker_source_name: nil,
+       picker_items: [],
+       picker_in_catalog: MapSet.new(),
+       picker_selected: MapSet.new(),
+       picker_query: "",
+       picker_suggestions: filter_suggestions(socket.assigns.picker_sources, "")
      )}
   end
 
@@ -286,7 +364,6 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
     item_ids = MapSet.to_list(socket.assigns.picker_selected)
     Catalog.add_items_to_catalog(socket.assigns.catalog, item_ids)
 
-    # Reload catalog items and update picker state
     catalog = socket.assigns.catalog
     items = Catalog.list_catalog_items(catalog)
 
@@ -297,12 +374,35 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
         {[], MapSet.new()}
       end
 
+    # After adding, re-compute pre-selection (remaining new items)
+    pre_selected =
+      picker_items
+      |> Enum.reject(&MapSet.member?(in_catalog, &1.id))
+      |> MapSet.new(& &1.id)
+
     {:noreply,
      socket
      |> assign(:catalog_items, items)
      |> assign(:picker_items, picker_items)
      |> assign(:picker_in_catalog, in_catalog)
-     |> assign(:picker_selected, MapSet.new())
+     |> assign(:picker_selected, pre_selected)
      |> put_flash(:info, "Added #{length(item_ids)} items to catalog")}
+  end
+
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+
+  # Returns up to 8 sources when query is empty; filters by display name otherwise.
+  defp filter_suggestions(sources, "") do
+    Enum.take(sources, 8)
+  end
+
+  defp filter_suggestions(sources, query) do
+    q = String.downcase(query)
+
+    Enum.filter(sources, fn s ->
+      s |> Source.display_name() |> String.downcase() |> String.contains?(q)
+    end)
   end
 end

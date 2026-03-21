@@ -131,6 +131,18 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       refute render(view) =~ "Re-download"
     end
 
+    test "re-download visible for non-terminal item that has an error", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+      item   = item_fixture(source, %{status: "downloading"})
+      # Simulate partial-failure state: error set but status not yet failed
+      {:ok, _item} = item |> Ecto.Changeset.change(%{error: "network timeout"}) |> ScientiaCognita.Repo.update()
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      assert render(view) =~ "Re-download"
+    end
+
     test "re-download visible for terminal items", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "ready", processed_key: "pk"})
@@ -150,6 +162,18 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
 
       refute render(view) =~ "Re-render"
+    end
+
+    test "re-render visible for non-terminal item with error and storage_key", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+      item   = item_fixture(source, %{status: "processing", storage_key: "sk"})
+      # Simulate partial-failure state: error set but status not failed
+      {:ok, _item} = item |> Ecto.Changeset.change(%{error: "color extraction failed"}) |> ScientiaCognita.Repo.update()
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      assert render(view) =~ "Re-render"
     end
 
     test "re-render visible for terminal items with storage_key", %{conn: conn} do
@@ -271,6 +295,23 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     end
   end
 
+  describe "re-download action" do
+    test "keeps modal open and shows pending status after triggering", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "ready", processed_key: "pk"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+      view |> element("button[phx-click='redownload_item']") |> render_click()
+
+      html = render(view)
+      # Modal stays open
+      assert html =~ "modal modal-open"
+      # Status badge updated to pending
+      assert html =~ "pending"
+    end
+  end
+
   describe "re-render action" do
     test "enqueues ProcessImageWorker (not RenderWorker) and resets to processing", %{conn: conn} do
       source = source_fixture(%{status: "done"})
@@ -304,6 +345,42 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       assert is_nil(reloaded.bg_color)
       assert is_nil(reloaded.bg_opacity)
       assert reloaded.storage_key == "images/original.jpg"  # preserved
+    end
+
+    test "keeps modal open and shows processing status after triggering", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "ready",
+                            storage_key: "images/original.jpg",
+                            processed_key: "images/final.jpg"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+      view |> element("button[phx-click='rerender_item']") |> render_click()
+
+      html = render(view)
+      # Modal stays open
+      assert html =~ "modal modal-open"
+      # Status badge updated to processing
+      assert html =~ "processing"
+    end
+  end
+
+  describe "PubSub: item_updated with modal open" do
+    test "updates selected_item preview when the open item is updated", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+      item   = item_fixture(source, %{status: "pending"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+      view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
+
+      # Simulate worker advancing the item to ready
+      updated = %{item | status: "ready", processed_key: "images/done.jpg"}
+      send(view.pid, {:item_updated, updated})
+
+      html = render(view)
+      # Modal still open, status badge updated
+      assert html =~ "modal modal-open"
+      assert html =~ "ready"
     end
   end
 end
