@@ -52,11 +52,13 @@ FROM alpine:3.19 AS runner
 
 # Runtime packages
 # libvips: required by the image/vix library at runtime
-# libgcc: required by the vix NIF compiled against GCC (Alpine musl build)
+# libgcc + libstdc++: required by NIFs compiled with GCC (vix and bcrypt_elixir)
 # fuse3: required by LiteFS for the FUSE filesystem
+# LiteFS requires root (CAP_SYS_ADMIN) for FUSE mount — no USER directive is intentional
 RUN apk add --no-cache \
   libvips \
   libgcc \
+  libstdc++ \
   fuse3 \
   openssl \
   ncurses-libs \
