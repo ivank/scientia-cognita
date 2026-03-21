@@ -1,7 +1,11 @@
 # syntax=docker/dockerfile:1
+#
+# Target platform: linux/amd64 (Fly.io machines).
+# Build with: fly deploy (uses Fly's remote amd64 builder — recommended)
+# Local build on Apple Silicon: docker build --platform linux/amd64 . (requires QEMU)
 
 # ---- Stage 1: Build ----
-FROM --platform=linux/amd64 elixir:1.15-otp-26-alpine AS builder
+FROM elixir:1.15-otp-26-alpine AS builder
 
 # Build-time packages
 # vips-dev and friends are needed to compile the vix NIF from source (PLATFORM_PROVIDED_LIBVIPS mode)
@@ -48,10 +52,10 @@ RUN mix assets.deploy
 RUN mix release
 
 # ---- Stage 2: Runtime ----
-FROM --platform=linux/amd64 alpine:3.19 AS runner
+FROM alpine:3.19 AS runner
 
 # Runtime packages
-# libvips: required by the image/vix library at runtime
+# vips: required by the image/vix library at runtime (Alpine package name; libvips on Debian)
 # libgcc + libstdc++: required by NIFs compiled with GCC (vix and bcrypt_elixir)
 # fuse3: required by LiteFS for the FUSE filesystem
 # LiteFS requires root (CAP_SYS_ADMIN) for FUSE mount — no USER directive is intentional
@@ -69,7 +73,7 @@ WORKDIR /app
 # Copy the compiled release from builder
 COPY --from=builder /app/_build/prod/rel/scientia_cognita ./
 
-# Install LiteFS binary (pinned to v0.5.11)
+# Install LiteFS binary (pinned to v0.5.11, amd64 — matches Fly.io machine architecture)
 ARG LITEFS_SHA256=3800856259f55ce0a47db30183fd840ec85d45ce998a3eb4e6a45b9ee5adf3b0
 RUN wget -qO /tmp/litefs.tar.gz \
   https://github.com/superfly/litefs/releases/download/v0.5.11/litefs-v0.5.11-linux-amd64.tar.gz \
