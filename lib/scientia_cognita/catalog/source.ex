@@ -15,9 +15,9 @@ defmodule ScientiaCognita.Catalog.Source do
   use Fsmx.Struct,
     state_field: :status,
     transitions: %{
-      "pending"       => ["fetching", "failed"],
-      "fetching"      => ["extracting", "failed"],
-      "extracting"    => ["extracting", "items_loading", "failed"],
+      "pending" => ["fetching", "failed"],
+      "fetching" => ["extracting", "failed"],
+      "extracting" => ["extracting", "items_loading", "failed"],
       "items_loading" => ["done", "failed"]
     }
 
@@ -27,34 +27,34 @@ defmodule ScientiaCognita.Catalog.Source do
   # valid values: "pending" | "fetching" | "extracting" | "items_loading" | "done" | "failed"
 
   @type t :: %__MODULE__{
-    id:            integer() | nil,
-    url:           String.t(),
-    name:          String.t(),
-    status:        status(),
-    title:         String.t() | nil,
-    description:   String.t() | nil,
-    raw_html:      String.t() | nil,
-    next_page_url: String.t() | nil,
-    pages_fetched: non_neg_integer(),
-    total_items:   non_neg_integer(),
-    error:         String.t() | nil,
-    gemini_pages:  [GeminiPageResult.t()],
-    items:         [Item.t()] | Ecto.Association.NotLoaded.t(),
-    inserted_at:   DateTime.t() | nil,
-    updated_at:    DateTime.t() | nil
-  }
+          id: integer() | nil,
+          url: String.t(),
+          name: String.t(),
+          status: status(),
+          title: String.t() | nil,
+          description: String.t() | nil,
+          raw_html: String.t() | nil,
+          next_page_url: String.t() | nil,
+          pages_fetched: non_neg_integer(),
+          total_items: non_neg_integer(),
+          error: String.t() | nil,
+          gemini_pages: [GeminiPageResult.t()],
+          items: [Item.t()] | Ecto.Association.NotLoaded.t(),
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
 
   schema "sources" do
-    field :url,           :string
-    field :name,          :string
-    field :status,        :string, default: "pending"
+    field :url, :string
+    field :name, :string
+    field :status, :string, default: "pending"
     field :next_page_url, :string
     field :pages_fetched, :integer, default: 0
-    field :total_items,   :integer, default: 0
-    field :error,         :string
-    field :raw_html,      :string
-    field :title,         :string
-    field :description,   :string
+    field :total_items, :integer, default: 0
+    field :error, :string
+    field :raw_html, :string
+    field :title, :string
+    field :description, :string
 
     embeds_many :gemini_pages, GeminiPageResult, on_replace: :delete
 
@@ -67,8 +67,17 @@ defmodule ScientiaCognita.Catalog.Source do
 
   def changeset(source, attrs) do
     source
-    |> cast(attrs, [:url, :name, :status, :next_page_url, :pages_fetched,
-                    :total_items, :error, :title, :description])
+    |> cast(attrs, [
+      :url,
+      :name,
+      :status,
+      :next_page_url,
+      :pages_fetched,
+      :total_items,
+      :error,
+      :title,
+      :description
+    ])
     |> validate_required([:url, :name])
     |> validate_inclusion(:status, @statuses)
     |> validate_format(:url, ~r/^https?:\/\//, message: "must be a valid URL")
@@ -99,6 +108,7 @@ defmodule ScientiaCognita.Catalog.Source do
 
   def transition_changeset(changeset, "extracting", "extracting", params) do
     existing = get_field(changeset, :gemini_pages) || []
+
     changeset
     |> cast(params, [:pages_fetched, :total_items, :next_page_url])
     |> put_embed(:gemini_pages, existing ++ [params[:gemini_page]])
@@ -106,6 +116,7 @@ defmodule ScientiaCognita.Catalog.Source do
 
   def transition_changeset(changeset, "extracting", "items_loading", params) do
     existing = get_field(changeset, :gemini_pages) || []
+
     changeset
     |> cast(params, [:pages_fetched, :total_items, :title, :description])
     |> put_embed(:gemini_pages, existing ++ [params[:gemini_page]])

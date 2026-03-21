@@ -7,11 +7,12 @@ defmodule ScientiaCognita.Catalog.ItemTest do
     test "casts color fields" do
       item = %Item{status: "color_analysis"}
 
-      cs = Item.color_changeset(item, %{
-        text_color: "#FFFFFF",
-        bg_color: "#1A1A2E",
-        bg_opacity: 0.75
-      })
+      cs =
+        Item.color_changeset(item, %{
+          text_color: "#FFFFFF",
+          bg_color: "#1A1A2E",
+          bg_opacity: 0.75
+        })
 
       assert cs.valid?
       assert get_change(cs, :text_color) == "#FFFFFF"

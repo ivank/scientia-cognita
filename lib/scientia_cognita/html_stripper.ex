@@ -19,11 +19,11 @@ defmodule ScientiaCognita.HTMLStripper do
   )
 
   @keep_attrs %{
-    "*"      => [],
-    "a"      => ["href"],
+    "*" => [],
+    "a" => ["href"],
     "source" => ["srcset", "media", "type"],
     "figure" => ["src", "alt", "srcset", "data-src", "data-srcset"],
-    "img"    => ["src", "alt", "srcset", "data-src", "data-srcset", "data-lazy-src"]
+    "img" => ["src", "alt", "srcset", "data-src", "data-srcset", "data-lazy-src"]
   }
 
   @doc """

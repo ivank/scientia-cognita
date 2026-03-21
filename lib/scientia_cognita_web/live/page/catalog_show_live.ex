@@ -8,7 +8,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   def render(assigns) do
     ~H"""
     <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
-
       <%!-- Header --%>
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -27,8 +26,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             <% @export_job_id != nil -> %>
               <div class="flex flex-col items-end gap-1">
                 <button class="btn btn-success btn-sm gap-2" disabled>
-                  <span class="loading loading-spinner loading-xs"></span>
-                  Saving to Google Photos…
+                  <span class="loading loading-spinner loading-xs"></span> Saving to Google Photos…
                 </button>
                 <span class="text-xs text-base-content/50">
                   {@export_progress} of {@export_total} uploaded
@@ -37,32 +35,36 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             <% @export_done -> %>
               <div class="flex flex-col items-end gap-1">
                 <button class="btn btn-success btn-sm gap-2" disabled>
-                  <.icon name="hero-check" class="size-4" />
-                  Saved to Google Photos
+                  <.icon name="hero-check" class="size-4" /> Saved to Google Photos
                 </button>
-                <a :if={@export_album_url} href={@export_album_url} target="_blank" class="text-xs link link-primary">
+                <a
+                  :if={@export_album_url}
+                  href={@export_album_url}
+                  target="_blank"
+                  class="text-xs link link-primary"
+                >
                   View album ↗
                 </a>
               </div>
             <% !@current_scope -> %>
               <.link href={~p"/users/log-in"} class="btn btn-primary btn-sm gap-2">
-                <.icon name="hero-user" class="size-4" />
-                Log in to save
+                <.icon name="hero-user" class="size-4" /> Log in to save
               </.link>
             <% !has_google_token?(@current_scope) -> %>
               <.link href={~p"/auth/google"} class="btn btn-primary btn-sm gap-2">
-                <.icon name="hero-photo" class="size-4" />
-                Connect Google Photos
+                <.icon name="hero-photo" class="size-4" /> Connect Google Photos
               </.link>
             <% @catalog_items == [] -> %>
               <button class="btn btn-primary btn-sm gap-2" disabled>
-                <.icon name="hero-photo" class="size-4" />
-                Save to Google Photos
+                <.icon name="hero-photo" class="size-4" /> Save to Google Photos
               </button>
             <% true -> %>
-              <button class="btn btn-primary btn-sm gap-2" phx-click="export_to_google_photos" phx-disable-with="Starting…">
-                <.icon name="hero-photo" class="size-4" />
-                Save to Google Photos
+              <button
+                class="btn btn-primary btn-sm gap-2"
+                phx-click="export_to_google_photos"
+                phx-disable-with="Starting…"
+              >
+                <.icon name="hero-photo" class="size-4" /> Save to Google Photos
               </button>
           <% end %>
         </div>
@@ -116,8 +118,12 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
         <div class="p-4 flex items-start justify-between gap-4">
           <div>
             <p class="font-semibold">{@lightbox_item.title}</p>
-            <p :if={@lightbox_item.author} class="text-sm text-base-content/60">{@lightbox_item.author}</p>
-            <p :if={@lightbox_item.copyright} class="text-xs text-base-content/40 mt-1">{@lightbox_item.copyright}</p>
+            <p :if={@lightbox_item.author} class="text-sm text-base-content/60">
+              {@lightbox_item.author}
+            </p>
+            <p :if={@lightbox_item.copyright} class="text-xs text-base-content/40 mt-1">
+              {@lightbox_item.copyright}
+            </p>
           </div>
           <button class="btn btn-ghost btn-sm btn-circle shrink-0" phx-click="close_lightbox">
             <.icon name="hero-x-mark" class="size-4" />

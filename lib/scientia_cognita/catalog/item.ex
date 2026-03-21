@@ -15,11 +15,11 @@ defmodule ScientiaCognita.Catalog.Item do
   use Fsmx.Struct,
     state_field: :status,
     transitions: %{
-      "pending"        => ["downloading", "failed"],
-      "downloading"    => ["processing", "failed"],
-      "processing"     => ["color_analysis", "failed"],
+      "pending" => ["downloading", "failed"],
+      "downloading" => ["processing", "failed"],
+      "processing" => ["color_analysis", "failed"],
       "color_analysis" => ["render", "failed"],
-      "render"         => ["ready", "failed"]
+      "render" => ["ready", "failed"]
     }
 
   @statuses ~w(pending downloading processing color_analysis render ready failed)
@@ -29,41 +29,41 @@ defmodule ScientiaCognita.Catalog.Item do
   #               "color_analysis" | "render" | "ready" | "failed"
 
   @type t :: %__MODULE__{
-    id:            integer() | nil,
-    title:         String.t(),
-    description:   String.t() | nil,
-    author:        String.t() | nil,
-    copyright:     String.t() | nil,
-    original_url:  String.t() | nil,
-    storage_key:   String.t() | nil,
-    processed_key: String.t() | nil,
-    status:        status(),
-    error:         String.t() | nil,
-    text_color:    String.t() | nil,
-    bg_color:      String.t() | nil,
-    bg_opacity:    float() | nil,
-    source_id:     integer() | nil,
-    source:        Source.t() | Ecto.Association.NotLoaded.t(),
-    catalogs:      [Catalog.t()] | Ecto.Association.NotLoaded.t(),
-    inserted_at:   DateTime.t() | nil,
-    updated_at:    DateTime.t() | nil
-  }
+          id: integer() | nil,
+          title: String.t(),
+          description: String.t() | nil,
+          author: String.t() | nil,
+          copyright: String.t() | nil,
+          original_url: String.t() | nil,
+          storage_key: String.t() | nil,
+          processed_key: String.t() | nil,
+          status: status(),
+          error: String.t() | nil,
+          text_color: String.t() | nil,
+          bg_color: String.t() | nil,
+          bg_opacity: float() | nil,
+          source_id: integer() | nil,
+          source: Source.t() | Ecto.Association.NotLoaded.t(),
+          catalogs: [Catalog.t()] | Ecto.Association.NotLoaded.t(),
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
 
   schema "items" do
-    field :title,         :string
-    field :description,   :string
-    field :author,        :string
-    field :copyright,     :string
-    field :original_url,  :string
-    field :storage_key,   :string
+    field :title, :string
+    field :description, :string
+    field :author, :string
+    field :copyright, :string
+    field :original_url, :string
+    field :storage_key, :string
     field :processed_key, :string
-    field :status,        :string, default: "pending"
-    field :error,         :string
+    field :status, :string, default: "pending"
+    field :error, :string
 
     # Set during color_analysis
-    field :text_color,  :string
-    field :bg_color,    :string
-    field :bg_opacity,  :float
+    field :text_color, :string
+    field :bg_color, :string
+    field :bg_opacity, :float
 
     belongs_to :source, Source
     many_to_many :catalogs, Catalog, join_through: CatalogItem

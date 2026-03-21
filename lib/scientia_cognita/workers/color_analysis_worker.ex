@@ -37,11 +37,12 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
          {:ok, img} <- Image.from_binary(binary),
          {:ok, thumb_binary} <- make_thumbnail(img),
          colors = get_colors(thumb_binary),
-         {:ok, item} <- fsm_transition(item, "render", %{
-           text_color: colors["text_color"],
-           bg_color: colors["bg_color"],
-           bg_opacity: colors["bg_opacity"]
-         }) do
+         {:ok, item} <-
+           fsm_transition(item, "render", %{
+             text_color: colors["text_color"],
+             bg_color: colors["bg_color"],
+             bg_opacity: colors["bg_opacity"]
+           }) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> RenderWorker.new() |> Oban.insert()
       :ok
@@ -64,14 +65,18 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
     |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
     |> Repo.transaction()
     |> case do
-      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:ok, %{transition: updated}} ->
+        {:ok, updated}
+
       {:error, :transition, %Ecto.Changeset{} = cs, _} ->
         if Keyword.has_key?(cs.errors, :status) do
           {:error, :invalid_transition}
         else
           {:error, cs}
         end
-      {:error, _, reason, _} -> {:error, reason}
+
+      {:error, _, reason, _} ->
+        {:error, reason}
     end
   end
 

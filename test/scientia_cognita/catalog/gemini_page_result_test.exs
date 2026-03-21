@@ -5,14 +5,15 @@ defmodule ScientiaCognita.Catalog.GeminiPageResultTest do
 
   describe "new/1" do
     test "derives items_count from length of raw_items" do
-      result = GeminiPageResult.new(%{
-        page_url: "https://example.com/gallery",
-        is_gallery: true,
-        gallery_title: "Test Gallery",
-        gallery_description: "A test gallery",
-        next_page_url: nil,
-        raw_items: [%{"image_url" => "https://example.com/1.jpg"}]
-      })
+      result =
+        GeminiPageResult.new(%{
+          page_url: "https://example.com/gallery",
+          is_gallery: true,
+          gallery_title: "Test Gallery",
+          gallery_description: "A test gallery",
+          next_page_url: nil,
+          raw_items: [%{"image_url" => "https://example.com/1.jpg"}]
+        })
 
       assert result.items_count == 1
       assert result.page_url == "https://example.com/gallery"
@@ -22,22 +23,32 @@ defmodule ScientiaCognita.Catalog.GeminiPageResultTest do
     end
 
     test "items_count is 0 for empty raw_items" do
-      result = GeminiPageResult.new(%{
-        page_url: "https://example.com",
-        is_gallery: false,
-        gallery_title: nil,
-        gallery_description: nil,
-        next_page_url: nil,
-        raw_items: []
-      })
+      result =
+        GeminiPageResult.new(%{
+          page_url: "https://example.com",
+          is_gallery: false,
+          gallery_title: nil,
+          gallery_description: nil,
+          next_page_url: nil,
+          raw_items: []
+        })
 
       assert result.items_count == 0
     end
 
     test "sets generated_at to current UTC second" do
       before = DateTime.utc_now(:second)
-      result = GeminiPageResult.new(%{page_url: "x", is_gallery: false,
-        gallery_title: nil, gallery_description: nil, next_page_url: nil, raw_items: []})
+
+      result =
+        GeminiPageResult.new(%{
+          page_url: "x",
+          is_gallery: false,
+          gallery_title: nil,
+          gallery_description: nil,
+          next_page_url: nil,
+          raw_items: []
+        })
+
       after_t = DateTime.utc_now(:second)
 
       assert DateTime.compare(result.generated_at, before) in [:gt, :eq]

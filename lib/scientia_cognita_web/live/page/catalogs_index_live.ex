@@ -32,7 +32,10 @@ defmodule ScientiaCognitaWeb.Page.CatalogsIndexLive do
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
           </figure>
-          <figure :if={!Map.get(@cover_images, catalog.id)} class="aspect-video bg-base-300 flex items-center justify-center">
+          <figure
+            :if={!Map.get(@cover_images, catalog.id)}
+            class="aspect-video bg-base-300 flex items-center justify-center"
+          >
             <.icon name="hero-photo" class="size-12 text-base-content/20" />
           </figure>
           <div class="card-body p-4">

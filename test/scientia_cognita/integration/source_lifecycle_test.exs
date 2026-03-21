@@ -13,10 +13,14 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
   import ScientiaCognita.CatalogFixtures
 
   alias ScientiaCognita.{Catalog, MockGemini, MockHttp, MockStorage}
+
   alias ScientiaCognita.Workers.{
-    FetchPageWorker, ExtractPageWorker,
-    DownloadImageWorker, ProcessImageWorker,
-    ColorAnalysisWorker, RenderWorker
+    FetchPageWorker,
+    ExtractPageWorker,
+    DownloadImageWorker,
+    ProcessImageWorker,
+    ColorAnalysisWorker,
+    RenderWorker
   }
 
   setup :verify_on_exit!
@@ -26,10 +30,18 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
   @test_jpeg File.read!("test/fixtures/test_image.jpg")
 
   @two_items [
-    %{"image_url" => "https://example.com/img1.jpg", "title" => "Orion Nebula",
-      "description" => "A stellar nursery.", "copyright" => "NASA"},
-    %{"image_url" => "https://example.com/img2.jpg", "title" => "Andromeda Galaxy",
-      "description" => "Our nearest galactic neighbour.", "copyright" => nil}
+    %{
+      "image_url" => "https://example.com/img1.jpg",
+      "title" => "Orion Nebula",
+      "description" => "A stellar nursery.",
+      "copyright" => "NASA"
+    },
+    %{
+      "image_url" => "https://example.com/img2.jpg",
+      "title" => "Andromeda Galaxy",
+      "description" => "Our nearest galactic neighbour.",
+      "copyright" => nil
+    }
   ]
 
   @gemini_response %{
@@ -48,9 +60,11 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
     setup do
       # stub allows multiple calls without strict count tracking
       stub(MockStorage, :upload, fn _key, _data, _opts -> {:ok, %{}} end)
+
       stub(MockGemini, :generate_structured_with_image, fn _p, _b, _s, _o ->
         {:ok, %{"text_color" => "#FFFFFF", "bg_color" => "#000000", "bg_opacity" => 0.75}}
       end)
+
       :ok
     end
 
@@ -72,6 +86,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
       expect(MockHttp, :get, fn _url, _opts ->
         {:ok, %{status: 200, body: @raw_html, headers: %{}}}
       end)
+
       expect(MockGemini, :generate_structured, fn _prompt, _schema, _opts ->
         {:ok, @gemini_response}
       end)
@@ -94,9 +109,9 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
       for item <- items do
         # DownloadImageWorker: HTTP get from original_url + Storage upload
         expect(MockHttp, :get, fn _url, _opts ->
-          {:ok, %{status: 200, body: @test_jpeg,
-                  headers: %{"content-type" => ["image/jpeg"]}}}
+          {:ok, %{status: 200, body: @test_jpeg, headers: %{"content-type" => ["image/jpeg"]}}}
         end)
+
         assert :ok = perform_job(DownloadImageWorker, %{item_id: item.id})
         assert Catalog.get_item!(item.id).status == "processing"
 
@@ -104,6 +119,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
         expect(MockHttp, :get, fn _url, _opts ->
           {:ok, %{status: 200, body: @test_jpeg, headers: %{}}}
         end)
+
         assert :ok = perform_job(ProcessImageWorker, %{item_id: item.id})
         assert Catalog.get_item!(item.id).status == "color_analysis"
 
@@ -111,6 +127,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
         expect(MockHttp, :get, fn _url, _opts ->
           {:ok, %{status: 200, body: @test_jpeg, headers: %{}}}
         end)
+
         assert :ok = perform_job(ColorAnalysisWorker, %{item_id: item.id})
         assert Catalog.get_item!(item.id).status == "render"
 
@@ -118,6 +135,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
         expect(MockHttp, :get, fn _url, _opts ->
           {:ok, %{status: 200, body: @test_jpeg, headers: %{}}}
         end)
+
         assert :ok = perform_job(RenderWorker, %{item_id: item.id})
         assert Catalog.get_item!(item.id).status == "ready"
       end
@@ -166,8 +184,12 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
 
       # Page 2
       expect(MockGemini, :generate_structured, fn _p, _s, _o -> {:ok, page2_response} end)
-      assert :ok = perform_job(ExtractPageWorker,
-               %{source_id: source.id, url: "#{@source_url}?page=2"})
+
+      assert :ok =
+               perform_job(
+                 ExtractPageWorker,
+                 %{source_id: source.id, url: "#{@source_url}?page=2"}
+               )
 
       source = Catalog.get_source!(source.id)
       assert source.status == "items_loading"
@@ -187,6 +209,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
       expect(MockHttp, :get, fn _url, _opts ->
         {:ok, %{status: 200, body: @raw_html, headers: %{}}}
       end)
+
       expect(MockGemini, :generate_structured, fn _p, _s, _o ->
         {:ok, %{"is_gallery" => false, "items" => []}}
       end)
@@ -220,6 +243,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
       expect(MockHttp, :get, fn _url, _opts ->
         {:ok, %{status: 200, body: @raw_html, headers: %{}}}
       end)
+
       expect(MockGemini, :generate_structured, fn _p, _s, _o ->
         {:error, "API quota exceeded"}
       end)
@@ -260,7 +284,8 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
       assert Enum.all?(items, fn item ->
                is_binary(item["image_url"]) and
                  String.starts_with?(item["image_url"], "http")
-             end), "All items must have absolute image_url"
+             end),
+             "All items must have absolute image_url"
 
       IO.puts("""
 

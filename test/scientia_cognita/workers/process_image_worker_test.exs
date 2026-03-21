@@ -33,7 +33,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorkerTest do
       assert item.status == "color_analysis"
       assert item.processed_key != nil
 
-      assert_enqueued worker: ColorAnalysisWorker, args: %{"item_id" => item.id}
+      assert_enqueued(worker: ColorAnalysisWorker, args: %{"item_id" => item.id})
     end
   end
 

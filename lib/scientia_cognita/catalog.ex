@@ -204,7 +204,8 @@ defmodule ScientiaCognita.Catalog do
   def count_items_not_terminal(%Source{id: source_id}) do
     Repo.aggregate(
       from(i in Item,
-        where: i.source_id == ^source_id and i.status not in ["ready", "failed"]),
+        where: i.source_id == ^source_id and i.status not in ["ready", "failed"]
+      ),
       :count
     )
   end
@@ -277,8 +278,13 @@ defmodule ScientiaCognita.Catalog do
 
     entries =
       Enum.map(item_ids, fn item_id ->
-        %{catalog_id: catalog_id, item_id: item_id, position: 0,
-          inserted_at: now, updated_at: now}
+        %{
+          catalog_id: catalog_id,
+          item_id: item_id,
+          position: 0,
+          inserted_at: now,
+          updated_at: now
+        }
       end)
 
     Repo.insert_all(CatalogItem, entries,

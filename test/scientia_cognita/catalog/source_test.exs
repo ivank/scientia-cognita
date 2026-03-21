@@ -19,54 +19,82 @@ defmodule ScientiaCognita.Catalog.SourceTest do
 
   describe "transition_changeset/4 — fetching → extracting" do
     test "requires raw_html" do
-      cs = Source.transition_changeset(
-        Ecto.Changeset.change(%Source{status: "fetching"}),
-        "fetching", "extracting", %{}
-      )
+      cs =
+        Source.transition_changeset(
+          Ecto.Changeset.change(%Source{status: "fetching"}),
+          "fetching",
+          "extracting",
+          %{}
+        )
+
       refute cs.valid?
       assert {:raw_html, {"can't be blank", _}} = hd(cs.errors)
     end
 
     test "accepts raw_html" do
-      cs = Source.transition_changeset(
-        Ecto.Changeset.change(%Source{status: "fetching"}),
-        "fetching", "extracting", %{raw_html: "<html>ok</html>"}
-      )
+      cs =
+        Source.transition_changeset(
+          Ecto.Changeset.change(%Source{status: "fetching"}),
+          "fetching",
+          "extracting",
+          %{raw_html: "<html>ok</html>"}
+        )
+
       assert cs.valid?
     end
   end
 
   describe "transition_changeset/4 — failed" do
     test "requires error message" do
-      cs = Source.transition_changeset(
-        Ecto.Changeset.change(%Source{status: "extracting"}),
-        "extracting", "failed", %{}
-      )
+      cs =
+        Source.transition_changeset(
+          Ecto.Changeset.change(%Source{status: "extracting"}),
+          "extracting",
+          "failed",
+          %{}
+        )
+
       refute cs.valid?
     end
 
     test "accepts error message" do
-      cs = Source.transition_changeset(
-        Ecto.Changeset.change(%Source{status: "extracting"}),
-        "extracting", "failed", %{error: "Something went wrong"}
-      )
+      cs =
+        Source.transition_changeset(
+          Ecto.Changeset.change(%Source{status: "extracting"}),
+          "extracting",
+          "failed",
+          %{error: "Something went wrong"}
+        )
+
       assert cs.valid?
     end
   end
 
   describe "transition_changeset/4 — extracting → items_loading" do
     test "appends gemini_page to gemini_pages" do
-      page = GeminiPageResult.new(%{
-        page_url: "https://example.com", is_gallery: true,
-        gallery_title: "Test", gallery_description: "Desc",
-        next_page_url: nil, raw_items: []
-      })
+      page =
+        GeminiPageResult.new(%{
+          page_url: "https://example.com",
+          is_gallery: true,
+          gallery_title: "Test",
+          gallery_description: "Desc",
+          next_page_url: nil,
+          raw_items: []
+        })
 
-      cs = Source.transition_changeset(
-        Ecto.Changeset.change(%Source{status: "extracting", gemini_pages: []}),
-        "extracting", "items_loading",
-        %{pages_fetched: 1, total_items: 0, title: "Test", description: "Desc", gemini_page: page}
-      )
+      cs =
+        Source.transition_changeset(
+          Ecto.Changeset.change(%Source{status: "extracting", gemini_pages: []}),
+          "extracting",
+          "items_loading",
+          %{
+            pages_fetched: 1,
+            total_items: 0,
+            title: "Test",
+            description: "Desc",
+            gemini_page: page
+          }
+        )
 
       assert cs.valid?
       assert length(Ecto.Changeset.get_change(cs, :gemini_pages)) == 1

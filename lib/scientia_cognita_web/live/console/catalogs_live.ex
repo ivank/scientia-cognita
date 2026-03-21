@@ -10,15 +10,13 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold">Catalogs</h1>
           <p class="text-base-content/60 mt-1">Curated collections published to Google Photos</p>
         </div>
         <button class="btn btn-primary gap-2" phx-click="open_new_modal">
-          <.icon name="hero-plus" class="size-4" />
-          New Catalog
+          <.icon name="hero-plus" class="size-4" /> New Catalog
         </button>
       </div>
 
@@ -73,7 +71,12 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
           </div>
           <div class="form-control">
             <label class="label"><span class="label-text">Description</span></label>
-            <.input field={@form[:description]} type="textarea" rows="3" placeholder="Optional description…" />
+            <.input
+              field={@form[:description]}
+              type="textarea"
+              rows="3"
+              placeholder="Optional description…"
+            />
           </div>
 
           <div class="modal-action">

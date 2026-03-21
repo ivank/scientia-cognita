@@ -7,7 +7,8 @@ defmodule ScientiaCognita.Catalog.Catalog do
     field :description, :string
     field :slug, :string
 
-    many_to_many :items, ScientiaCognita.Catalog.Item, join_through: ScientiaCognita.Catalog.CatalogItem
+    many_to_many :items, ScientiaCognita.Catalog.Item,
+      join_through: ScientiaCognita.Catalog.CatalogItem
 
     timestamps(type: :utc_datetime)
   end
@@ -18,7 +19,9 @@ defmodule ScientiaCognita.Catalog.Catalog do
     |> validate_required([:name])
     |> maybe_generate_slug()
     |> validate_required([:slug])
-    |> validate_format(:slug, ~r/^[a-z0-9-]+$/, message: "must contain only lowercase letters, numbers, and hyphens")
+    |> validate_format(:slug, ~r/^[a-z0-9-]+$/,
+      message: "must contain only lowercase letters, numbers, and hyphens"
+    )
     |> unique_constraint(:slug)
   end
 

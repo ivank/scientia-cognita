@@ -3,7 +3,6 @@
 
   <%!-- Main content area --%>
   <div class="drawer-content flex flex-col">
-
     <%!-- Mobile-only top navbar --%>
     <div class="navbar bg-base-200 border-b border-base-300 lg:hidden px-4">
       <label for="console-drawer" class="btn btn-ghost btn-sm">
@@ -20,7 +19,6 @@
       <.flash_group flash={@flash} />
       {@inner_content}
     </main>
-
   </div>
 
   <%!-- Sidebar --%>
@@ -28,7 +26,6 @@
     <label for="console-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
 
     <aside class="w-64 min-h-full bg-base-200 border-r border-base-300 flex flex-col">
-
       <%!-- Logo --%>
       <div class="p-4 flex items-center gap-3 border-b border-base-300">
         <img src="/apple-touch-icon.png" class="size-9 rounded-xl" />
@@ -43,27 +40,23 @@
         <ul class="menu menu-sm gap-0.5">
           <li>
             <.link navigate={~p"/console"} class="flex items-center gap-3 rounded-lg">
-              <.icon name="hero-squares-2x2" class="size-4 shrink-0" />
-              Dashboard
+              <.icon name="hero-squares-2x2" class="size-4 shrink-0" /> Dashboard
             </.link>
           </li>
           <li>
             <.link navigate={~p"/console/users"} class="flex items-center gap-3 rounded-lg">
-              <.icon name="hero-users" class="size-4 shrink-0" />
-              Users
+              <.icon name="hero-users" class="size-4 shrink-0" /> Users
             </.link>
           </li>
           <li class="menu-title text-xs mt-3 mb-0.5">Content</li>
           <li>
             <.link navigate={~p"/console/sources"} class="flex items-center gap-3 rounded-lg">
-              <.icon name="hero-globe-alt" class="size-4 shrink-0" />
-              Sources
+              <.icon name="hero-globe-alt" class="size-4 shrink-0" /> Sources
             </.link>
           </li>
           <li>
             <.link navigate={~p"/console/catalogs"} class="flex items-center gap-3 rounded-lg">
-              <.icon name="hero-rectangle-stack" class="size-4 shrink-0" />
-              Catalogs
+              <.icon name="hero-rectangle-stack" class="size-4 shrink-0" /> Catalogs
             </.link>
           </li>
         </ul>
@@ -95,12 +88,10 @@
             method="delete"
             class="btn btn-ghost btn-sm w-full justify-start gap-2 text-base-content/70 hover:text-base-content"
           >
-            <.icon name="hero-arrow-right-on-rectangle" class="size-4" />
-            Sign out
+            <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Sign out
           </.link>
         <% end %>
       </div>
-
     </aside>
   </div>
 </div>

@@ -9,7 +9,6 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-
       <%!-- Header --%>
       <div class="flex items-start justify-between gap-4">
         <div>
@@ -25,9 +24,12 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
           <p class="font-mono text-xs text-base-content/40 mt-1">/{@catalog.slug}</p>
         </div>
         <div class="flex gap-2 shrink-0">
-          <button class="btn btn-primary btn-sm gap-2" phx-click="open_picker" phx-disable-with="Loading…">
-            <.icon name="hero-plus" class="size-4" />
-            Add Items
+          <button
+            class="btn btn-primary btn-sm gap-2"
+            phx-click="open_picker"
+            phx-disable-with="Loading…"
+          >
+            <.icon name="hero-plus" class="size-4" /> Add Items
           </button>
         </div>
       </div>
@@ -70,7 +72,6 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
           </div>
         </div>
       </div>
-
     </div>
 
     <%!-- Item Picker modal --%>
@@ -241,7 +242,9 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
 
   def handle_event("select_source", %{"source_id" => source_id}, socket) do
     source_id = String.to_integer(source_id)
-    {items, in_catalog} = Catalog.list_ready_items_for_picker(source_id, socket.assigns.catalog.id)
+
+    {items, in_catalog} =
+      Catalog.list_ready_items_for_picker(source_id, socket.assigns.catalog.id)
 
     {:noreply,
      assign(socket,

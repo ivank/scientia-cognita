@@ -13,10 +13,18 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
   @gallery_html "<html><body>gallery content</body></html>"
 
   @two_items [
-    %{"image_url" => "https://example.com/img1.jpg", "title" => "Orion Nebula",
-      "description" => "A stellar nursery.", "copyright" => "NASA"},
-    %{"image_url" => "https://example.com/img2.jpg", "title" => "Andromeda Galaxy",
-      "description" => "Our nearest galactic neighbour.", "copyright" => nil}
+    %{
+      "image_url" => "https://example.com/img1.jpg",
+      "title" => "Orion Nebula",
+      "description" => "A stellar nursery.",
+      "copyright" => "NASA"
+    },
+    %{
+      "image_url" => "https://example.com/img2.jpg",
+      "title" => "Andromeda Galaxy",
+      "description" => "Our nearest galactic neighbour.",
+      "copyright" => nil
+    }
   ]
 
   defp http_ok(html \\ @gallery_html) do
@@ -35,6 +43,7 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
     test "creates items, enqueues downloads, transitions source to done" do
       source = extracting_source_fixture()
       http_ok()
+
       gemini_ok(%{
         "is_gallery" => true,
         "gallery_title" => "Space Gallery",
@@ -43,7 +52,11 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
         "items" => @two_items
       })
 
-      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+      assert :ok =
+               perform_job(ExtractPageWorker, %{
+                 source_id: source.id,
+                 url: "https://example.com/gallery"
+               })
 
       items = Catalog.list_items_by_source(source)
       assert length(items) == 2
@@ -51,7 +64,7 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
       assert Enum.any?(items, &(&1.title == "Andromeda Galaxy"))
       assert Enum.any?(items, &(&1.original_url == "https://example.com/img1.jpg"))
 
-      assert_enqueued worker: DownloadImageWorker
+      assert_enqueued(worker: DownloadImageWorker)
 
       source = Catalog.get_source!(source.id)
       assert source.status == "items_loading"
@@ -68,21 +81,32 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
     test "enqueues self with next_page_url, keeps status extracting" do
       source = extracting_source_fixture()
       http_ok()
+
       gemini_ok(%{
         "is_gallery" => true,
         "gallery_title" => "Space Gallery",
         "gallery_description" => nil,
         "next_page_url" => "https://example.com/gallery?page=2",
         "items" => [
-          %{"image_url" => "https://example.com/img1.jpg", "title" => "Image 1",
-            "description" => nil, "copyright" => nil}
+          %{
+            "image_url" => "https://example.com/img1.jpg",
+            "title" => "Image 1",
+            "description" => nil,
+            "copyright" => nil
+          }
         ]
       })
 
-      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+      assert :ok =
+               perform_job(ExtractPageWorker, %{
+                 source_id: source.id,
+                 url: "https://example.com/gallery"
+               })
 
-      assert_enqueued worker: ExtractPageWorker,
-                      args: %{"source_id" => source.id, "url" => "https://example.com/gallery?page=2"}
+      assert_enqueued(
+        worker: ExtractPageWorker,
+        args: %{"source_id" => source.id, "url" => "https://example.com/gallery?page=2"}
+      )
 
       source = Catalog.get_source!(source.id)
       assert source.status == "extracting"
@@ -97,7 +121,11 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
       http_ok()
       gemini_ok(%{"is_gallery" => false, "items" => []})
 
-      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/page"})
+      assert :ok =
+               perform_job(ExtractPageWorker, %{
+                 source_id: source.id,
+                 url: "https://example.com/page"
+               })
 
       source = Catalog.get_source!(source.id)
       assert source.status == "failed"
@@ -114,7 +142,11 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
         {:error, "API quota exceeded"}
       end)
 
-      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+      assert :ok =
+               perform_job(ExtractPageWorker, %{
+                 source_id: source.id,
+                 url: "https://example.com/gallery"
+               })
 
       source = Catalog.get_source!(source.id)
       assert source.status == "failed"
@@ -128,7 +160,11 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
 
       expect(MockHttp, :get, fn _url, _opts -> {:error, :timeout} end)
 
-      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+      assert :ok =
+               perform_job(ExtractPageWorker, %{
+                 source_id: source.id,
+                 url: "https://example.com/gallery"
+               })
 
       source = Catalog.get_source!(source.id)
       assert source.status == "failed"
@@ -139,18 +175,28 @@ defmodule ScientiaCognita.Workers.ExtractPageWorkerTest do
     test "items without image_url are not persisted" do
       source = extracting_source_fixture()
       http_ok()
+
       gemini_ok(%{
         "is_gallery" => true,
         "gallery_title" => "Gallery",
         "gallery_description" => nil,
         "next_page_url" => nil,
         "items" => [
-          %{"image_url" => "https://example.com/img1.jpg", "title" => "Valid", "description" => nil, "copyright" => nil},
+          %{
+            "image_url" => "https://example.com/img1.jpg",
+            "title" => "Valid",
+            "description" => nil,
+            "copyright" => nil
+          },
           %{"image_url" => nil, "title" => "No URL", "description" => nil, "copyright" => nil}
         ]
       })
 
-      assert :ok = perform_job(ExtractPageWorker, %{source_id: source.id, url: "https://example.com/gallery"})
+      assert :ok =
+               perform_job(ExtractPageWorker, %{
+                 source_id: source.id,
+                 url: "https://example.com/gallery"
+               })
 
       items = Catalog.list_items_by_source(source)
       assert length(items) == 1

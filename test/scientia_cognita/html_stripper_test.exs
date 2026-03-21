@@ -26,7 +26,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "preserves src, alt, srcset on images" do
-      html = ~s(<body><img src="https://example.com/img.jpg" alt="Test" srcset="img 2x" class="photo"></body>)
+      html =
+        ~s(<body><img src="https://example.com/img.jpg" alt="Test" srcset="img 2x" class="photo"></body>)
+
       result = HTMLStripper.strip(html)
       assert result =~ ~s(src="https://example.com/img.jpg")
       assert result =~ ~s(alt="Test")
@@ -35,7 +37,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "preserves data-src and data-srcset on images (lazy loading)" do
-      html = ~s(<body><img data-src="https://example.com/lazy.jpg" data-srcset="https://example.com/lazy@2x.jpg 2x"></body>)
+      html =
+        ~s(<body><img data-src="https://example.com/lazy.jpg" data-srcset="https://example.com/lazy@2x.jpg 2x"></body>)
+
       result = HTMLStripper.strip(html)
       assert result =~ "data-src="
       assert result =~ "data-srcset="
@@ -51,7 +55,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "removes svg elements and all descendants" do
-      html = "<html><body><svg><path d='M 0 0'/><use href='#icon'/></svg><p>After</p></body></html>"
+      html =
+        "<html><body><svg><path d='M 0 0'/><use href='#icon'/></svg><p>After</p></body></html>"
+
       result = HTMLStripper.strip(html)
       refute result =~ "<svg"
       refute result =~ "<path"
@@ -67,7 +73,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "removes head content, keeps body" do
-      html = "<html><head><title>Page</title><meta charset='utf-8'><link rel='stylesheet'></head><body><p>Body</p></body></html>"
+      html =
+        "<html><head><title>Page</title><meta charset='utf-8'><link rel='stylesheet'></head><body><p>Body</p></body></html>"
+
       result = HTMLStripper.strip(html)
       refute result =~ "<title>"
       refute result =~ "<meta"
@@ -79,6 +87,7 @@ defmodule ScientiaCognita.HTMLStripperTest do
   describe "Hubble fixture" do
     test "strips hubble_page.html to under 100KB" do
       result = HTMLStripper.strip(@hubble_html)
+
       assert byte_size(result) < 100_000,
              "Expected stripped HTML < 100KB, got #{byte_size(result)} bytes"
     end

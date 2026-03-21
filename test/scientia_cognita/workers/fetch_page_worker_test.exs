@@ -25,8 +25,10 @@ defmodule ScientiaCognita.Workers.FetchPageWorkerTest do
       assert source.status == "extracting"
       assert source.raw_html == html
 
-      assert_enqueued worker: ExtractPageWorker,
-                      args: %{"source_id" => source.id, "url" => source.url}
+      assert_enqueued(
+        worker: ExtractPageWorker,
+        args: %{"source_id" => source.id, "url" => source.url}
+      )
     end
   end
 

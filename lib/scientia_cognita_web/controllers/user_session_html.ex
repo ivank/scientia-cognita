@@ -4,6 +4,7 @@ defmodule ScientiaCognitaWeb.UserSessionHTML do
   embed_templates "user_session_html/*"
 
   defp local_mail_adapter? do
-    Application.get_env(:scientia_cognita, ScientiaCognita.Mailer)[:adapter] == Swoosh.Adapters.Local
+    Application.get_env(:scientia_cognita, ScientiaCognita.Mailer)[:adapter] ==
+      Swoosh.Adapters.Local
   end
 end

@@ -13,7 +13,10 @@ defmodule ScientiaCognitaWeb.Console.DashboardLive do
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <.link navigate={~p"/console/sources"} class="card bg-base-200 hover:bg-base-300 transition-colors">
+        <.link
+          navigate={~p"/console/sources"}
+          class="card bg-base-200 hover:bg-base-300 transition-colors"
+        >
           <div class="card-body">
             <.icon name="hero-globe-alt" class="size-8 text-primary" />
             <h2 class="card-title mt-2">Sources</h2>
@@ -21,7 +24,10 @@ defmodule ScientiaCognitaWeb.Console.DashboardLive do
           </div>
         </.link>
 
-        <.link navigate={~p"/console/catalogs"} class="card bg-base-200 hover:bg-base-300 transition-colors">
+        <.link
+          navigate={~p"/console/catalogs"}
+          class="card bg-base-200 hover:bg-base-300 transition-colors"
+        >
           <div class="card-body">
             <.icon name="hero-rectangle-stack" class="size-8 text-primary" />
             <h2 class="card-title mt-2">Catalogs</h2>
@@ -29,7 +35,10 @@ defmodule ScientiaCognitaWeb.Console.DashboardLive do
           </div>
         </.link>
 
-        <.link navigate={~p"/console/users"} class="card bg-base-200 hover:bg-base-300 transition-colors">
+        <.link
+          navigate={~p"/console/users"}
+          class="card bg-base-200 hover:bg-base-300 transition-colors"
+        >
           <div class="card-body">
             <.icon name="hero-users" class="size-8 text-primary" />
             <h2 class="card-title mt-2">Users</h2>

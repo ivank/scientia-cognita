@@ -68,7 +68,9 @@ defmodule ScientiaCognita.Workers.RenderWorker do
             :ok
 
           {:error, _, reason, _} ->
-            Logger.error("[RenderWorker] failed to close source=#{item.source_id}: #{inspect(reason)}")
+            Logger.error(
+              "[RenderWorker] failed to close source=#{item.source_id}: #{inspect(reason)}"
+            )
         end
       end
     end
@@ -79,14 +81,18 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
     |> Repo.transaction()
     |> case do
-      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:ok, %{transition: updated}} ->
+        {:ok, updated}
+
       {:error, :transition, %Ecto.Changeset{} = cs, _} ->
         if Keyword.has_key?(cs.errors, :status) do
           {:error, :invalid_transition}
         else
           {:error, cs}
         end
-      {:error, _, reason, _} -> {:error, reason}
+
+      {:error, _, reason, _} ->
+        {:error, reason}
     end
   end
 

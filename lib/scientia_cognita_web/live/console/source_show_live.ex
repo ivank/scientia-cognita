@@ -4,6 +4,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   on_mount {ScientiaCognitaWeb.UserAuth, :require_console_user}
 
   alias ScientiaCognita.{Catalog, Storage}
+
   alias ScientiaCognita.Workers.{
     FetchPageWorker,
     DownloadImageWorker,
@@ -16,7 +17,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-
       <%!-- Header --%>
       <div class="flex items-start justify-between gap-4">
         <div>
@@ -39,8 +39,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
             phx-click="restart_source"
             phx-disable-with="Restarting…"
           >
-            <.icon name="hero-arrow-path" class="size-4" />
-            Restart
+            <.icon name="hero-arrow-path" class="size-4" /> Restart
           </button>
           <button
             :if={@source.status == "done" and @failed_count > 0}
@@ -48,15 +47,13 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
             phx-click="retry_failed_items"
             phx-disable-with="Retrying…"
           >
-            <.icon name="hero-arrow-path" class="size-4" />
-            Retry {@failed_count} failed
+            <.icon name="hero-arrow-path" class="size-4" /> Retry {@failed_count} failed
           </button>
           <button
             class="btn btn-error btn-sm gap-2"
             phx-click="confirm_delete"
           >
-            <.icon name="hero-trash" class="size-4" />
-            Delete
+            <.icon name="hero-trash" class="size-4" /> Delete
           </button>
         </div>
       </div>
@@ -72,7 +69,11 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         <.stat_card label="Pages fetched" value={@source.pages_fetched} />
         <.stat_card label="Items found" value={@source.total_items} />
         <.stat_card label="Ready" value={@status_counts["ready"] || 0} class="text-success" />
-        <.stat_card label="Failed" value={@failed_count} class={if @failed_count > 0, do: "text-error"} />
+        <.stat_card
+          label="Failed"
+          value={@failed_count}
+          class={if @failed_count > 0, do: "text-error"}
+        />
       </div>
 
       <%!-- Progress bar --%>
@@ -136,7 +137,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   <span class="badge badge-ghost badge-sm">
                     {if item.storage_key, do: "processing", else: "download"}
                   </span>
-                  <span :if={MapSet.member?(@stuck_ids, item.id)} class="badge badge-warning badge-sm ml-1">
+                  <span
+                    :if={MapSet.member?(@stuck_ids, item.id)}
+                    class="badge badge-warning badge-sm ml-1"
+                  >
                     discarded
                   </span>
                 </td>
@@ -150,8 +154,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                     phx-value-item-id={item.id}
                     phx-disable-with="…"
                   >
-                    <.icon name="hero-arrow-path" class="size-3" />
-                    Retry
+                    <.icon name="hero-arrow-path" class="size-3" /> Retry
                   </button>
                 </td>
               </tr>
@@ -159,7 +162,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
           </table>
         </div>
       </div>
-
     </div>
 
     <%!-- Delete confirmation modal --%>
@@ -173,7 +175,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         <h3 class="font-bold text-lg text-error">Delete source?</h3>
         <p class="mt-3 text-base-content/80">
           This will permanently delete <span class="font-semibold">{@source.name}</span>
-          and all <span class="font-semibold">{@source.total_items} items</span> associated with it,
+          and all <span class="font-semibold">{@source.total_items} items</span>
+          associated with it,
           including all stored images. This cannot be undone.
         </p>
         <div class="modal-action">

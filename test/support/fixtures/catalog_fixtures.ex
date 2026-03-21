@@ -20,6 +20,7 @@ defmodule ScientiaCognita.CatalogFixtures do
           source
           |> Ecto.Changeset.change(raw_html: raw_html)
           |> ScientiaCognita.Repo.update()
+
         source
       else
         source
@@ -62,7 +63,10 @@ defmodule ScientiaCognita.CatalogFixtures do
         storage_attrs =
           %{}
           |> then(fn a -> if storage_key, do: Map.put(a, :storage_key, storage_key), else: a end)
-          |> then(fn a -> if processed_key, do: Map.put(a, :processed_key, processed_key), else: a end)
+          |> then(fn a ->
+            if processed_key, do: Map.put(a, :processed_key, processed_key), else: a
+          end)
+
         {:ok, item} = ScientiaCognita.Catalog.update_item_storage(item, storage_attrs)
         item
       else
@@ -71,11 +75,13 @@ defmodule ScientiaCognita.CatalogFixtures do
 
     item =
       if text_color && bg_color && bg_opacity do
-        {:ok, item} = ScientiaCognita.Catalog.update_item_colors(item, %{
-          text_color: text_color,
-          bg_color: bg_color,
-          bg_opacity: bg_opacity
-        })
+        {:ok, item} =
+          ScientiaCognita.Catalog.update_item_colors(item, %{
+            text_color: text_color,
+            bg_color: bg_color,
+            bg_opacity: bg_opacity
+          })
+
         item
       else
         item

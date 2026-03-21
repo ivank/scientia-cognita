@@ -37,7 +37,13 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       |> Enum.map(fn {item, idx} ->
         image_binary = fetch_image(item.processed_key)
         {:ok, upload_token} = upload_bytes(token, image_binary, item.title)
-        Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {:export_progress, %{uploaded: idx, total: total}})
+
+        Phoenix.PubSub.broadcast(
+          ScientiaCognita.PubSub,
+          topic,
+          {:export_progress, %{uploaded: idx, total: total}}
+        )
+
         {item, upload_token}
       end)
 
@@ -50,7 +56,12 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
 
     # 4. Build shareable link
     album_url = "https://photos.google.com/album/#{album_id}"
-    Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {:export_done, %{album_url: album_url}})
+
+    Phoenix.PubSub.broadcast(
+      ScientiaCognita.PubSub,
+      topic,
+      {:export_done, %{album_url: album_url}}
+    )
 
     :ok
   rescue

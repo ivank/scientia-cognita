@@ -27,7 +27,11 @@ defmodule ScientiaCognita.ObanTelemetry do
 
   def handle_job_stop(_event, _measurements, _meta, _config), do: :ok
 
-  defp maybe_mark_item_failed(%Oban.Job{worker: worker, args: %{"item_id" => item_id}, errors: errors})
+  defp maybe_mark_item_failed(%Oban.Job{
+         worker: worker,
+         args: %{"item_id" => item_id},
+         errors: errors
+       })
        when worker in @item_workers do
     last_error =
       case List.last(errors) do

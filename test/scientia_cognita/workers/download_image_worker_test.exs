@@ -16,7 +16,8 @@ defmodule ScientiaCognita.Workers.DownloadImageWorkerTest do
       item = item_fixture(source, %{original_url: "https://example.com/image.jpg"})
 
       expect(MockHttp, :get, fn _url, _opts ->
-        {:ok, %{status: 200, body: <<255, 216, 255>>, headers: %{"content-type" => ["image/jpeg"]}}}
+        {:ok,
+         %{status: 200, body: <<255, 216, 255>>, headers: %{"content-type" => ["image/jpeg"]}}}
       end)
 
       expect(MockStorage, :upload, fn _key, _binary, _opts -> {:ok, %{}} end)
@@ -27,7 +28,7 @@ defmodule ScientiaCognita.Workers.DownloadImageWorkerTest do
       assert item.status == "processing"
       assert item.storage_key != nil
 
-      assert_enqueued worker: ProcessImageWorker, args: %{"item_id" => item.id}
+      assert_enqueued(worker: ProcessImageWorker, args: %{"item_id" => item.id})
     end
   end
 

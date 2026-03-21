@@ -84,8 +84,7 @@ if config_env() == :prod do
     access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
     secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY")
 
-  config :scientia_cognita, :storage,
-    bucket: System.get_env("AWS_S3_BUCKET") || "images"
+  config :scientia_cognita, :storage, bucket: System.get_env("AWS_S3_BUCKET") || "images"
 
   config :scientia_cognita, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 

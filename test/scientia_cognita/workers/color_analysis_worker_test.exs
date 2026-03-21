@@ -19,10 +19,12 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorkerTest do
   describe "perform/1 — happy path" do
     test "downloads processed image, calls Gemini for colors, stores colors, enqueues RenderWorker" do
       source = source_fixture()
-      item = item_fixture(source, %{
-        status: "color_analysis",
-        processed_key: "items/1/processed.jpg"
-      })
+
+      item =
+        item_fixture(source, %{
+          status: "color_analysis",
+          processed_key: "items/1/processed.jpg"
+        })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 
@@ -42,17 +44,19 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorkerTest do
       assert item.bg_color == "#1A1A2E"
       assert item.bg_opacity == 0.75
 
-      assert_enqueued worker: RenderWorker, args: %{"item_id" => item.id}
+      assert_enqueued(worker: RenderWorker, args: %{"item_id" => item.id})
     end
   end
 
   describe "perform/1 — Gemini error" do
     test "falls back to default colors and continues" do
       source = source_fixture()
-      item = item_fixture(source, %{
-        status: "color_analysis",
-        processed_key: "items/1/processed.jpg"
-      })
+
+      item =
+        item_fixture(source, %{
+          status: "color_analysis",
+          processed_key: "items/1/processed.jpg"
+        })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 

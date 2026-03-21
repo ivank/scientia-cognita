@@ -58,7 +58,6 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
          gemini_page = build_gemini_page(result, url),
          items = build_items(result["items"] || [], source_id),
          {:ok, db_items} <- create_items(items) do
-
       next_url = result["next_page_url"]
       paginating = next_url && next_url != url
       new_state = if paginating, do: "extracting", else: "items_loading"
@@ -92,11 +91,17 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
       :ok
     else
       {:not_gallery} ->
-        Logger.warning("[ExtractPageWorker] source=#{source_id} is not a scientific image gallery")
+        Logger.warning(
+          "[ExtractPageWorker] source=#{source_id} is not a scientific image gallery"
+        )
+
         source = Catalog.get_source!(source_id)
-        {:ok, _} = fsm_transition(source, "failed", %{
-          error: "Page is not a scientific image gallery. Check the source URL and try again."
-        })
+
+        {:ok, _} =
+          fsm_transition(source, "failed", %{
+            error: "Page is not a scientific image gallery. Check the source URL and try again."
+          })
+
         broadcast(source_id, {:source_updated, Catalog.get_source!(source_id)})
         :ok
 
@@ -193,7 +198,9 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     results =
       Enum.map(items, fn attrs ->
         case Catalog.create_item(attrs) do
-          {:ok, item} -> item
+          {:ok, item} ->
+            item
+
           {:error, cs} ->
             Logger.warning("[ExtractPageWorker] item insert failed: #{inspect(cs.errors)}")
             nil
@@ -210,6 +217,7 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
         %{item_id: item.id} |> DownloadImageWorker.new() |> Oban.insert()
       end
     end)
+
     :ok
   end
 
@@ -218,14 +226,18 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
     |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
     |> Repo.transaction()
     |> case do
-      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:ok, %{transition: updated}} ->
+        {:ok, updated}
+
       {:error, :transition, %Ecto.Changeset{} = cs, _} ->
         if Keyword.has_key?(cs.errors, :status) do
           {:error, :invalid_transition}
         else
           {:error, cs}
         end
-      {:error, _, reason, _} -> {:error, reason}
+
+      {:error, _, reason, _} ->
+        {:error, reason}
     end
   end
 
