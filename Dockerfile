@@ -70,4 +70,5 @@ WORKDIR /app
 # Copy the compiled release from builder
 COPY --from=builder /app/_build/prod/rel/scientia_cognita ./
 
-CMD ["/app/bin/server"]
+ENV PHX_SERVER=true
+CMD ["/app/bin/scientia_cognita", "start"]
