@@ -1,7 +1,9 @@
 defmodule ScientiaCognita.Workers.FetchPageWorker do
   @moduledoc """
-  Fetches the source URL, saves raw HTML to the source record,
+  Fetches the source URL, saves raw HTML atomically via fsmx transition,
   and enqueues ExtractPageWorker.
+
+  State transitions: pending → fetching → extracting
 
   Args: %{source_id: integer}
   """
@@ -13,7 +15,7 @@ defmodule ScientiaCognita.Workers.FetchPageWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, SourceFSM}
+  alias ScientiaCognita.{Catalog, Repo}
   alias ScientiaCognita.Workers.ExtractPageWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
@@ -23,12 +25,9 @@ defmodule ScientiaCognita.Workers.FetchPageWorker do
     source = Catalog.get_source!(source_id)
     Logger.info("[FetchPageWorker] source=#{source_id} url=#{source.url}")
 
-    with {:ok, "fetching"} <- SourceFSM.transition(source, :start),
-         {:ok, source} <- Catalog.update_source_status(source, "fetching"),
+    with {:ok, source} <- fsm_transition(source, "fetching"),
          {:ok, html} <- fetch(source.url),
-         {:ok, source} <- Catalog.update_source_html(source, %{raw_html: html}),
-         {:ok, "extracting"} <- SourceFSM.transition(source, :fetched),
-         {:ok, source} <- Catalog.update_source_status(source, "extracting") do
+         {:ok, source} <- fsm_transition(source, "extracting", %{raw_html: html}) do
       broadcast(source_id, {:source_updated, source})
       %{source_id: source_id, url: source.url} |> ExtractPageWorker.new() |> Oban.insert()
       :ok
@@ -40,7 +39,7 @@ defmodule ScientiaCognita.Workers.FetchPageWorker do
       {:error, reason} ->
         Logger.error("[FetchPageWorker] failed source=#{source_id}: #{inspect(reason)}")
         source = Catalog.get_source!(source_id)
-        {:ok, _} = Catalog.update_source_status(source, "failed", error: inspect(reason))
+        {:ok, _} = fsm_transition(source, "failed", %{error: inspect(reason)})
         broadcast(source_id, {:source_updated, Catalog.get_source!(source_id)})
         :ok
     end
@@ -51,6 +50,22 @@ defmodule ScientiaCognita.Workers.FetchPageWorker do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       {:ok, %{status: status}} -> {:error, "HTTP #{status} for #{url}"}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp fsm_transition(schema, new_state, params \\ %{}) do
+    Ecto.Multi.new()
+    |> Fsmx.transition_multi(schema, :transition, new_state, params, state_field: :status)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{transition: updated}} -> {:ok, updated}
+      {:error, :transition, %Ecto.Changeset{} = cs, _} ->
+        if Keyword.has_key?(cs.errors, :status) do
+          {:error, :invalid_transition}
+        else
+          {:error, cs}
+        end
+      {:error, _, reason, _} -> {:error, reason}
     end
   end
 
