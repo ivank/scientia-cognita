@@ -64,18 +64,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         <span>{@source.error}</span>
       </div>
 
-      <%!-- Progress stats --%>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <.stat_card label="Pages fetched" value={@source.pages_fetched} />
-        <.stat_card label="Items found" value={@source.total_items} />
-        <.stat_card label="Ready" value={@status_counts["ready"] || 0} class="text-success" />
-        <.stat_card
-          label="Failed"
-          value={@failed_count}
-          class={if @failed_count > 0, do: "text-error"}
-        />
-      </div>
-
       <%!-- Progress bar --%>
       <div :if={@source.total_items > 0} class="space-y-1">
         <div class="flex justify-between text-xs text-base-content/60">
@@ -96,21 +84,29 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         </div>
       </div>
 
-      <%!-- Items table (all statuses) --%>
+      <%!-- Items table --%>
       <div class="overflow-x-auto">
         <table class="table table-sm">
           <thead>
             <tr>
-              <th>Title</th>
+              <th class="w-20">Image</th>
               <th>Status</th>
-              <th>Error</th>
-              <th></th>
+              <th>Title</th>
+              <th>Description</th>
             </tr>
           </thead>
-          <tbody id="items-stream" phx-update="stream">
-            <tr :for={{dom_id, item} <- @streams.items} id={dom_id}>
-              <td class="max-w-xs truncate">{item.title}</td>
-              <td>
+          <tbody id="items" phx-update="stream">
+            <tr
+              :for={{dom_id, item} <- @streams.items}
+              id={dom_id}
+              class={"cursor-pointer hover:brightness-95 transition-all #{row_class(item.status)}"}
+              phx-click="select_item"
+              phx-value-id={item.id}
+            >
+              <td class="p-1">
+                <.item_thumbnail item={item} />
+              </td>
+              <td class="whitespace-nowrap">
                 <.status_badge status={item.status} />
                 <span
                   :if={MapSet.member?(@stuck_ids, item.id)}
@@ -119,18 +115,22 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   discarded
                 </span>
               </td>
-              <td class="text-xs text-base-content/50 max-w-sm truncate">
-                {item.error}
+              <td class="max-w-xs">
+                <p class="text-sm font-medium truncate">{item.title}</p>
               </td>
-              <td>
-                <button
-                  class="btn btn-ghost btn-xs gap-1"
-                  phx-click="select_item"
-                  phx-value-id={item.id}
-                  phx-disable-with="…"
+              <td class="max-w-sm">
+                <p
+                  :if={item.status != "failed"}
+                  class="text-xs text-base-content/60 line-clamp-2"
                 >
-                  View
-                </button>
+                  {item.description}
+                </p>
+                <p
+                  :if={item.status == "failed"}
+                  class="text-xs text-error line-clamp-2"
+                >
+                  {item.error || item.description}
+                </p>
               </td>
             </tr>
           </tbody>
@@ -478,12 +478,78 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     Enum.sort_by(counts, fn {status, _} -> Enum.find_index(order, &(&1 == status)) || 99 end)
   end
 
-  defp stat_card(assigns) do
+  # Returns :shimmer | :icon | :render | :image
+  # Rules are strict top-down first-match (like function clauses).
+  # `ready` items always have processed_key set, so they fall through to the
+  # `processed_key present` branch — no explicit :ready case needed.
+  defp thumb_type(%{status: s}) when s in ~w(pending downloading), do: :shimmer
+  defp thumb_type(%{status: "failed", storage_key: nil}), do: :icon
+  defp thumb_type(%{status: "failed"}), do: :image
+  defp thumb_type(%{status: "render"}), do: :render
+  defp thumb_type(%{processed_key: pk}) when not is_nil(pk), do: :image  # ready, processing, color_analysis
+  defp thumb_type(%{storage_key: sk}) when not is_nil(sk), do: :image
+  defp thumb_type(_), do: :shimmer
+
+  # Returns the URL to display for :image type thumbnails
+  defp thumb_url(%{status: "failed", processed_key: pk}) when not is_nil(pk), do: pk
+  defp thumb_url(%{status: "failed", storage_key: sk}) when not is_nil(sk), do: sk
+  defp thumb_url(%{processed_key: pk}) when not is_nil(pk), do: pk
+  defp thumb_url(%{storage_key: sk}) when not is_nil(sk), do: sk
+  defp thumb_url(_), do: nil
+
+  defp row_class("pending"), do: "bg-base-200"
+  defp row_class("downloading"), do: "bg-base-200"
+  defp row_class("processing"), do: "bg-info/10"
+  defp row_class("color_analysis"), do: "bg-info/10"
+  defp row_class("render"), do: "bg-info/10"
+  defp row_class("ready"), do: "bg-success/10"
+  defp row_class("failed"), do: "bg-error/10"
+  defp row_class(_), do: ""
+
+  defp gemini_page_json(page) do
+    # gemini_pages are always Ecto embedded schema structs, but guard defensively.
+    data = if is_struct(page), do: Map.from_struct(page), else: page
+
+    case Jason.encode(data, pretty: true) do
+      {:ok, json} -> json
+      {:error, _} -> inspect(page)
+    end
+  end
+
+  defp item_thumbnail(assigns) do
+    assigns = assign(assigns, :thumb_type, thumb_type(assigns.item))
+
     ~H"""
-    <div class="card bg-base-200 p-4">
-      <div class={"text-2xl font-bold #{Map.get(assigns, :class, "")}"}>{@value}</div>
-      <div class="text-xs text-base-content/50 mt-0.5">{@label}</div>
-    </div>
+    <%= case @thumb_type do %>
+    <% :shimmer -> %>
+      <div class="skeleton rounded" style="width: 76px; height: 48px;"></div>
+    <% :icon -> %>
+      <div
+        class="flex items-center justify-center bg-base-300 rounded"
+        style="width: 76px; height: 48px;"
+      >
+        <.icon name="hero-photo" class="size-5 text-base-content/30" />
+      </div>
+    <% :render -> %>
+      <div
+        class="rounded overflow-hidden ring-2 ring-primary animate-pulse"
+        style="width: 76px; height: 48px;"
+      >
+        <img
+          src={Storage.get_url(@item.processed_key)}
+          class="w-full h-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    <% :image -> %>
+      <div class="rounded overflow-hidden" style="width: 76px; height: 48px;">
+        <img
+          src={Storage.get_url(thumb_url(@item))}
+          class="w-full h-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    <% end %>
     """
   end
 

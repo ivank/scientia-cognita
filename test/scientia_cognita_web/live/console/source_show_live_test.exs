@@ -43,6 +43,64 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     end
   end
 
+  describe "items table" do
+    test "colors rows by status", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      _ready  = item_fixture(source, %{status: "ready",    title: "Ready"})
+      _failed = item_fixture(source, %{status: "failed",   title: "Failed"})
+      _render = item_fixture(source, %{status: "render",
+                             storage_key: "sk", processed_key: "pk", title: "Rendering"})
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "bg-success/10"
+      assert html =~ "bg-error/10"
+      assert html =~ "bg-info/10"
+    end
+
+    test "shows error text in description column for failed items", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      item   = item_fixture(source, %{status: "failed", title: "Broken"})
+      {:ok, _} = ScientiaCognita.Catalog.update_item_status(item, "failed",
+                    error: "download timeout")
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "download timeout"
+    end
+  end
+
+  describe "thumbnails" do
+    test "pending item shows skeleton shimmer", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+      _item  = item_fixture(source, %{status: "pending"})
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "skeleton"
+    end
+
+    test "render-status item shows animate-pulse ring", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+      _item  = item_fixture(source, %{status: "render",
+                            storage_key: "sk", processed_key: "pk"})
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "animate-pulse"
+    end
+
+    test "failed item with no storage_key shows icon placeholder", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      _item  = item_fixture(source, %{status: "failed"})
+      # No storage_key set (default nil)
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "hero-photo"
+    end
+  end
+
   describe "PubSub: item_updated" do
     test "stream-inserts the updated item without full reload", %{conn: conn} do
       source = source_fixture(%{status: "items_loading"})
