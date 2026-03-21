@@ -92,7 +92,10 @@ defmodule ScientiaCognita.MixProject do
       {:ueberauth_google, "~> 0.12"},
 
       # Testing
-      {:mox, "~> 1.2", only: :test}
+      {:mox, "~> 1.2", only: :test},
+
+      # T10 — FSM state management (Ecto-integrated)
+      {:fsmx, "~> 0.4"}
     ]
   end
 
