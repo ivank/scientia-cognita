@@ -15,6 +15,36 @@ defmodule ScientiaCognita.Catalog do
     Repo.all(from s in Source, order_by: [desc: s.inserted_at])
   end
 
+  def list_sources_with_preview do
+    sources = Repo.all(from s in Source, order_by: [desc: s.inserted_at])
+
+    Enum.map(sources, fn source ->
+      items =
+        Repo.all(
+          from i in Item,
+            where: i.source_id == ^source.id and i.status == "ready",
+            order_by: [asc: i.id],
+            limit: 6
+        )
+
+      %{source | items: items}
+    end)
+  end
+
+  def get_source_with_preview(source_id) do
+    source = Repo.get!(Source, source_id)
+
+    items =
+      Repo.all(
+        from i in Item,
+          where: i.source_id == ^source_id and i.status == "ready",
+          order_by: [asc: i.id],
+          limit: 6
+      )
+
+    %{source | items: items}
+  end
+
   def list_sources_with_ready_items do
     Repo.all(
       from s in Source,
@@ -167,6 +197,14 @@ defmodule ScientiaCognita.Catalog do
     |> Item.changeset(attrs)
     |> Repo.insert()
   end
+
+  def update_item(%Item{} = item, attrs) do
+    item
+    |> Item.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def change_item(%Item{} = item, attrs \\ %{}), do: Item.changeset(item, attrs)
 
   def update_item_status(%Item{} = item, status, opts \\ []) do
     item

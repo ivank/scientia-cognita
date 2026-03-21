@@ -17,8 +17,6 @@ defmodule ScientiaCognita.Workers.RenderWorker do
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
   @storage Application.compile_env(:scientia_cognita, :storage_module, ScientiaCognita.Storage)
 
-  @band_height_ratio 0.259
-
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
     item = Catalog.get_item!(item_id)
@@ -110,41 +108,89 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     text_color = item.text_color || "#FFFFFF"
     bg_color = item.bg_color || "#000000"
     bg_opacity = item.bg_opacity || 0.75
-    overlay_text = build_overlay_text(item)
 
     img_width = Image.width(img)
     img_height = Image.height(img)
-    padding_x = max(trunc(img_width * 0.031), 4)
-    text_width = max(img_width - padding_x * 2, 10)
-    font_size = max(trunc(img_height * 0.026), 8)
-    band_height = max(trunc(img_height * @band_height_ratio), 10)
+    padding_x = max(trunc(img_width * 0.03), 8)
+    padding_y = max(trunc(img_height * 0.025), 6)
+    body_font = max(trunc(img_height * 0.02), 8)
+    title_font = max(trunc(body_font * 1), 10)
+    radius = max(trunc(img_height * 0.045), 14)
+    # Align with Google Photos album title on Android TV:
+    # left margin matches the system UI (~5% width), bottom gap leaves room
+    # for the album title bar that appears below our box (~13% height).
+    offset_x = max(trunc(img_width * 0.05), 16)
+    offset_y = max(trunc(img_height * 0.13), 40)
+    inner_width = max(trunc(img_width * 0.85) - padding_x * 2, 20)
 
-    text_opts = [
-      font_size: font_size,
-      font_weight: :normal,
-      text_fill_color: text_color,
-      background_fill_color: bg_color,
-      background_fill_opacity: bg_opacity,
-      width: text_width,
-      padding: [padding_x, max(trunc(img_height * 0.028), 4)],
-      align: :left
-    ]
+    title = item.title
+    body = build_body_text(item)
 
-    with {:ok, text_img} <- Image.Text.text(overlay_text, text_opts) do
-      text_height = Image.height(text_img)
-      y_pos = img_height - text_height
-      Image.compose(img, text_img, x: 0, y: max(y_pos, img_height - band_height))
+    pango_text = build_pango_markup(title, body, title_font, body_font)
+
+    with {:ok, text_img} <-
+           Image.Text.text({:safe, pango_text},
+             width: inner_width,
+             text_fill_color: text_color,
+             align: :left
+           ),
+         text_w = Image.width(text_img),
+         text_h = Image.height(text_img),
+         card_w = text_w + padding_x * 2,
+         card_h = text_h + padding_y * 2,
+         {:ok, bg_img} <- rounded_rect(card_w, card_h, radius, bg_color, bg_opacity),
+         {:ok, overlay} <- Image.compose(bg_img, text_img, x: padding_x, y: padding_y) do
+      overlay_h = Image.height(overlay)
+      y = max(img_height - overlay_h - offset_y, 0)
+      Image.compose(img, overlay, x: offset_x, y: y)
     end
   end
 
-  defp build_overlay_text(item) do
+  # Renders title (bold, larger) and body as a single Pango markup string.
+  # A small-font spacer line between them creates a visible margin.
+  # text_fill_color is applied as a flat layer by Image.Text so no color markup needed.
+  defp build_pango_markup(nil, "", _tf, _bf), do: " "
+
+  defp build_pango_markup(nil, body, _tf, bf),
+    do: ~s(<span font="Sans #{bf}">#{xml_escape(body)}</span>)
+
+  defp build_pango_markup(title, "", tf, _bf),
+    do: ~s(<span font="Sans Bold #{tf}">#{xml_escape(title)}</span>)
+
+  defp build_pango_markup(title, body, tf, bf) do
+    gap_font = max(trunc(bf * 0.5), 4)
+
+    [
+      ~s(<span font="Sans Bold #{tf}">#{xml_escape(title)}</span>),
+      ~s(<span font="Sans #{gap_font}"> </span>),
+      ~s(<span font="Sans #{bf}">#{xml_escape(body)}</span>)
+    ]
+    |> Enum.join("\n")
+  end
+
+  defp xml_escape(text) do
+    text
+    |> String.replace("&", "&amp;")
+    |> String.replace("<", "&lt;")
+    |> String.replace(">", "&gt;")
+  end
+
+  defp rounded_rect(width, height, radius, color, opacity) do
+    svg = """
+    <svg width="#{width}" height="#{height}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="#{width}" height="#{height}" rx="#{radius}" ry="#{radius}"
+            fill="#{color}" fill-opacity="#{opacity}" />
+    </svg>
+    """
+
+    Image.from_svg(svg)
+  end
+
+  defp build_body_text(item) do
     [item.description, item.author && "© #{item.author}", item.copyright]
     |> Enum.reject(&is_nil/1)
     |> Enum.reject(&(String.trim(&1) == ""))
-    |> case do
-      [] -> item.title || ""
-      parts -> Enum.join(parts, "\n")
-    end
+    |> Enum.join("\n")
   end
 
   defp broadcast(source_id, event) do

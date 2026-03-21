@@ -78,7 +78,7 @@ defmodule ScientiaCognita.Catalog.Source do
       :title,
       :description
     ])
-    |> validate_required([:url, :name])
+    |> validate_required([:url])
     |> validate_inclusion(:status, @statuses)
     |> validate_format(:url, ~r/^https?:\/\//, message: "must be a valid URL")
     |> unique_constraint(:url)

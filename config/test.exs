@@ -44,4 +44,9 @@ config :scientia_cognita, :storage_module, ScientiaCognita.MockStorage
 # Oban testing mode — jobs do not run automatically
 config :scientia_cognita, Oban, testing: :manual
 
+# Stub AWS credentials so ExAws never falls back to EC2 instance metadata
+config :ex_aws,
+  access_key_id: "test",
+  secret_access_key: "test"
+
 if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

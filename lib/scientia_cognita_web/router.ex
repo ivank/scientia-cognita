@@ -46,12 +46,17 @@ defmodule ScientiaCognitaWeb.Router do
   scope "/console", ScientiaCognitaWeb.Console do
     pipe_through [:browser, :console]
 
-    live "/", DashboardLive
-    live "/users", UsersLive
-    live "/sources", SourcesLive
-    live "/sources/:id", SourceShowLive
-    live "/catalogs", CatalogsLive
-    live "/catalogs/:slug", CatalogShowLive
+    live_session :console,
+      root_layout: {ScientiaCognitaWeb.Layouts, :console_root},
+      layout: {ScientiaCognitaWeb.Layouts, :console},
+      on_mount: [{ScientiaCognitaWeb.UserAuth, :require_console_user}] do
+      live "/", DashboardLive
+      live "/users", UsersLive
+      live "/sources", SourcesLive
+      live "/sources/:id", SourceShowLive
+      live "/catalogs", CatalogsLive
+      live "/catalogs/:slug", CatalogShowLive
+    end
   end
 
   # Other scopes may use custom stacks.
