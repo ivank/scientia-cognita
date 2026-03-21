@@ -45,4 +45,4 @@ npm-debug.log
 .worktrees/
 
 # Local secrets — never commit
-/config/dev.secret.exs
+/config/*.secret.exs
