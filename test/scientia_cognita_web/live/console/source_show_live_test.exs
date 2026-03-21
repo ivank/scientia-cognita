@@ -25,5 +25,37 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       # No gallery grid — the old class was "grid-cols-2 sm:grid-cols-3"
       refute html =~ "grid-cols-2"
     end
+
+    test "all items regardless of status appear in the table", %{conn: conn} do
+      source = source_fixture(%{status: "done"})
+      _ready  = item_fixture(source, %{status: "ready",       title: "Ready Item"})
+      _failed = item_fixture(source, %{status: "failed",      title: "Failed Item"})
+      _dl     = item_fixture(source, %{status: "downloading", title: "Downloading Item"})
+      _render = item_fixture(source, %{status: "render",
+                             storage_key: "sk", processed_key: "pk", title: "Rendering Item"})
+
+      {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      assert html =~ "Ready Item"
+      assert html =~ "Failed Item"
+      assert html =~ "Downloading Item"
+      assert html =~ "Rendering Item"
+    end
+  end
+
+  describe "PubSub: item_updated" do
+    test "stream-inserts the updated item without full reload", %{conn: conn} do
+      source = source_fixture(%{status: "items_loading"})
+      item   = item_fixture(source, %{status: "pending", title: "New Item"})
+
+      {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
+
+      # Simulate a worker broadcasting an item update
+      updated = %{item | status: "ready", title: "Updated Item"}
+      send(view.pid, {:item_updated, updated})
+
+      html = render(view)
+      assert html =~ "Updated Item"
+    end
   end
 end

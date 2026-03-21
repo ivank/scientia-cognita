@@ -96,76 +96,45 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         </div>
       </div>
 
-      <%!-- Item grid (ready items only) --%>
-      <div :if={@ready_items != []} class="space-y-3">
-        <h2 class="font-semibold">Ready Items</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <div
-            :for={item <- @ready_items}
-            class="card bg-base-200 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-            phx-click="select_item"
-            phx-value-id={item.id}
-          >
-            <figure class="aspect-video bg-base-300">
-              <img
-                :if={item.processed_key}
-                src={Storage.get_url(item.processed_key)}
-                class="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </figure>
-            <div class="card-body p-3">
-              <p class="text-xs font-medium line-clamp-2">{item.title}</p>
-              <p :if={item.author} class="text-xs text-base-content/50 truncate">{item.author}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Failed items --%>
-      <div :if={@failed_items != []} class="space-y-3">
-        <h2 class="font-semibold text-error">Failed Items ({@failed_count})</h2>
-        <div class="overflow-x-auto">
-          <table class="table table-sm">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Stage</th>
-                <th>Error</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={item <- @failed_items} id={"item-#{item.id}"}>
-                <td class="max-w-xs truncate">{item.title}</td>
-                <td>
-                  <span class="badge badge-ghost badge-sm">
-                    {if item.storage_key, do: "processing", else: "download"}
-                  </span>
-                  <span
-                    :if={MapSet.member?(@stuck_ids, item.id)}
-                    class="badge badge-warning badge-sm ml-1"
-                  >
-                    discarded
-                  </span>
-                </td>
-                <td class="text-xs text-base-content/50 max-w-sm truncate">
-                  {item.error || "Job discarded after maximum attempts — retry to continue"}
-                </td>
-                <td>
-                  <button
-                    class="btn btn-ghost btn-xs gap-1"
-                    phx-click="retry_item"
-                    phx-value-item-id={item.id}
-                    phx-disable-with="…"
-                  >
-                    <.icon name="hero-arrow-path" class="size-3" /> Retry
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <%!-- Items table (all statuses) --%>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Error</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="items-stream" phx-update="stream">
+            <tr :for={{dom_id, item} <- @streams.items} id={dom_id}>
+              <td class="max-w-xs truncate">{item.title}</td>
+              <td>
+                <.status_badge status={item.status} />
+                <span
+                  :if={MapSet.member?(@stuck_ids, item.id)}
+                  class="badge badge-warning badge-sm ml-1"
+                >
+                  discarded
+                </span>
+              </td>
+              <td class="text-xs text-base-content/50 max-w-sm truncate">
+                {item.error}
+              </td>
+              <td>
+                <button
+                  class="btn btn-ghost btn-xs gap-1"
+                  phx-click="select_item"
+                  phx-value-id={item.id}
+                  phx-disable-with="…"
+                >
+                  View
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -301,25 +270,39 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     source = Catalog.get_source!(id)
-    Phoenix.PubSub.subscribe(ScientiaCognita.PubSub, "source:#{id}")
+
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(ScientiaCognita.PubSub, "source:#{id}")
+    end
+
+    all_items = Catalog.list_items_by_source(source)
 
     {:ok,
      socket
      |> assign(:show_delete_modal, false)
      |> assign(:selected_item, nil)
      |> assign(:item_form, nil)
-     |> assign_source_data(source)}
+     |> assign_source_stats(source)
+     |> stream(:items, all_items)}
   end
 
   @impl true
   def handle_info({:source_updated, source}, socket) do
-    {:noreply, assign_source_data(socket, source)}
+    # The broadcasted source already carries gemini_pages (embedded schema).
+    {:noreply, assign_source_stats(socket, source)}
   end
 
-  def handle_info({:item_updated, _item}, socket) do
-    # Reload all item stats when any item changes
-    source = Catalog.get_source!(socket.assigns.source.id)
-    {:noreply, assign_source_data(socket, source)}
+  def handle_info({:item_updated, item}, socket) do
+    source = socket.assigns.source
+    status_counts = Catalog.count_items_by_status(source)
+    stuck_ids = Catalog.list_stuck_item_ids(source) |> MapSet.new()
+
+    {:noreply,
+     socket
+     |> stream_insert(:items, item)
+     |> assign(:status_counts, status_counts)
+     |> assign(:failed_count, status_counts["failed"] || 0)
+     |> assign(:stuck_ids, stuck_ids)}
   end
 
   @impl true
@@ -334,7 +317,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
     {:noreply,
      socket
-     |> assign_source_data(Catalog.get_source!(source.id))
+     |> assign_source_stats(Catalog.get_source!(source.id))
      |> put_flash(:info, "Crawl restarted")}
   end
 
@@ -353,11 +336,11 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     %{item_id: item.id} |> worker.new() |> Oban.insert()
 
     source = Catalog.get_source!(socket.assigns.source.id)
-    {:noreply, assign_source_data(socket, source)}
+    {:noreply, assign_source_stats(socket, source)}
   end
 
   def handle_event("select_item", %{"id" => id}, socket) do
-    item = Enum.find(socket.assigns.ready_items, &(to_string(&1.id) == id))
+    item = Catalog.get_item!(id)
     {:noreply, socket |> assign(:selected_item, item) |> assign(:item_form, nil)}
   end
 
@@ -393,7 +376,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
          socket
          |> assign(:selected_item, item)
          |> assign(:item_form, nil)
-         |> assign_source_data(source)}
+         |> assign_source_stats(source)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :item_form, to_form(changeset))}
@@ -401,7 +384,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   end
 
   def handle_event("redownload_item", %{"id" => id}, socket) do
-    item = Enum.find(socket.assigns.ready_items, &(to_string(&1.id) == id))
+    item = Catalog.get_item!(id)
     # Clear stored images so DownloadImageWorker fetches fresh copies,
     # then let the worker chain run to ready automatically.
     {:ok, item} = Catalog.update_item_storage(item, %{storage_key: nil, processed_key: nil})
@@ -413,12 +396,12 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      socket
      |> assign(:selected_item, nil)
      |> assign(:item_form, nil)
-     |> assign_source_data(source)
+     |> assign_source_stats(source)
      |> put_flash(:info, "Re-downloading item")}
   end
 
   def handle_event("rerender_item", %{"id" => id}, socket) do
-    item = Enum.find(socket.assigns.ready_items, &(to_string(&1.id) == id))
+    item = Catalog.get_item!(id)
     # Put back to render state and enqueue RenderWorker — it completes to ready.
     {:ok, item} = Catalog.update_item_status(item, "render", error: nil)
     %{item_id: item.id} |> RenderWorker.new() |> Oban.insert()
@@ -428,7 +411,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      socket
      |> assign(:selected_item, nil)
      |> assign(:item_form, nil)
-     |> assign_source_data(source)
+     |> assign_source_stats(source)
      |> put_flash(:info, "Re-rendering item")}
   end
 
@@ -450,7 +433,16 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   end
 
   def handle_event("retry_failed_items", _, socket) do
-    Enum.each(socket.assigns.failed_items, fn item ->
+    source = socket.assigns.source
+    stuck_ids = socket.assigns.stuck_ids
+
+    items_to_retry =
+      Catalog.list_items_by_source(source)
+      |> Enum.filter(fn item ->
+        item.status == "failed" or MapSet.member?(stuck_ids, item.id)
+      end)
+
+    Enum.each(items_to_retry, fn item ->
       {status, worker} =
         cond do
           is_nil(item.storage_key) -> {"pending", DownloadImageWorker}
@@ -463,38 +455,25 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       %{item_id: item.id} |> worker.new() |> Oban.insert()
     end)
 
-    source = Catalog.get_source!(socket.assigns.source.id)
-
     {:noreply,
      socket
-     |> assign_source_data(source)
-     |> put_flash(:info, "Retrying #{length(socket.assigns.failed_items)} items")}
+     |> assign_source_stats(source)
+     |> put_flash(:info, "Retrying #{length(items_to_retry)} items")}
   end
 
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
 
-  defp assign_source_data(socket, source) do
-    all_items = Catalog.list_items_by_source(source)
+  defp assign_source_stats(socket, source) do
+    status_counts = Catalog.count_items_by_status(source)
     stuck_ids = Catalog.list_stuck_item_ids(source) |> MapSet.new()
-
-    status_counts = Enum.frequencies_by(all_items, & &1.status)
-
-    failed_items =
-      Enum.filter(all_items, fn item ->
-        item.status == "failed" or MapSet.member?(stuck_ids, item.id)
-      end)
-
-    ready_items = Enum.filter(all_items, &(&1.status == "ready"))
 
     socket
     |> assign(:source, source)
-    |> assign(:stuck_ids, stuck_ids)
     |> assign(:status_counts, status_counts)
-    |> assign(:failed_items, failed_items)
-    |> assign(:failed_count, length(failed_items))
-    |> assign(:ready_items, ready_items)
+    |> assign(:failed_count, status_counts["failed"] || 0)
+    |> assign(:stuck_ids, stuck_ids)
   end
 
   defp progress_pct(0, _), do: 0
