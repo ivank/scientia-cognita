@@ -1,6 +1,4 @@
-<picture>
-  <img src="priv/static/images/logo.svg" alt="Scientia Cognita logo" width="72" height="auto" />
-</picture>
+<img src="priv/static/images/logo.svg" alt="Scientia Cognita logo" width="72" />
 
 # scientia cognita
 
