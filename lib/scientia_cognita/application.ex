@@ -7,6 +7,13 @@ defmodule ScientiaCognita.Application do
 
   @impl true
   def start(_type, _args) do
+    # DATABASE_RESET=true: drop all tables, re-migrate, then seed.
+    # Must run before the supervisor so the Repo isn't started yet
+    # (Ecto.Migrator.with_repo starts it temporarily).
+    if release?() and System.get_env("DATABASE_RESET") == "true" do
+      ScientiaCognita.Release.reset()
+    end
+
     children = [
       ScientiaCognitaWeb.Telemetry,
       ScientiaCognita.Repo,
@@ -19,15 +26,17 @@ defmodule ScientiaCognita.Application do
       ScientiaCognitaWeb.Endpoint
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: ScientiaCognita.Supervisor]
     result = Supervisor.start_link(children, opts)
 
-    # Ensure the storage bucket exists after the supervisor starts.
-    # Runs in a Task so a connection failure (e.g. MinIO not up yet) doesn't
-    # crash the supervisor or block boot in test/CI environments.
     ScientiaCognita.ObanTelemetry.attach()
+
+    # Run seeds on every release boot — idempotent, creates owner if missing.
+    if release?() do
+      Task.start(fn -> ScientiaCognita.Release.seed() end)
+    end
+
+    # Ensure the storage bucket exists after the supervisor starts.
     Task.start(fn -> ScientiaCognita.Storage.ensure_bucket_exists() end)
 
     result
@@ -41,8 +50,10 @@ defmodule ScientiaCognita.Application do
     :ok
   end
 
+  defp release?, do: System.get_env("RELEASE_NAME") != nil
+
   defp skip_migrations?() do
-    # By default, sqlite migrations are run when using a release
-    System.get_env("RELEASE_NAME") == nil
+    # Skip in dev (no RELEASE_NAME) or when DATABASE_RESET just ran all migrations.
+    not release?() or System.get_env("DATABASE_RESET") == "true"
   end
 end

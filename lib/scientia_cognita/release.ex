@@ -1,24 +1,18 @@
 defmodule ScientiaCognita.Release do
   @moduledoc """
-  Release tasks run outside of the application supervision tree.
+  Database tasks invoked from Application.start/2 on release boot.
 
-  Called via fly.toml release_command before deploying a new version:
-
-      [deploy]
-        release_command = "/app/bin/scientia_cognita eval \\\"ScientiaCognita.Release.setup()\\\""
-
-  Set DATABASE_RESET=true to drop and re-create the database, then seed.
+  - Normal boot: Ecto.Migrator runs migrations, then seed/0 runs (idempotent).
+  - DATABASE_RESET=true: reset/0 drops all tables, re-migrates, and seeds.
   """
 
   @app :scientia_cognita
 
   @spec setup() :: :ok
   def setup do
-    if System.get_env("DATABASE_RESET") == "true" do
-      reset()
-    else
-      migrate()
-    end
+    migrate()
+    seed()
+    # reset()
   end
 
   @spec migrate() :: :ok
