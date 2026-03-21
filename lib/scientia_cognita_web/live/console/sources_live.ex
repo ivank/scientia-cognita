@@ -42,7 +42,7 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
             <div class="flex items-start gap-4">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-semibold text-sm">{source_display_name(source)}</span>
+                  <span class="font-semibold text-sm">{Source.display_name(source)}</span>
                   <.status_badge status={source.status} />
                 </div>
                 <p class="text-xs text-base-content/40 truncate mt-0.5 font-mono">{source.url}</p>
@@ -196,14 +196,6 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
 
   defp replace_source(sources, updated) do
     Enum.map(sources, fn s -> if s.id == updated.id, do: updated, else: s end)
-  end
-
-  defp source_display_name(source) do
-    source.name || source.title ||
-      case URI.parse(source.url) do
-        %URI{host: host} when is_binary(host) -> host
-        _ -> source.url
-      end
   end
 
   defp shimmer_placeholders(source) do

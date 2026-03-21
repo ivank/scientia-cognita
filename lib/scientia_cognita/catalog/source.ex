@@ -129,4 +129,16 @@ defmodule ScientiaCognita.Catalog.Source do
     |> cast(params, [:error])
     |> validate_required([:error])
   end
+
+  @doc """
+  Returns the best human-readable name for a source: explicit name, then
+  extracted title, then the URL hostname, then the raw URL as a fallback.
+  """
+  def display_name(%__MODULE__{} = source) do
+    source.name || source.title ||
+      case URI.parse(source.url) do
+        %URI{host: host} when is_binary(host) -> host
+        _ -> source.url
+      end
+  end
 end

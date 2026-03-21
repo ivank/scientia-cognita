@@ -4,6 +4,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   on_mount {ScientiaCognitaWeb.UserAuth, :require_console_user}
 
   alias ScientiaCognita.{Catalog, Storage}
+  alias ScientiaCognita.Catalog.Source
 
   alias ScientiaCognita.Workers.{
     FetchPageWorker,
@@ -23,10 +24,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
           <div class="flex items-center gap-2 text-sm text-base-content/50 mb-1">
             <.link navigate={~p"/console/sources"} class="hover:text-base-content">Sources</.link>
             <.icon name="hero-chevron-right" class="size-3" />
-            <span>{@source.name}</span>
+            <span>{Source.display_name(@source)}</span>
           </div>
           <h1 class="text-2xl font-bold flex items-center gap-3">
-            {@source.name}
+            {Source.display_name(@source)}
             <.status_badge status={@source.status} />
           </h1>
           <p class="text-sm text-base-content/50 mt-1 font-mono">{@source.url}</p>
