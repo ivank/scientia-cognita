@@ -91,7 +91,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       assert html =~ "animate-pulse"
     end
 
-    test "failed item with no storage_key shows icon placeholder", %{conn: conn} do
+    test "failed item with no original_image shows icon placeholder", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       _item  = item_fixture(source, %{status: "failed"})
       # No original_image set
@@ -153,7 +153,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       assert render(view) =~ "Re-download"
     end
 
-    test "re-render hidden when no storage_key", %{conn: conn} do
+    test "re-render hidden when no original_image", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "failed"})
       # No original_image set
@@ -164,7 +164,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       refute render(view) =~ "Re-render"
     end
 
-    test "re-render visible for non-terminal item with error and storage_key", %{conn: conn} do
+    test "re-render visible for non-terminal item with error and original_image", %{conn: conn} do
       source = source_fixture(%{status: "items_loading"})
       item   = item_fixture(source, %{status: "processing", original_image: "original.jpg"})
       # Simulate partial-failure state: error set but status not failed
@@ -176,7 +176,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       assert render(view) =~ "Re-render"
     end
 
-    test "re-render visible for terminal items with storage_key", %{conn: conn} do
+    test "re-render visible for terminal items with original_image", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "ready",
                             original_image: "original.jpg", final_image: "final.jpg"})

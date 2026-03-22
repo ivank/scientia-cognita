@@ -241,7 +241,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   <.icon name="hero-arrow-down-tray" class="size-4" /> Re-download
                 </button>
 
-                <%!-- Re-render: terminal states or errored item, with storage_key present --%>
+                <%!-- Re-render: terminal states or errored item, with original_image present --%>
                 <button
                   :if={(@selected_item.status in ~w(ready failed) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)}
                   type="button"
@@ -422,7 +422,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       |> ScientiaCognita.Repo.update()
 
     {:ok, item} = Catalog.update_item_status(item, "processing", error: nil)
-    # ProcessImageWorker reads storage_key, then chains color_analysis → render → ready
+    # ProcessImageWorker reads original_image, then chains color_analysis → render → ready
     %{item_id: item.id} |> ProcessImageWorker.new() |> Oban.insert()
 
     {:noreply,
