@@ -11,7 +11,8 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
 
   use Oban.Worker, queue: :export, max_attempts: 2
 
-  alias ScientiaCognita.{Catalog, Accounts, Storage}
+  alias ScientiaCognita.{Catalog, Accounts}
+  alias ScientiaCognita.Uploaders.ItemImageUploader
 
   @photos_base "https://photoslibrary.googleapis.com/v1"
 
@@ -28,14 +29,14 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
     {:ok, album_id} = create_album(token, catalog.name)
 
     # 2. Upload images and gather tokens
-    total = Enum.count(items, & &1.processed_key)
+    total = Enum.count(items, & &1.final_image)
 
     upload_tokens =
       items
-      |> Enum.filter(& &1.processed_key)
+      |> Enum.filter(& &1.final_image)
       |> Enum.with_index(1)
       |> Enum.map(fn {item, idx} ->
-        image_binary = fetch_image(item.processed_key)
+        image_binary = fetch_image(item)
         {:ok, upload_token} = upload_bytes(token, image_binary, item.title)
 
         Phoenix.PubSub.broadcast(
@@ -127,8 +128,10 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
     )
   end
 
-  defp fetch_image(processed_key) do
-    url = Storage.get_url(processed_key)
+  # Intentional: uses Req.get! directly rather than @http injection.
+  # ExportAlbumWorker is not unit-tested with a storage mock; direct call is fine here.
+  defp fetch_image(item) do
+    url = ItemImageUploader.url({item.final_image, item})
     response = Req.get!(url)
     response.body
   end

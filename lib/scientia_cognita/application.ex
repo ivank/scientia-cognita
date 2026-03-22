@@ -37,7 +37,7 @@ defmodule ScientiaCognita.Application do
     end
 
     # Ensure the storage bucket exists after the supervisor starts.
-    Task.start(fn -> ScientiaCognita.Storage.ensure_bucket_exists() end)
+    Task.start(fn -> ScientiaCognita.Uploaders.ItemImageUploader.ensure_bucket_exists() end)
 
     result
   end
