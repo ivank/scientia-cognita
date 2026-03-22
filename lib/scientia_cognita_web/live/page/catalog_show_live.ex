@@ -4,7 +4,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   on_mount {ScientiaCognitaWeb.UserAuth, :mount_current_scope}
 
   alias ScientiaCognita.Catalog
-  alias ScientiaCognita.Storage
+  alias ScientiaCognita.Uploaders.ItemImageUploader
 
   @impl true
   def render(assigns) do
@@ -88,8 +88,8 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
         >
           <figure class="aspect-video bg-base-300">
             <img
-              :if={item.processed_key}
-              src={Storage.get_url(item.processed_key)}
+              :if={item.final_image}
+              src={ItemImageUploader.url({item.final_image, item})}
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
             />
@@ -112,8 +112,8 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
       <div class="modal-box max-w-5xl w-full p-0 overflow-hidden">
         <figure class="bg-base-300">
           <img
-            :if={@lightbox_item.processed_key}
-            src={Storage.get_url(@lightbox_item.processed_key)}
+            :if={@lightbox_item.final_image}
+            src={ItemImageUploader.url({@lightbox_item.final_image, @lightbox_item})}
             class="w-full object-contain max-h-[70vh]"
           />
         </figure>

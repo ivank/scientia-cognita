@@ -3,8 +3,9 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
 
   on_mount {ScientiaCognitaWeb.UserAuth, :require_console_user}
 
-  alias ScientiaCognita.{Catalog, Storage}
+  alias ScientiaCognita.Catalog
   alias ScientiaCognita.Catalog.Source
+  alias ScientiaCognita.Uploaders.ItemImageUploader
 
   @impl true
   def render(assigns) do
@@ -52,8 +53,8 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
         >
           <figure class="aspect-video bg-base-300 relative">
             <img
-              :if={item.processed_key}
-              src={Storage.get_url(item.processed_key)}
+              :if={item.final_image}
+              src={ItemImageUploader.url({item.final_image, item})}
               class="w-full h-full object-cover"
               loading="lazy"
             />
@@ -181,8 +182,8 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
               />
               <figure class="aspect-video bg-base-200">
                 <img
-                  :if={item.processed_key}
-                  src={Storage.get_url(item.processed_key)}
+                  :if={item.final_image}
+                  src={ItemImageUploader.url({item.final_image, item})}
                   class="w-full h-full object-cover"
                   loading="lazy"
                 />
