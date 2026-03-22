@@ -7,7 +7,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
   Args: %{item_id: integer}
   """
 
-  use Oban.Worker, queue: :process, max_attempts: 3
+  use Oban.Worker, queue: :process, max_attempts: 5
 
   require Logger
 
