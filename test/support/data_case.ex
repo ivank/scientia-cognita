@@ -29,6 +29,7 @@ defmodule ScientiaCognita.DataCase do
 
   setup tags do
     ScientiaCognita.DataCase.setup_sandbox(tags)
+    on_exit(fn -> File.rm_rf!("priv/waffle_test") end)
     :ok
   end
 

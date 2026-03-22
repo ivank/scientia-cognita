@@ -39,7 +39,6 @@ config :phoenix_live_view,
 # Mock modules for worker tests
 config :scientia_cognita, :http_module, ScientiaCognita.MockHttp
 config :scientia_cognita, :gemini_module, ScientiaCognita.MockGemini
-config :scientia_cognita, :storage_module, ScientiaCognita.MockStorage
 # Waffle: use local filesystem in tests (no real S3 calls)
 config :waffle, storage: Waffle.Storage.Local
 config :waffle, storage_dir_prefix: "priv/waffle_test"
