@@ -86,7 +86,7 @@ if config_env() == :prod do
   config :ex_aws, :s3,
     scheme: "https://",
     host: "fly.storage.tigris.dev",
-    region: "us-east-1"
+    region: "auto"
 
   config :ex_aws,
     access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
@@ -102,9 +102,11 @@ if config_env() == :prod do
   config :scientia_cognita, ScientiaCognitaWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
-      # Bind on all IPv4 interfaces so Fly proxy can reach the app on 0.0.0.0:4000.
-      # Alpine sets net.ipv6.bindv6only=1 so the IPv6 wildcard does NOT cover IPv4.
-      ip: {0, 0, 0, 0},
+      # Enable IPv6 and bind on all interfaces.
+      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
+      # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
+      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
+      ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
     secret_key_base: secret_key_base
@@ -163,6 +165,6 @@ if config_env() == :prod do
   config :scientia_cognita, ScientiaCognita.Mailer,
     adapter: Swoosh.Adapters.Mailgun,
     api_key: System.get_env("MAILGUN_API_KEY"),
-    domain: "sc.ikiern.com",
+    domain: "sc.ikerin.com",
     base_url: "https://api.eu.mailgun.net/v3"
 end

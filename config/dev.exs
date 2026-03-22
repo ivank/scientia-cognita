@@ -86,16 +86,11 @@ config :swoosh, :api_client, false
 
 # T05 — MinIO (local S3-compatible storage, run via: minio server ~/minio-data)
 config :ex_aws,
-  access_key_id: System.get_env("MINIO_ACCESS_KEY", "scientia-user"),
-  secret_access_key: System.get_env("MINIO_SECRET_KEY", "scientia-pass"),
+  access_key_id: "scientia-user",
+  secret_access_key: "scientia-pass",
   region: "us-east-1",
-  s3: [
-    scheme: "http://",
-    host: System.get_env("MINIO_HOST", "localhost"),
-    port: String.to_integer(System.get_env("MINIO_PORT", "9000")),
-    path_style: true
-  ]
+  s3: [scheme: "http://", host: "localhost", port: 9000, path_style: true]
 
-config :scientia_cognita, :storage, bucket: System.get_env("STORAGE_BUCKET", "images")
+config :scientia_cognita, :storage, bucket: "images"
 
 if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")
