@@ -5,13 +5,13 @@ defmodule ScientiaCognita.Workers.DownloadImageWorkerTest do
   import Mox
   import ScientiaCognita.CatalogFixtures
 
-  alias ScientiaCognita.{Catalog, MockHttp, MockStorage}
+  alias ScientiaCognita.{Catalog, MockHttp, MockUploader}
   alias ScientiaCognita.Workers.{DownloadImageWorker, ProcessImageWorker}
 
   setup :verify_on_exit!
 
   describe "perform/1 — happy path" do
-    test "downloads image, uploads to storage, transitions to processing, enqueues ProcessImageWorker" do
+    test "downloads image, uploads via uploader, transitions to processing, enqueues ProcessImageWorker" do
       source = source_fixture()
       item = item_fixture(source, %{original_url: "https://example.com/image.jpg"})
 
@@ -20,13 +20,13 @@ defmodule ScientiaCognita.Workers.DownloadImageWorkerTest do
          %{status: 200, body: <<255, 216, 255>>, headers: %{"content-type" => ["image/jpeg"]}}}
       end)
 
-      expect(MockStorage, :upload, fn _key, _binary, _opts -> {:ok, %{}} end)
+      expect(MockUploader, :store, fn {_upload, _item} -> {:ok, "original.jpg"} end)
 
       assert :ok = perform_job(DownloadImageWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
       assert item.status == "processing"
-      assert item.storage_key != nil
+      assert item.original_image != nil
 
       assert_enqueued(worker: ProcessImageWorker, args: %{"item_id" => item.id})
     end

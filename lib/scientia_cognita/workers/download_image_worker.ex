@@ -1,6 +1,6 @@
 defmodule ScientiaCognita.Workers.DownloadImageWorker do
   @moduledoc """
-  Downloads an item's original image from its source URL and uploads it to MinIO.
+  Downloads an item's original image from its source URL and uploads it to S3.
   On success, enqueues ProcessImageWorker.
 
   Args: %{item_id: integer}
@@ -10,11 +10,12 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, Repo, Storage}
+  alias ScientiaCognita.{Catalog, Repo}
   alias ScientiaCognita.Workers.ProcessImageWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
-  @storage Application.compile_env(:scientia_cognita, :storage_module, ScientiaCognita.Storage)
+  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader)
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
@@ -29,9 +30,11 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
       with {:ok, item} <- fsm_transition(item, "downloading"),
            {:ok, {binary, content_type}} <- download(item.original_url),
            ext = ext_from_content_type(content_type),
-           storage_key = Storage.item_key(item.id, :original, ext),
-           {:ok, _} <- @storage.upload(storage_key, binary, content_type: content_type),
-           {:ok, item} <- fsm_transition(item, "processing", %{storage_key: storage_key}) do
+           {:ok, file} <- @uploader.store({%{binary: binary, file_name: "original#{ext}"}, item}),
+           {:ok, item} <-
+             fsm_transition(item, "processing", %{
+               original_image: %{file_name: file, updated_at: nil}
+             }) do
         broadcast(item.source_id, {:item_updated, item})
         %{item_id: item_id} |> ProcessImageWorker.new() |> Oban.insert()
         :ok
