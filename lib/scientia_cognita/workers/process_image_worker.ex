@@ -54,6 +54,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
 
   defp download_original(item) do
     url = @uploader.url({item.original_image, item})
+    Logger.debug("[ProcessImageWorker] fetching original url=#{url}")
 
     case @http.get(url, receive_timeout: 30_000) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
