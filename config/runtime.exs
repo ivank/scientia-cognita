@@ -83,20 +83,16 @@ if config_env() == :prod do
   port = String.to_integer(System.get_env("PORT") || "4000")
 
   # S3-compatible object storage — Tigris (provisioned via fly storage create)
-  config :ex_aws, :s3,
-    scheme: "https://",
-    host: "fly.storage.tigris.dev",
-    region: "auto"
-
   config :ex_aws,
     access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
     secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY"),
-    http_client: ExAws.Request.Hackney
+    http_client: ExAws.Request.Hackney,
+    s3: [scheme: "https://", host: "fly.storage.tigris.dev", region: "auto"]
 
   # BUCKET_NAME is auto-set by `fly storage create`; AWS_S3_BUCKET kept as fallback
   bucket = System.get_env("BUCKET_NAME") || System.get_env("AWS_S3_BUCKET") || "images"
   config :scientia_cognita, :storage, bucket: bucket
-  config :waffle, asset_host: "https://fly.storage.tigris.dev/#{bucket}"
+  config :waffle, asset_host: "https://#{bucket}.t3.storage.dev/"
 
   config :scientia_cognita, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
