@@ -92,5 +92,6 @@ config :ex_aws,
   s3: [scheme: "http://", host: "localhost", port: 9000, path_style: true]
 
 config :scientia_cognita, :storage, bucket: "images"
+config :waffle, asset_host: "http://localhost:9000/images"
 
 if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

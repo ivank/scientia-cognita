@@ -94,8 +94,9 @@ if config_env() == :prod do
     http_client: ExAws.Request.Hackney
 
   # BUCKET_NAME is auto-set by `fly storage create`; AWS_S3_BUCKET kept as fallback
-  config :scientia_cognita, :storage,
-    bucket: System.get_env("BUCKET_NAME") || System.get_env("AWS_S3_BUCKET") || "images"
+  bucket = System.get_env("BUCKET_NAME") || System.get_env("AWS_S3_BUCKET") || "images"
+  config :scientia_cognita, :storage, bucket: bucket
+  config :waffle, asset_host: "https://fly.storage.tigris.dev/#{bucket}"
 
   config :scientia_cognita, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
