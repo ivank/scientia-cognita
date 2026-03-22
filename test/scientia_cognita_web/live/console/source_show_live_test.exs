@@ -17,7 +17,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
   describe "mount" do
     test "renders a table (not a gallery)", %{conn: conn} do
       source = source_fixture(%{status: "done"})
-      item = item_fixture(source, %{status: "ready", processed_key: "images/processed.jpg"})
+      item = item_fixture(source, %{status: "ready", processed_image: "processed.jpg"})
 
       {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
 
@@ -33,7 +33,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       _failed = item_fixture(source, %{status: "failed",      title: "Failed Item"})
       _dl     = item_fixture(source, %{status: "downloading", title: "Downloading Item"})
       _render = item_fixture(source, %{status: "render",
-                             storage_key: "sk", processed_key: "pk", title: "Rendering Item"})
+                             original_image: "original.jpg", final_image: "final.jpg", title: "Rendering Item"})
 
       {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
 
@@ -50,7 +50,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       _ready  = item_fixture(source, %{status: "ready",    title: "Ready"})
       _failed = item_fixture(source, %{status: "failed",   title: "Failed"})
       _render = item_fixture(source, %{status: "render",
-                             storage_key: "sk", processed_key: "pk", title: "Rendering"})
+                             original_image: "original.jpg", final_image: "final.jpg", title: "Rendering"})
 
       {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
 
@@ -84,7 +84,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     test "render-status item shows animate-pulse ring", %{conn: conn} do
       source = source_fixture(%{status: "items_loading"})
       _item  = item_fixture(source, %{status: "render",
-                            storage_key: "sk", processed_key: "pk"})
+                            original_image: "original.jpg", final_image: "final.jpg"})
 
       {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
 
@@ -94,7 +94,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     test "failed item with no storage_key shows icon placeholder", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       _item  = item_fixture(source, %{status: "failed"})
-      # No storage_key set (default nil)
+      # No original_image set
 
       {:ok, _view, html} = live(conn, ~p"/console/sources/#{source.id}")
 
@@ -145,7 +145,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
     test "re-download visible for terminal items", %{conn: conn} do
       source = source_fixture(%{status: "done"})
-      item   = item_fixture(source, %{status: "ready", processed_key: "pk"})
+      item   = item_fixture(source, %{status: "ready", final_image: "final.jpg"})
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
@@ -156,7 +156,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     test "re-render hidden when no storage_key", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "failed"})
-      # No storage_key (download never completed)
+      # No original_image set
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
@@ -166,7 +166,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
     test "re-render visible for non-terminal item with error and storage_key", %{conn: conn} do
       source = source_fixture(%{status: "items_loading"})
-      item   = item_fixture(source, %{status: "processing", storage_key: "sk"})
+      item   = item_fixture(source, %{status: "processing", original_image: "original.jpg"})
       # Simulate partial-failure state: error set but status not failed
       {:ok, _item} = item |> Ecto.Changeset.change(%{error: "color extraction failed"}) |> ScientiaCognita.Repo.update()
 
@@ -179,7 +179,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     test "re-render visible for terminal items with storage_key", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "ready",
-                            storage_key: "sk", processed_key: "pk"})
+                            original_image: "original.jpg", final_image: "final.jpg"})
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
@@ -189,7 +189,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
     test "saving updates the row in the stream", %{conn: conn} do
       source = source_fixture(%{status: "done"})
-      item   = item_fixture(source, %{status: "ready", title: "Old Title", processed_key: "pk"})
+      item   = item_fixture(source, %{status: "ready", title: "Old Title", final_image: "final.jpg"})
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
 
@@ -298,7 +298,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
   describe "re-download action" do
     test "keeps modal open and shows pending status after triggering", %{conn: conn} do
       source = source_fixture(%{status: "done"})
-      item   = item_fixture(source, %{status: "ready", processed_key: "pk"})
+      item   = item_fixture(source, %{status: "ready", final_image: "final.jpg"})
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
@@ -316,8 +316,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     test "enqueues ProcessImageWorker (not RenderWorker) and resets to processing", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "ready",
-                            storage_key: "images/original.jpg",
-                            processed_key: "images/final.jpg",
+                            original_image: "original.jpg",
+                            final_image: "final.jpg",
                             text_color: "#FFFFFF",
                             bg_color: "#000000",
                             bg_opacity: 0.75})
@@ -337,21 +337,21 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       refute_enqueued(worker: ScientiaCognita.Workers.RenderWorker,
                       args: %{"item_id" => item.id})
 
-      # Item status reset to "processing", processed_key and color fields cleared
+      # processed_image/final_image and color fields cleared
       reloaded = ScientiaCognita.Catalog.get_item!(item.id)
       assert reloaded.status == "processing"
-      assert is_nil(reloaded.processed_key)
+      assert is_nil(reloaded.processed_image) and is_nil(reloaded.final_image)
       assert is_nil(reloaded.text_color)
       assert is_nil(reloaded.bg_color)
       assert is_nil(reloaded.bg_opacity)
-      assert reloaded.storage_key == "images/original.jpg"  # preserved
+      assert not is_nil(reloaded.original_image)  # preserved
     end
 
     test "keeps modal open and shows processing status after triggering", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "ready",
-                            storage_key: "images/original.jpg",
-                            processed_key: "images/final.jpg"})
+                            original_image: "original.jpg",
+                            final_image: "final.jpg"})
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
@@ -374,7 +374,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
 
       # Simulate worker advancing the item to ready
-      updated = %{item | status: "ready", processed_key: "images/done.jpg"}
+      updated = %{item | status: "ready", final_image: %{file_name: "done.jpg", updated_at: nil}}
       send(view.pid, {:item_updated, updated})
 
       html = render(view)

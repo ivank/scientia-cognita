@@ -3,7 +3,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   on_mount {ScientiaCognitaWeb.UserAuth, :require_console_user}
 
-  alias ScientiaCognita.{Catalog, Storage}
+  alias ScientiaCognita.Catalog
+  alias ScientiaCognita.Uploaders.ItemImageUploader
   alias ScientiaCognita.Catalog.Source
 
   alias ScientiaCognita.Workers.{
@@ -180,14 +181,14 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                 <div class="skeleton absolute inset-0 rounded-none"></div>
               <% @selected_item.status == "render" -> %>
                 <img
-                  :if={@selected_item.processed_key || @selected_item.storage_key}
-                  src={Storage.get_url(@selected_item.processed_key || @selected_item.storage_key)}
+                  :if={@selected_item.processed_image || @selected_item.original_image}
+                  src={ItemImageUploader.url({@selected_item.processed_image || @selected_item.original_image, @selected_item})}
                   class="w-full h-full object-contain"
                 />
                 <div class="absolute inset-0 ring-2 ring-inset ring-primary animate-pulse pointer-events-none"></div>
-              <% @selected_item.processed_key || @selected_item.storage_key -> %>
+              <% @selected_item.processed_image || @selected_item.original_image -> %>
                 <img
-                  src={Storage.get_url(@selected_item.processed_key || @selected_item.storage_key)}
+                  src={ItemImageUploader.url({@selected_item.processed_image || @selected_item.original_image, @selected_item})}
                   class="w-full h-full object-contain"
                 />
               <% true -> %>
@@ -242,7 +243,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
                 <%!-- Re-render: terminal states or errored item, with storage_key present --%>
                 <button
-                  :if={(@selected_item.status in ~w(ready failed) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.storage_key)}
+                  :if={(@selected_item.status in ~w(ready failed) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)}
                   type="button"
                   class="btn btn-ghost btn-sm gap-1"
                   phx-click="rerender_item"
@@ -388,7 +389,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     item = Catalog.get_item!(id)
     # Clear stored images so DownloadImageWorker fetches fresh copies,
     # then let the worker chain run to ready automatically.
-    {:ok, item} = Catalog.update_item_storage(item, %{storage_key: nil, processed_key: nil})
+    {:ok, item} = Catalog.update_item_storage(item, %{original_image: nil, processed_image: nil, final_image: nil})
     {:ok, item} = Catalog.update_item_status(item, "pending", error: nil)
     %{item_id: item.id} |> DownloadImageWorker.new() |> Oban.insert()
     source = Catalog.get_source!(socket.assigns.source.id)
@@ -412,7 +413,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     {:ok, item} =
       item
       |> Ecto.Changeset.change(%{
-        processed_key: nil,
+        processed_image: nil,
+        final_image: nil,
         text_color: nil,
         bg_color: nil,
         bg_opacity: nil
@@ -460,8 +462,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     Enum.each(items_to_retry, fn item ->
       {status, worker} =
         cond do
-          is_nil(item.storage_key) -> {"pending", DownloadImageWorker}
-          is_nil(item.processed_key) -> {"processing", ProcessImageWorker}
+          is_nil(item.original_image) -> {"pending", DownloadImageWorker}
+          is_nil(item.processed_image) -> {"processing", ProcessImageWorker}
           is_nil(item.text_color) -> {"color_analysis", ColorAnalysisWorker}
           true -> {"render", RenderWorker}
         end
@@ -501,21 +503,28 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   # Returns :shimmer | :icon | :render | :image
   # Rules are strict top-down first-match (like function clauses).
-  # `ready` items always have processed_key set, so they fall through to the
-  # `processed_key present` branch — no explicit :ready case needed.
   defp thumb_type(%{status: s}) when s in ~w(pending downloading), do: :shimmer
-  defp thumb_type(%{status: "failed", storage_key: nil}), do: :icon
+  defp thumb_type(%{status: "failed", original_image: nil}), do: :icon
   defp thumb_type(%{status: "failed"}), do: :image
   defp thumb_type(%{status: "render"}), do: :render
-  defp thumb_type(%{processed_key: pk}) when not is_nil(pk), do: :image  # ready, processing, color_analysis
-  defp thumb_type(%{storage_key: sk}) when not is_nil(sk), do: :image
+  defp thumb_type(%{final_image: fi}) when not is_nil(fi), do: :image
+  defp thumb_type(%{processed_image: pi}) when not is_nil(pi), do: :image
+  defp thumb_type(%{original_image: oi}) when not is_nil(oi), do: :image
   defp thumb_type(_), do: :shimmer
 
-  # Returns the URL to display for :image type thumbnails
-  defp thumb_url(%{status: "failed", processed_key: pk}) when not is_nil(pk), do: pk
-  defp thumb_url(%{status: "failed", storage_key: sk}) when not is_nil(sk), do: sk
-  defp thumb_url(%{processed_key: pk}) when not is_nil(pk), do: pk
-  defp thumb_url(%{storage_key: sk}) when not is_nil(sk), do: sk
+  # Returns the URL string to display for :image type thumbnails
+  defp thumb_url(%{status: "failed", final_image: fi} = item) when not is_nil(fi),
+    do: ItemImageUploader.url({fi, item})
+  defp thumb_url(%{status: "failed", processed_image: pi} = item) when not is_nil(pi),
+    do: ItemImageUploader.url({pi, item})
+  defp thumb_url(%{status: "failed", original_image: oi} = item) when not is_nil(oi),
+    do: ItemImageUploader.url({oi, item})
+  defp thumb_url(%{final_image: fi} = item) when not is_nil(fi),
+    do: ItemImageUploader.url({fi, item})
+  defp thumb_url(%{processed_image: pi} = item) when not is_nil(pi),
+    do: ItemImageUploader.url({pi, item})
+  defp thumb_url(%{original_image: oi} = item) when not is_nil(oi),
+    do: ItemImageUploader.url({oi, item})
   defp thumb_url(_), do: nil
 
   defp row_class("pending"), do: "bg-base-200"
@@ -558,7 +567,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         style="width: 76px; height: 48px;"
       >
         <img
-          src={Storage.get_url(@item.processed_key)}
+          src={thumb_url(@item)}
           class="w-full h-full object-cover"
           loading="lazy"
         />
@@ -566,7 +575,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     <% :image -> %>
       <div class="rounded overflow-hidden" style="width: 76px; height: 48px;">
         <img
-          src={Storage.get_url(thumb_url(@item))}
+          src={thumb_url(@item)}
           class="w-full h-full object-cover"
           loading="lazy"
         />
