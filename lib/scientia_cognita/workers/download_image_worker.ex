@@ -30,7 +30,7 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
       with {:ok, item} <- maybe_start_downloading(item),
            {:ok, {binary, content_type}} <- download(item.original_url),
            ext = ext_from_content_type(content_type),
-           {:ok, file} <- safe_store({%{binary: binary, file_name: "original#{ext}"}, item}),
+           {:ok, file} <- safe_store({%{filename: "original#{ext}", binary: binary}, item}),
            {:ok, item} <-
              fsm_transition(item, "processing", %{
                original_image: %{file_name: file, updated_at: nil}

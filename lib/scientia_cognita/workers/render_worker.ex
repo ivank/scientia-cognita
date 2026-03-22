@@ -27,7 +27,7 @@ defmodule ScientiaCognita.Workers.RenderWorker do
          {:ok, img} <- Image.from_binary(binary),
          {:ok, composed} <- compose_image(img, item),
          {:ok, output_binary} <- Image.write(composed, :memory, suffix: ".jpg", quality: 85),
-         {:ok, file} <- @uploader.store({%{binary: output_binary, file_name: "final.jpg"}, item}),
+         {:ok, file} <- @uploader.store({%{filename: "final.jpg", binary: output_binary}, item}),
          {:ok, item} <- fsm_transition(item, "ready", %{final_image: %{file_name: file, updated_at: nil}}) do
       broadcast(item.source_id, {:item_updated, item})
       maybe_complete_source(item)

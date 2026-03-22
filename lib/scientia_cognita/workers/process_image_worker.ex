@@ -31,7 +31,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
          {:ok, resized} <-
            Image.thumbnail(img, @target_width, height: @target_height, crop: :center),
          {:ok, output_binary} <- Image.write(resized, :memory, suffix: ".jpg", quality: 85),
-         {:ok, file} <- @uploader.store({%{binary: output_binary, file_name: "processed.jpg"}, item}),
+         {:ok, file} <- @uploader.store({%{filename: "processed.jpg", binary: output_binary}, item}),
          {:ok, item} <- fsm_transition(item, "color_analysis", %{processed_image: %{file_name: file, updated_at: nil}}) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> ColorAnalysisWorker.new() |> Oban.insert()
