@@ -12,23 +12,23 @@ defmodule ScientiaCognita.Workers.RenderWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, Repo, Storage}
+  alias ScientiaCognita.{Catalog, Repo}
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
-  @storage Application.compile_env(:scientia_cognita, :storage_module, ScientiaCognita.Storage)
+  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader)
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
     item = Catalog.get_item!(item_id)
     Logger.info("[RenderWorker] item=#{item_id}")
 
-    with {:ok, binary} <- download_processed(item.processed_key),
+    with {:ok, binary} <- download_processed(item),
          {:ok, img} <- Image.from_binary(binary),
          {:ok, composed} <- compose_image(img, item),
          {:ok, output_binary} <- Image.write(composed, :memory, suffix: ".jpg", quality: 85),
-         final_key = Storage.item_key(item.id, :final, ".jpg"),
-         {:ok, _} <- @storage.upload(final_key, output_binary, content_type: "image/jpeg"),
-         {:ok, item} <- fsm_transition(item, "ready", %{processed_key: final_key}) do
+         {:ok, file} <- @uploader.store({%{binary: output_binary, file_name: "final.jpg"}, item}),
+         {:ok, item} <- fsm_transition(item, "ready", %{final_image: %{file_name: file, updated_at: nil}}) do
       broadcast(item.source_id, {:item_updated, item})
       maybe_complete_source(item)
       :ok
@@ -94,10 +94,10 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     end
   end
 
-  defp download_processed(nil), do: {:error, "item has no processed_key"}
+  defp download_processed(%{processed_image: nil}), do: {:error, "item has no processed_image"}
 
-  defp download_processed(key) do
-    case @http.get(Storage.get_url(key), receive_timeout: 30_000) do
+  defp download_processed(item) do
+    case @http.get(@uploader.url({item.processed_image, item}), receive_timeout: 30_000) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       {:ok, %{status: status}} -> {:error, "storage HTTP #{status}"}
       {:error, reason} -> {:error, reason}

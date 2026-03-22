@@ -5,7 +5,7 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
   import Mox
   import ScientiaCognita.CatalogFixtures
 
-  alias ScientiaCognita.{Catalog, MockHttp, MockStorage}
+  alias ScientiaCognita.{Catalog, MockHttp, MockUploader}
   alias ScientiaCognita.Workers.RenderWorker
 
   setup :verify_on_exit!
@@ -19,7 +19,7 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
           status: "render",
           title: "Orion Nebula",
           description: "A stellar nursery",
-          processed_key: "items/1/processed.jpg",
+          processed_image: "processed.jpg",
           text_color: "#FFFFFF",
           bg_color: "#1A1A2E",
           bg_opacity: 0.75
@@ -27,20 +27,19 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 
+      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
+
       expect(MockHttp, :get, fn _url, _opts ->
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
       end)
 
-      expect(MockStorage, :upload, fn key, _binary, _opts ->
-        assert key =~ "final"
-        {:ok, %{}}
-      end)
+      expect(MockUploader, :store, fn {_upload, _item} -> {:ok, "final.jpg"} end)
 
       assert :ok = perform_job(RenderWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
       assert item.status == "ready"
-      assert item.processed_key =~ "final"
+      assert item.final_image != nil
     end
   end
 
@@ -51,17 +50,15 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
       item =
         item_fixture(source, %{
           status: "render",
-          processed_key: "items/1/processed.jpg"
+          processed_image: "processed.jpg"
           # text_color, bg_color, bg_opacity are nil
         })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 
-      expect(MockHttp, :get, fn _url, _opts ->
-        {:ok, %{status: 200, body: jpeg, headers: %{}}}
-      end)
-
-      expect(MockStorage, :upload, fn _key, _binary, _opts -> {:ok, %{}} end)
+      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
+      expect(MockHttp, :get, fn _url, _opts -> {:ok, %{status: 200, body: jpeg, headers: %{}}} end)
+      expect(MockUploader, :store, fn {_upload, _item} -> {:ok, "final.jpg"} end)
 
       assert :ok = perform_job(RenderWorker, %{item_id: item.id})
 
@@ -77,7 +74,7 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
       item =
         item_fixture(source, %{
           status: "render",
-          processed_key: "items/1/processed.jpg",
+          processed_image: "processed.jpg",
           text_color: "#FFFFFF",
           bg_color: "#000000",
           bg_opacity: 0.75
@@ -85,9 +82,9 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 
+      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
       expect(MockHttp, :get, fn _url, _opts -> {:ok, %{status: 200, body: jpeg, headers: %{}}} end)
-
-      expect(MockStorage, :upload, fn _key, _data, _opts -> {:ok, %{}} end)
+      expect(MockUploader, :store, fn {_upload, _item} -> {:ok, "final.jpg"} end)
 
       assert :ok = perform_job(RenderWorker, %{item_id: item.id})
 
