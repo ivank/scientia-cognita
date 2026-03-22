@@ -135,8 +135,17 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             :if={@lightbox_item.final_image}
             src={ItemImageUploader.url({@lightbox_item.final_image, @lightbox_item})}
             class="absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-700"
-            onload="this.classList.add('opacity-100')"
+            onload={"this.classList.add('opacity-100'); var s=document.getElementById('lb-spinner-#{@lightbox_item.id}'); if(s) s.remove();"}
           />
+
+          <%!-- Spinner while full image loads --%>
+          <div
+            :if={@lightbox_item.final_image}
+            id={"lb-spinner-#{@lightbox_item.id}"}
+            class="absolute bottom-3 left-3 z-10"
+          >
+            <span class="loading loading-spinner loading-sm text-base-content/50"></span>
+          </div>
         </figure>
 
         <div class="p-4 flex items-start justify-between gap-4">
