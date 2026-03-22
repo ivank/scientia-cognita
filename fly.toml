@@ -6,7 +6,7 @@ primary_region = "bom"
 [build]
 
 [env]
-  PHX_HOST = "scientia-cognita.fly.dev"
+  PHX_HOST = "sc.ikerin.com"
   PORT = "4000"
 
 [http_service]
