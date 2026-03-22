@@ -33,6 +33,7 @@ defmodule ScientiaCognita.Catalog.Source do
           status: status(),
           title: String.t() | nil,
           description: String.t() | nil,
+          copyright: String.t() | nil,
           raw_html: String.t() | nil,
           next_page_url: String.t() | nil,
           pages_fetched: non_neg_integer(),
@@ -55,6 +56,7 @@ defmodule ScientiaCognita.Catalog.Source do
     field :raw_html, :string
     field :title, :string
     field :description, :string
+    field :copyright, :string
 
     embeds_many :gemini_pages, GeminiPageResult, on_replace: :delete
 
@@ -118,7 +120,7 @@ defmodule ScientiaCognita.Catalog.Source do
     existing = get_field(changeset, :gemini_pages) || []
 
     changeset
-    |> cast(params, [:pages_fetched, :total_items, :title, :description])
+    |> cast(params, [:pages_fetched, :total_items, :title, :description, :copyright])
     |> put_embed(:gemini_pages, existing ++ [params[:gemini_page]])
   end
 

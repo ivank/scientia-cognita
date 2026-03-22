@@ -80,7 +80,7 @@ config :scientia_cognita, Oban,
   queues: [
     default: 10,
     fetch: 5,
-    process: 1,
+    process: 3,
     export: 5
   ]
 

@@ -173,81 +173,84 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       phx-window-keydown="close_item"
     >
       <div class="modal-box max-w-5xl w-full p-0 overflow-hidden flex flex-col max-h-[92vh]">
-        <%!-- Image preview: full width, 16:9, best available image --%>
-        <figure class="aspect-video bg-base-300 shrink-0 relative overflow-hidden">
-          <%= cond do %>
-            <% @selected_item.status in ~w(pending downloading) -> %>
-              <div class="skeleton absolute inset-0 rounded-none"></div>
-
-            <% @selected_item.final_image -> %>
-              <img
-                src={ItemImageUploader.url({@selected_item.final_image, @selected_item})}
-                class="w-full h-full object-contain"
-              />
-              <div
-                :if={@selected_item.status == "render"}
-                class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
-              ></div>
-
-            <% @selected_item.processed_image -> %>
-              <img
-                src={ItemImageUploader.url({@selected_item.processed_image, @selected_item})}
-                class="w-full h-full object-contain"
-              />
-              <div
-                :if={@selected_item.status in ~w(color_analysis render)}
-                class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
-              ></div>
-
-            <% @selected_item.original_image -> %>
-              <img
-                src={ItemImageUploader.url({@selected_item.original_image, @selected_item})}
-                class="w-full h-full object-contain"
-              />
-
-            <% true -> %>
-              <div class="absolute inset-0 flex items-center justify-center">
-                <.icon name="hero-photo" class="size-16 text-base-content/20" />
-              </div>
-          <% end %>
-
-          <%!-- Status badge pinned over image bottom-left --%>
-          <div class="absolute bottom-3 left-3">
-            <.status_badge status={@selected_item.status} />
-          </div>
-        </figure>
-
-        <%!-- Scrollable form below --%>
         <.form
           for={@item_form}
           phx-submit="save_item"
           phx-change="validate_item"
           class="flex flex-col flex-1 min-h-0 overflow-hidden"
         >
-          <div class="flex-1 overflow-y-auto p-6 space-y-4">
-            <%!-- Full error (if any) --%>
-            <div :if={@selected_item.error} class="alert alert-error text-sm">
-              <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
-              <span>{@selected_item.error}</span>
-            </div>
+          <%!-- Scrollable area: image + fields --%>
+          <div class="flex-1 overflow-y-auto min-h-0">
+            <%!-- Image preview: full width, 16:9, best available image --%>
+            <figure class="aspect-video bg-base-300 relative overflow-hidden">
+              <%= cond do %>
+                <% @selected_item.status in ~w(pending downloading) -> %>
+                  <div class="skeleton absolute inset-0 rounded-none"></div>
 
-            <div class="form-control">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-medium uppercase tracking-wide">Title</span>
-              </label>
-              <.input field={@item_form[:title]} placeholder="Image title" />
-            </div>
-            <div class="form-control">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
-              </label>
-              <.input field={@item_form[:description]} type="textarea" rows="4" placeholder="Caption or description" />
-            </div>
-            <div class="form-control">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
-              </label>
-              <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
+                <% @selected_item.final_image -> %>
+                  <img
+                    src={ItemImageUploader.url({@selected_item.final_image, @selected_item})}
+                    class="w-full h-full object-contain"
+                  />
+                  <div
+                    :if={@selected_item.status == "render"}
+                    class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
+                  ></div>
+
+                <% @selected_item.processed_image -> %>
+                  <img
+                    src={ItemImageUploader.url({@selected_item.processed_image, @selected_item})}
+                    class="w-full h-full object-contain"
+                  />
+                  <div
+                    :if={@selected_item.status in ~w(color_analysis render)}
+                    class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
+                  ></div>
+
+                <% @selected_item.original_image -> %>
+                  <img
+                    src={ItemImageUploader.url({@selected_item.original_image, @selected_item})}
+                    class="w-full h-full object-contain"
+                  />
+
+                <% true -> %>
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <.icon name="hero-photo" class="size-16 text-base-content/20" />
+                  </div>
+              <% end %>
+
+              <%!-- Status badge pinned over image bottom-left --%>
+              <div class="absolute bottom-3 left-3">
+                <.status_badge status={@selected_item.status} />
+              </div>
+            </figure>
+
+            <%!-- Form fields --%>
+            <div class="p-6 space-y-4">
+              <%!-- Full error (if any) --%>
+              <div :if={@selected_item.error} class="alert alert-error text-sm">
+                <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
+                <span>{@selected_item.error}</span>
+              </div>
+
+              <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">Title</span>
+                </label>
+                <.input field={@item_form[:title]} placeholder="Image title" />
+              </div>
+              <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
+                </label>
+                <.input field={@item_form[:description]} type="textarea" rows="4" placeholder="Caption or description" />
+              </div>
+              <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
+                </label>
+                <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
+              </div>
             </div>
           </div>
 

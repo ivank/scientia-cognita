@@ -24,14 +24,16 @@ defmodule ScientiaCognita.Workers.ProcessImageWorkerTest do
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
       end)
 
-      # Mock: upload processed image
-      expect(MockUploader, :store, fn {_upload, _item} -> {:ok, "processed.jpg"} end)
+      # Mock: upload processed image and thumbnail (worker calls store/1 twice)
+      expect(MockUploader, :store, fn {%{filename: "processed.jpg"}, _item} -> {:ok, "processed.jpg"} end)
+      expect(MockUploader, :store, fn {%{filename: "thumbnail.jpg"}, _item} -> {:ok, "thumbnail.jpg"} end)
 
       assert :ok = perform_job(ProcessImageWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
       assert item.status == "color_analysis"
       assert item.processed_image != nil
+      assert item.thumbnail_image != nil
 
       assert_enqueued(worker: ColorAnalysisWorker, args: %{"item_id" => item.id})
     end

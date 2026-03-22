@@ -48,6 +48,15 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
         nullable: true,
         description: "Brief description of the gallery from page content. Null if absent."
       },
+      gallery_copyright: %{
+        type: "STRING",
+        nullable: true,
+        description:
+          "Generic copyright or credit line that applies to the entire gallery — " <>
+            "e.g. '© NASA', 'ESA/Hubble', 'Image credit: NOAA'. " <>
+            "Look for a site-wide footer credit, a masthead attribution, or a repeated " <>
+            "credit that appears on every image. Null if no gallery-level copyright is present."
+      },
       next_page_url: %{
         type: "STRING",
         nullable: true,
@@ -117,7 +126,7 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
          {:ok, result} <- call_gemini(clean_html, url),
          :ok <- check_is_gallery(result),
          gemini_page = build_gemini_page(result, url),
-         items = build_items(result["items"] || [], source_id),
+         items = build_items(result["items"] || [], source_id, result["gallery_copyright"]),
          {:ok, db_items} <- create_items(items) do
       next_url = result["next_page_url"]
       paginating = next_url && next_url != url
@@ -134,7 +143,8 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
           if new_state == "items_loading" do
             Map.merge(p, %{
               title: result["gallery_title"],
-              description: result["gallery_description"]
+              description: result["gallery_description"],
+              copyright: result["gallery_copyright"]
             })
           else
             p
@@ -218,18 +228,19 @@ defmodule ScientiaCognita.Workers.ExtractPageWorker do
       is_gallery: result["is_gallery"],
       gallery_title: result["gallery_title"],
       gallery_description: result["gallery_description"],
+      gallery_copyright: result["gallery_copyright"],
       next_page_url: result["next_page_url"],
       raw_items: result["items"] || []
     })
   end
 
-  defp build_items(raw_items, source_id) do
+  defp build_items(raw_items, source_id, gallery_copyright) do
     raw_items
     |> Enum.map(fn item ->
       %{
         title: item["title"] || "Untitled",
         description: item["description"],
-        copyright: item["copyright"],
+        copyright: item["copyright"] || gallery_copyright,
         original_url: item["image_url"],
         source_id: source_id,
         status: "pending"

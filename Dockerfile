@@ -57,13 +57,18 @@ FROM alpine:3.19 AS runner
 # Runtime packages
 # vips: required by the image/vix library at runtime (Alpine package name; libvips on Debian)
 # libgcc + libstdc++: required by NIFs compiled with GCC (vix and bcrypt_elixir)
+# fontconfig + font-dejavu: required by librsvg (used by vips svgload) to render SVG <text>
+#   elements; without fonts installed fontconfig can't resolve "Sans" and glyphs render
+#   as empty squares
 RUN apk add --no-cache \
   vips \
   libgcc \
   libstdc++ \
   openssl \
   ncurses-libs \
-  ca-certificates
+  ca-certificates \
+  fontconfig \
+  font-roboto
 
 WORKDIR /app
 

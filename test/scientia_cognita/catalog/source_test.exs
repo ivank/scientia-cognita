@@ -99,5 +99,65 @@ defmodule ScientiaCognita.Catalog.SourceTest do
       assert cs.valid?
       assert length(Ecto.Changeset.get_change(cs, :gemini_pages)) == 1
     end
+
+    test "stores gallery copyright when provided" do
+      page =
+        GeminiPageResult.new(%{
+          page_url: "https://example.com",
+          is_gallery: true,
+          gallery_title: "Test",
+          gallery_description: nil,
+          gallery_copyright: "© ESA/Hubble",
+          next_page_url: nil,
+          raw_items: []
+        })
+
+      cs =
+        Source.transition_changeset(
+          Ecto.Changeset.change(%Source{status: "extracting", gemini_pages: []}),
+          "extracting",
+          "items_loading",
+          %{
+            pages_fetched: 1,
+            total_items: 0,
+            title: "Test",
+            description: nil,
+            copyright: "© ESA/Hubble",
+            gemini_page: page
+          }
+        )
+
+      assert cs.valid?
+      assert Ecto.Changeset.get_change(cs, :copyright) == "© ESA/Hubble"
+    end
+
+    test "copyright is nil when not provided" do
+      page =
+        GeminiPageResult.new(%{
+          page_url: "https://example.com",
+          is_gallery: true,
+          gallery_title: "Test",
+          gallery_description: nil,
+          next_page_url: nil,
+          raw_items: []
+        })
+
+      cs =
+        Source.transition_changeset(
+          Ecto.Changeset.change(%Source{status: "extracting", gemini_pages: []}),
+          "extracting",
+          "items_loading",
+          %{
+            pages_fetched: 1,
+            total_items: 0,
+            title: "Test",
+            description: nil,
+            gemini_page: page
+          }
+        )
+
+      assert cs.valid?
+      assert is_nil(Ecto.Changeset.get_change(cs, :copyright))
+    end
   end
 end

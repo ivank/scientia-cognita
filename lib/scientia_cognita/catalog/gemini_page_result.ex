@@ -15,6 +15,7 @@ defmodule ScientiaCognita.Catalog.GeminiPageResult do
     field :is_gallery, :boolean
     field :gallery_title, :string
     field :gallery_description, :string
+    field :gallery_copyright, :string
     field :next_page_url, :string
     field :items_count, :integer
     field :raw_items, {:array, :map}
@@ -26,6 +27,7 @@ defmodule ScientiaCognita.Catalog.GeminiPageResult do
           is_gallery: boolean(),
           gallery_title: String.t() | nil,
           gallery_description: String.t() | nil,
+          gallery_copyright: String.t() | nil,
           next_page_url: String.t() | nil,
           items_count: non_neg_integer(),
           raw_items: [map()],
@@ -41,6 +43,7 @@ defmodule ScientiaCognita.Catalog.GeminiPageResult do
       is_gallery: attrs[:is_gallery],
       gallery_title: attrs[:gallery_title],
       gallery_description: attrs[:gallery_description],
+      gallery_copyright: attrs[:gallery_copyright],
       next_page_url: attrs[:next_page_url],
       raw_items: raw_items,
       items_count: length(raw_items),
@@ -55,6 +58,7 @@ defmodule ScientiaCognita.Catalog.GeminiPageResult do
       :is_gallery,
       :gallery_title,
       :gallery_description,
+      :gallery_copyright,
       :next_page_url,
       :items_count,
       :raw_items,
