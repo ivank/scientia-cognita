@@ -62,13 +62,20 @@ defmodule ScientiaCognita.CatalogFixtures do
     # Use Ecto.Changeset.change/2 (not cast) to set image fields with plain
     # string filenames — bypasses Waffle.Ecto.Type.cast/1, which is correct for
     # test setup where we're simulating an already-stored file, not uploading one.
+    # Waffle.Ecto.Type.dump/2 requires a map, so plain strings are wrapped.
+    wrap_image = fn
+      nil -> nil
+      s when is_binary(s) -> %{file_name: s, updated_at: nil}
+      m -> m
+    end
+
     item =
       if original_image || processed_image || final_image do
         changes =
           %{}
-          |> then(fn a -> if original_image,  do: Map.put(a, :original_image,  original_image),  else: a end)
-          |> then(fn a -> if processed_image, do: Map.put(a, :processed_image, processed_image), else: a end)
-          |> then(fn a -> if final_image,     do: Map.put(a, :final_image,     final_image),     else: a end)
+          |> then(fn a -> if original_image,  do: Map.put(a, :original_image,  wrap_image.(original_image)),  else: a end)
+          |> then(fn a -> if processed_image, do: Map.put(a, :processed_image, wrap_image.(processed_image)), else: a end)
+          |> then(fn a -> if final_image,     do: Map.put(a, :final_image,     wrap_image.(final_image)),     else: a end)
 
         {:ok, item} =
           item

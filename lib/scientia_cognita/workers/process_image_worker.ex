@@ -1,6 +1,6 @@
 defmodule ScientiaCognita.Workers.ProcessImageWorker do
   @moduledoc """
-  Downloads an item's original image from MinIO, resizes and crops it to
+  Downloads an item's original image from S3, resizes and crops it to
   1920×1080 (16:9 FHD), and uploads the processed variant.
   On success, enqueues ColorAnalysisWorker.
 
@@ -11,11 +11,12 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, Repo, Storage}
+  alias ScientiaCognita.{Catalog, Repo}
   alias ScientiaCognita.Workers.ColorAnalysisWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
-  @storage Application.compile_env(:scientia_cognita, :storage_module, ScientiaCognita.Storage)
+  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader)
 
   @target_width 1920
   @target_height 1080
@@ -25,14 +26,13 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
     item = Catalog.get_item!(item_id)
     Logger.info("[ProcessImageWorker] item=#{item_id}")
 
-    with {:ok, original_binary} <- download_original(item.storage_key),
+    with {:ok, original_binary} <- download_original(item),
          {:ok, img} <- Image.from_binary(original_binary),
          {:ok, resized} <-
            Image.thumbnail(img, @target_width, height: @target_height, crop: :center),
          {:ok, output_binary} <- Image.write(resized, :memory, suffix: ".jpg", quality: 85),
-         processed_key = Storage.item_key(item.id, :processed, ".jpg"),
-         {:ok, _} <- @storage.upload(processed_key, output_binary, content_type: "image/jpeg"),
-         {:ok, item} <- fsm_transition(item, "color_analysis", %{processed_key: processed_key}) do
+         {:ok, file} <- @uploader.store({%{binary: output_binary, file_name: "processed.jpg"}, item}),
+         {:ok, item} <- fsm_transition(item, "color_analysis", %{processed_image: %{file_name: file, updated_at: nil}}) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> ColorAnalysisWorker.new() |> Oban.insert()
       :ok
@@ -47,6 +47,18 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
         {:ok, _} = fsm_transition(item, "failed", %{error: inspect(reason)})
         broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
         :ok
+    end
+  end
+
+  defp download_original(%{original_image: nil}), do: {:error, "item has no original_image"}
+
+  defp download_original(item) do
+    url = @uploader.url({item.original_image, item})
+
+    case @http.get(url, receive_timeout: 30_000) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status}} -> {:error, "storage HTTP #{status}"}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -67,18 +79,6 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
 
       {:error, _, reason, _} ->
         {:error, reason}
-    end
-  end
-
-  defp download_original(nil), do: {:error, "item has no storage_key"}
-
-  defp download_original(storage_key) do
-    url = Storage.get_url(storage_key)
-
-    case @http.get(url, receive_timeout: 30_000) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status}} -> {:error, "storage HTTP #{status}"}
-      {:error, reason} -> {:error, reason}
     end
   end
 
