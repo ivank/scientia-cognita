@@ -44,6 +44,17 @@ defmodule ScientiaCognita.Workers.RenderWorker do
         broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
         :ok
     end
+  rescue
+    e ->
+      Logger.error("[RenderWorker] exception item=#{item_id}: #{inspect(e)}")
+      try do
+        fresh = Catalog.get_item!(item_id)
+        {:ok, failed} = fsm_transition(fresh, "failed", %{error: inspect(e)})
+        broadcast(failed.source_id, {:item_updated, failed})
+      rescue
+        _ -> :ok
+      end
+      :ok
   end
 
   defp maybe_complete_source(item) do
