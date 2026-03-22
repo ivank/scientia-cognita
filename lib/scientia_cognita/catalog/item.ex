@@ -3,8 +3,10 @@ defmodule ScientiaCognita.Catalog.Item do
   Item schema with fsmx state machine.
 
   State transitions:
-    pending → downloading → processing → color_analysis → render → ready
+    pending → downloading → thumbnail → analyze → resize → render → ready
     any non-terminal → failed
+    any non-terminal → discarded
+    discarded → pending (retry)
   """
 
   use Ecto.Schema
@@ -16,20 +18,19 @@ defmodule ScientiaCognita.Catalog.Item do
     state_field: :status,
     transitions: %{
       "pending" => ["downloading", "failed", "discarded"],
-      "downloading" => ["processing", "failed", "discarded"],
-      "processing" => ["color_analysis", "failed", "discarded"],
-      "color_analysis" => ["render", "failed", "discarded"],
+      "downloading" => ["thumbnail", "failed", "discarded"],
+      "thumbnail" => ["analyze", "failed", "discarded"],
+      "analyze" => ["resize", "failed", "discarded"],
+      "resize" => ["render", "failed", "discarded"],
       "render" => ["ready", "failed", "discarded"],
       "discarded" => ["pending"]
     }
 
   alias ScientiaCognita.Uploaders.ItemImageUploader
 
-  @statuses ~w(pending downloading processing color_analysis render ready failed discarded)
+  @statuses ~w(pending downloading thumbnail analyze resize render ready failed discarded)
 
   @type status :: String.t()
-  # valid values: "pending" | "downloading" | "processing" |
-  #               "color_analysis" | "render" | "ready" | "failed"
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -38,15 +39,13 @@ defmodule ScientiaCognita.Catalog.Item do
           author: String.t() | nil,
           copyright: String.t() | nil,
           original_url: String.t() | nil,
-          original_image:   term() | nil,
-          processed_image:  term() | nil,
-          thumbnail_image:  term() | nil,
-          final_image:      term() | nil,
+          original_image: term() | nil,
+          processed_image: term() | nil,
+          thumbnail_image: term() | nil,
+          final_image: term() | nil,
+          image_analysis: map() | nil,
           status: status(),
           error: String.t() | nil,
-          text_color: String.t() | nil,
-          bg_color: String.t() | nil,
-          bg_opacity: float() | nil,
           source_id: integer() | nil,
           source: Source.t() | Ecto.Association.NotLoaded.t(),
           catalogs: [Catalog.t()] | Ecto.Association.NotLoaded.t(),
@@ -60,14 +59,16 @@ defmodule ScientiaCognita.Catalog.Item do
     field :author, :string
     field :copyright, :string
     field :original_url, :string
-    field :original_image,   ItemImageUploader.Type
-    field :processed_image,  ItemImageUploader.Type
-    field :thumbnail_image,  ItemImageUploader.Type
-    field :final_image,      ItemImageUploader.Type
+    field :original_image, ItemImageUploader.Type
+    field :processed_image, ItemImageUploader.Type
+    field :thumbnail_image, ItemImageUploader.Type
+    field :final_image, ItemImageUploader.Type
+    field :image_analysis, :map
     field :status, :string, default: "pending"
     field :error, :string
 
-    # Set during color_analysis
+    # Legacy color fields — no longer written by the new pipeline.
+    # Kept so existing DB rows and old code don't break.
     field :text_color, :string
     field :bg_color, :string
     field :bg_opacity, :float
@@ -106,7 +107,7 @@ defmodule ScientiaCognita.Catalog.Item do
     |> cast(attrs, [:original_image, :processed_image, :thumbnail_image, :final_image])
   end
 
-  @doc "Used by Catalog.update_item_colors/2 for fixture setup."
+  @doc "Used by Catalog.update_item_colors/2 for fixture setup (legacy)."
   def color_changeset(item, attrs) do
     item
     |> cast(attrs, [:text_color, :bg_color, :bg_opacity])
@@ -119,28 +120,31 @@ defmodule ScientiaCognita.Catalog.Item do
 
   def transition_changeset(changeset, "pending", "downloading", _params), do: changeset
 
-  def transition_changeset(changeset, "downloading", "processing", params) do
+  def transition_changeset(changeset, "downloading", "thumbnail", params) do
     changeset
     |> cast(params, [:original_image])
     |> validate_required([:original_image])
     |> put_change(:error, nil)
   end
 
-  def transition_changeset(changeset, "processing", "color_analysis", params) do
+  def transition_changeset(changeset, "thumbnail", "analyze", params) do
     changeset
-    |> cast(params, [:processed_image, :thumbnail_image])
+    |> cast(params, [:thumbnail_image])
+    |> validate_required([:thumbnail_image])
+  end
+
+  def transition_changeset(changeset, "analyze", "resize", params) do
+    changeset
+    |> cast(params, [:image_analysis])
+    |> validate_required([:image_analysis])
+  end
+
+  def transition_changeset(changeset, "resize", "render", params) do
+    changeset
+    |> cast(params, [:processed_image])
     |> validate_required([:processed_image])
   end
 
-  def transition_changeset(changeset, "color_analysis", "render", params) do
-    changeset
-    |> cast(params, [:text_color, :bg_color, :bg_opacity])
-    |> validate_required([:text_color, :bg_color, :bg_opacity])
-  end
-
-  # NOTE: spec says "no extra fields required" but we intentionally cast final_image
-  # here so RenderWorker can write the final rendered image path atomically in
-  # the render→ready transition, eliminating a separate update_item_storage call.
   def transition_changeset(changeset, "render", "ready", params) do
     changeset
     |> cast(params, [:final_image])

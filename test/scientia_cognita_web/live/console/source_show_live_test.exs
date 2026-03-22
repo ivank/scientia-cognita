@@ -166,9 +166,9 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
     test "re-render visible for non-terminal item with error and original_image", %{conn: conn} do
       source = source_fixture(%{status: "items_loading"})
-      item   = item_fixture(source, %{status: "processing", original_image: "original.jpg"})
+      item   = item_fixture(source, %{status: "thumbnail", original_image: "original.jpg"})
       # Simulate partial-failure state: error set but status not failed
-      {:ok, _item} = item |> Ecto.Changeset.change(%{error: "color extraction failed"}) |> ScientiaCognita.Repo.update()
+      {:ok, _item} = item |> Ecto.Changeset.change(%{error: "thumbnail generation failed"}) |> ScientiaCognita.Repo.update()
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
@@ -313,14 +313,15 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
   end
 
   describe "re-render action" do
-    test "enqueues ProcessImageWorker (not RenderWorker) and resets to processing", %{conn: conn} do
+    test "enqueues ThumbnailWorker (not RenderWorker) and resets to thumbnail", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "ready",
                             original_image: "original.jpg",
+                            thumbnail_image: "thumbnail.jpg",
+                            processed_image: "processed.jpg",
                             final_image: "final.jpg",
-                            text_color: "#FFFFFF",
-                            bg_color: "#000000",
-                            bg_opacity: 0.75})
+                            image_analysis: %{"text_color" => "#FFFFFF", "bg_color" => "#000000",
+                                              "bg_opacity" => 0.75, "subject" => "test"}})
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
 
@@ -329,25 +330,25 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       # Click re-render
       view |> element("button[phx-click='rerender_item']") |> render_click()
 
-      # ProcessImageWorker should be in the Oban queue
-      assert_enqueued(worker: ScientiaCognita.Workers.ProcessImageWorker,
+      # ThumbnailWorker should be in the Oban queue
+      assert_enqueued(worker: ScientiaCognita.Workers.ThumbnailWorker,
                       args: %{"item_id" => item.id})
 
       # RenderWorker must NOT be enqueued
       refute_enqueued(worker: ScientiaCognita.Workers.RenderWorker,
                       args: %{"item_id" => item.id})
 
-      # processed_image/final_image and color fields cleared
+      # derived images and analysis cleared, original preserved
       reloaded = ScientiaCognita.Catalog.get_item!(item.id)
-      assert reloaded.status == "processing"
-      assert is_nil(reloaded.processed_image) and is_nil(reloaded.final_image)
-      assert is_nil(reloaded.text_color)
-      assert is_nil(reloaded.bg_color)
-      assert is_nil(reloaded.bg_opacity)
+      assert reloaded.status == "thumbnail"
+      assert is_nil(reloaded.thumbnail_image)
+      assert is_nil(reloaded.processed_image)
+      assert is_nil(reloaded.final_image)
+      assert is_nil(reloaded.image_analysis)
       assert not is_nil(reloaded.original_image)  # preserved
     end
 
-    test "keeps modal open and shows processing status after triggering", %{conn: conn} do
+    test "keeps modal open and shows thumbnail status after triggering", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item   = item_fixture(source, %{status: "ready",
                             original_image: "original.jpg",
@@ -360,8 +361,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       html = render(view)
       # Modal stays open
       assert html =~ "modal modal-open"
-      # Status badge updated to processing
-      assert html =~ "processing"
+      # Status badge updated to thumbnail
+      assert html =~ "thumbnail"
     end
   end
 

@@ -6,12 +6,12 @@ defmodule ScientiaCognita.Workers.DownloadImageWorkerTest do
   import ScientiaCognita.CatalogFixtures
 
   alias ScientiaCognita.{Catalog, MockHttp, MockUploader}
-  alias ScientiaCognita.Workers.{DownloadImageWorker, ProcessImageWorker}
+  alias ScientiaCognita.Workers.{DownloadImageWorker, ThumbnailWorker}
 
   setup :verify_on_exit!
 
   describe "perform/1 — happy path" do
-    test "downloads image, uploads via uploader, transitions to processing, enqueues ProcessImageWorker" do
+    test "downloads image, uploads via uploader, transitions to thumbnail, enqueues ThumbnailWorker" do
       source = source_fixture()
       item = item_fixture(source, %{original_url: "https://example.com/image.jpg"})
 
@@ -25,10 +25,10 @@ defmodule ScientiaCognita.Workers.DownloadImageWorkerTest do
       assert :ok = perform_job(DownloadImageWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
-      assert item.status == "processing"
+      assert item.status == "thumbnail"
       assert item.original_image != nil
 
-      assert_enqueued(worker: ProcessImageWorker, args: %{"item_id" => item.id})
+      assert_enqueued(worker: ThumbnailWorker, args: %{"item_id" => item.id})
     end
   end
 

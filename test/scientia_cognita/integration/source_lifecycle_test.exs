@@ -18,8 +18,9 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
     FetchPageWorker,
     ExtractPageWorker,
     DownloadImageWorker,
-    ProcessImageWorker,
-    ColorAnalysisWorker,
+    ThumbnailWorker,
+    AnalyzeWorker,
+    ResizeWorker,
     RenderWorker
   }
 
@@ -63,7 +64,13 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
       stub(MockUploader, :url, fn _ -> "http://localhost:9000/images/test.jpg" end)
 
       stub(MockGemini, :generate_structured_with_image, fn _p, _b, _s, _o ->
-        {:ok, %{"text_color" => "#FFFFFF", "bg_color" => "#000000", "bg_opacity" => 0.75}}
+        {:ok,
+         %{
+           "text_color" => "#FFFFFF",
+           "bg_color" => "#000000",
+           "bg_opacity" => 0.75,
+           "subject" => "A stunning space image"
+         }}
       end)
 
       :ok
@@ -106,7 +113,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
       assert length(items) == 2
       assert length(all_enqueued(worker: DownloadImageWorker)) == 2
 
-      # --- Steps 3-6: Item pipeline for each item ---
+      # --- Steps 3-7: Item pipeline for each item ---
       for item <- items do
         # DownloadImageWorker: HTTP get from original_url + Storage upload
         expect(MockHttp, :get, fn _url, _opts ->
@@ -114,22 +121,30 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
         end)
 
         assert :ok = perform_job(DownloadImageWorker, %{item_id: item.id})
-        assert Catalog.get_item!(item.id).status == "processing"
+        assert Catalog.get_item!(item.id).status == "thumbnail"
 
-        # ProcessImageWorker: HTTP get from MinIO storage URL + Storage upload
+        # ThumbnailWorker: HTTP get from MinIO storage URL + Storage upload
         expect(MockHttp, :get, fn _url, _opts ->
           {:ok, %{status: 200, body: @test_jpeg, headers: %{}}}
         end)
 
-        assert :ok = perform_job(ProcessImageWorker, %{item_id: item.id})
-        assert Catalog.get_item!(item.id).status == "color_analysis"
+        assert :ok = perform_job(ThumbnailWorker, %{item_id: item.id})
+        assert Catalog.get_item!(item.id).status == "analyze"
 
-        # ColorAnalysisWorker: HTTP get from MinIO processed URL + Gemini image call
+        # AnalyzeWorker: HTTP get from MinIO thumbnail URL + Gemini image call
         expect(MockHttp, :get, fn _url, _opts ->
           {:ok, %{status: 200, body: @test_jpeg, headers: %{}}}
         end)
 
-        assert :ok = perform_job(ColorAnalysisWorker, %{item_id: item.id})
+        assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
+        assert Catalog.get_item!(item.id).status == "resize"
+
+        # ResizeWorker: HTTP get from MinIO original URL + Storage upload
+        expect(MockHttp, :get, fn _url, _opts ->
+          {:ok, %{status: 200, body: @test_jpeg, headers: %{}}}
+        end)
+
+        assert :ok = perform_job(ResizeWorker, %{item_id: item.id})
         assert Catalog.get_item!(item.id).status == "render"
 
         # RenderWorker: HTTP get from MinIO processed URL + Storage upload

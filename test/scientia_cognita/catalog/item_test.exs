@@ -5,7 +5,7 @@ defmodule ScientiaCognita.Catalog.ItemTest do
 
   describe "color_changeset/2" do
     test "casts color fields" do
-      item = %Item{status: "color_analysis"}
+      item = %Item{status: "analyze"}
 
       cs =
         Item.color_changeset(item, %{
@@ -23,7 +23,7 @@ defmodule ScientiaCognita.Catalog.ItemTest do
 
   describe "status_changeset/3" do
     test "accepts new FSM statuses" do
-      for status <- ~w(pending downloading processing color_analysis render ready failed) do
+      for status <- ~w(pending downloading thumbnail analyze resize render ready failed) do
         cs = Item.status_changeset(%Item{status: "pending"}, status)
         assert cs.valid?, "Expected #{status} to be valid"
       end

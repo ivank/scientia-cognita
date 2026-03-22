@@ -1,7 +1,7 @@
 defmodule ScientiaCognita.Workers.DownloadImageWorker do
   @moduledoc """
   Downloads an item's original image from its source URL and uploads it to S3.
-  On success, enqueues ProcessImageWorker.
+  On success, enqueues ThumbnailWorker.
 
   Args: %{item_id: integer}
   """
@@ -11,7 +11,7 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
   require Logger
 
   alias ScientiaCognita.{Catalog, Repo}
-  alias ScientiaCognita.Workers.ProcessImageWorker
+  alias ScientiaCognita.Workers.ThumbnailWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
   @uploader Application.compile_env(:scientia_cognita, :uploader_module,
@@ -32,11 +32,11 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
            ext = ext_from_content_type(content_type),
            {:ok, file} <- safe_store({%{filename: "original#{ext}", binary: binary}, item}),
            {:ok, item} <-
-             fsm_transition(item, "processing", %{
+             fsm_transition(item, "thumbnail", %{
                original_image: %{file_name: file, updated_at: nil}
              }) do
         broadcast(item.source_id, {:item_updated, item})
-        %{item_id: item_id} |> ProcessImageWorker.new() |> Oban.insert()
+        %{item_id: item_id} |> ThumbnailWorker.new() |> Oban.insert()
         :ok
       else
         {:error, :invalid_transition} ->

@@ -127,9 +127,10 @@ defmodule ScientiaCognita.Workers.RenderWorker do
   end
 
   defp compose_image(img, item) do
-    text_color = item.text_color || "#FFFFFF"
-    bg_color = item.bg_color || "#000000"
-    bg_opacity = item.bg_opacity || 0.75
+    analysis = item.image_analysis || %{}
+    text_color = analysis["text_color"] || item.text_color || "#FFFFFF"
+    bg_color = analysis["bg_color"] || item.bg_color || "#000000"
+    bg_opacity = analysis["bg_opacity"] || item.bg_opacity || 0.75
 
     img_width = Image.width(img)
     img_height = Image.height(img)
@@ -170,10 +171,10 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     end
   end
 
-  # Builds the entire text overlay as a single SVG: rounded rect + title + body.
+  # Builds the text overlay SVG using Victor.
   # Using SVG avoids vips_text/Pango, which computes buffer sizes before allocating
   # and will abort with "out of memory" for text that can't be word-broken.
-  # librsvg renders to the exact declared width/height, so allocation is bounded.
+  # librsvg renders to the exact declared dimensions, so allocation is bounded.
   defp build_overlay_svg(
          title,
          body,
@@ -195,36 +196,62 @@ defmodule ScientiaCognita.Workers.RenderWorker do
 
     gap = if title_lines != [] and body_lines != [], do: trunc(body_font * 0.8), else: 0
 
-    text_height =
-      length(title_lines) * lh_title + gap + length(body_lines) * lh_body
+    text_height = length(title_lines) * lh_title + gap + length(body_lines) * lh_body
 
     card_w = inner_width + padding_x * 2
     card_h = max(text_height + padding_y * 2, padding_y * 2 + lh_title)
 
-    title_svg =
-      svg_text_block(title_lines, padding_x, padding_y, title_font, lh_title, text_color,
-        bold: true
-      )
+    rect =
+      {:rect,
+       %{
+         "fill-opacity" => bg_opacity,
+         width: card_w,
+         height: card_h,
+         rx: radius,
+         ry: radius,
+         fill: bg_color
+       }, []}
+
+    title_elements =
+      title_lines
+      |> Enum.with_index()
+      |> Enum.map(fn {line, i} ->
+        y = padding_y + title_font + i * lh_title
+
+        {:text,
+         %{
+           "font-family" => "Sans",
+           "font-size" => title_font,
+           "font-weight" => "bold",
+           x: padding_x,
+           y: y,
+           fill: text_color
+         }, escape_content(line)}
+      end)
 
     body_start_y = padding_y + length(title_lines) * lh_title + gap
 
-    body_svg =
-      svg_text_block(body_lines, padding_x, body_start_y, body_font, lh_body, text_color,
-        bold: false
-      )
+    body_elements =
+      body_lines
+      |> Enum.with_index()
+      |> Enum.map(fn {line, i} ->
+        y = body_start_y + body_font + i * lh_body
 
-    """
-    <svg width="#{card_w}" height="#{card_h}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="#{card_w}" height="#{card_h}" rx="#{radius}" ry="#{radius}"
-            fill="#{bg_color}" fill-opacity="#{bg_opacity}"/>
-      #{title_svg}
-      #{body_svg}
-    </svg>
-    """
+        {:text,
+         %{
+           "font-family" => "Sans",
+           "font-size" => body_font,
+           x: padding_x,
+           y: y,
+           fill: text_color
+         }, escape_content(line)}
+      end)
+
+    %Victor{width: card_w, height: card_h, items: [rect] ++ title_elements ++ body_elements}
+    |> Victor.get_svg()
   end
 
-  # Wraps text into lines at inner_width. Uses avg char width ≈ 0.4 × font_size
-  # (slightly conservative to account for bold/wide characters).
+  # Wraps text into lines at inner_width. Uses avg char width ≈ 0.46 × font_size.
   defp svg_wrap(nil, _fs, _w), do: []
   defp svg_wrap("", _fs, _w), do: []
 
@@ -260,37 +287,14 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     Enum.reverse(result)
   end
 
-  defp svg_text_block([], _px, _start_y, _fs, _lh, _color, _opts), do: ""
+  # Escapes < and > before passing to Victor.
+  # Victor's get_content/1 handles & → &amp; automatically.
+  defp escape_content(nil), do: ""
 
-  defp svg_text_block(lines, padding_x, start_y, font_size, line_height, color, opts) do
-    weight = if Keyword.get(opts, :bold, false), do: ~s( font-weight="bold"), else: ""
-
-    tspans =
-      lines
-      |> Enum.with_index()
-      |> Enum.map(fn {line, i} ->
-        # y is the text baseline; first line baseline = start_y + font_size
-        y = start_y + font_size + i * line_height
-        ~s(<tspan x="#{padding_x}" y="#{y}">#{svg_escape(line)}</tspan>)
-      end)
-      |> Enum.join("\n      ")
-
-    """
-      <text font-family="Sans"#{weight} font-size="#{font_size}" fill="#{color}">
-        #{tspans}
-      </text>
-    """
-  end
-
-  defp svg_escape(nil), do: ""
-
-  defp svg_escape(text) do
+  defp escape_content(text) do
     text
-    |> String.replace("&", "&amp;")
     |> String.replace("<", "&lt;")
     |> String.replace(">", "&gt;")
-    |> String.replace("\"", "&quot;")
-    |> String.replace("'", "&apos;")
   end
 
   defp truncate(nil), do: nil

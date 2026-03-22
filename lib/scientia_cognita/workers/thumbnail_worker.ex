@@ -1,8 +1,7 @@
-defmodule ScientiaCognita.Workers.ProcessImageWorker do
+defmodule ScientiaCognita.Workers.ThumbnailWorker do
   @moduledoc """
-  Downloads an item's original image from S3, resizes and crops it to
-  1920×1080 (16:9 FHD), and uploads the processed variant.
-  On success, enqueues ColorAnalysisWorker.
+  Downloads the original image from S3, generates a 534×300 thumbnail,
+  uploads it, and enqueues AnalyzeWorker.
 
   Args: %{item_id: integer}
   """
@@ -12,48 +11,41 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
   require Logger
 
   alias ScientiaCognita.{Catalog, Repo}
-  alias ScientiaCognita.Workers.ColorAnalysisWorker
+  alias ScientiaCognita.Workers.AnalyzeWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
   @uploader Application.compile_env(:scientia_cognita, :uploader_module,
               ScientiaCognita.Uploaders.ItemImageUploader)
 
-  @target_width 1920
-  @target_height 1080
-  @thumb_height 300
   @thumb_width 534
+  @thumb_height 300
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
     item = Catalog.get_item!(item_id)
-    Logger.info("[ProcessImageWorker] item=#{item_id}")
+    Logger.info("[ThumbnailWorker] item=#{item_id}")
 
     with {:ok, original_binary} <- download_original(item),
          {:ok, img} <- Image.from_binary(original_binary),
-         {:ok, resized} <-
-           Image.thumbnail(img, @target_width, height: @target_height, crop: :center),
-         {:ok, output_binary} <- Image.write(resized, :memory, suffix: ".jpg", quality: 85),
-         {:ok, file} <- @uploader.store({%{filename: "processed.jpg", binary: output_binary}, item}),
          {:ok, thumb} <-
-           Image.thumbnail(img, @thumb_width, height: @thumb_height, crop: :center),
+           Image.thumbnail(img, @thumb_width, height: @thumb_height, crop: :attention),
          {:ok, thumb_binary} <- Image.write(thumb, :memory, suffix: ".jpg", quality: 80),
-         {:ok, thumb_file} <-
+         {:ok, file} <-
            @uploader.store({%{filename: "thumbnail.jpg", binary: thumb_binary}, item}),
          {:ok, item} <-
-           fsm_transition(item, "color_analysis", %{
-             processed_image: %{file_name: file, updated_at: nil},
-             thumbnail_image: %{file_name: thumb_file, updated_at: nil}
+           fsm_transition(item, "analyze", %{
+             thumbnail_image: %{file_name: file, updated_at: nil}
            }) do
       broadcast(item.source_id, {:item_updated, item})
-      %{item_id: item_id} |> ColorAnalysisWorker.new() |> Oban.insert()
+      %{item_id: item_id} |> AnalyzeWorker.new() |> Oban.insert()
       :ok
     else
       {:error, :invalid_transition} ->
-        Logger.warning("[ProcessImageWorker] invalid transition for item=#{item_id}")
+        Logger.warning("[ThumbnailWorker] invalid transition for item=#{item_id}")
         :ok
 
       {:error, reason} ->
-        Logger.error("[ProcessImageWorker] failed item=#{item_id}: #{inspect(reason)}")
+        Logger.error("[ThumbnailWorker] failed item=#{item_id}: #{inspect(reason)}")
         item = Catalog.get_item!(item_id)
         {:ok, _} = fsm_transition(item, "failed", %{error: inspect(reason)})
         broadcast(item.source_id, {:item_updated, Catalog.get_item!(item_id)})
@@ -61,7 +53,8 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
     end
   rescue
     e ->
-      Logger.error("[ProcessImageWorker] exception item=#{item_id}: #{inspect(e)}")
+      Logger.error("[ThumbnailWorker] exception item=#{item_id}: #{inspect(e)}")
+
       try do
         fresh = Catalog.get_item!(item_id)
         {:ok, failed} = fsm_transition(fresh, "failed", %{error: inspect(e)})
@@ -69,6 +62,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
       rescue
         _ -> :ok
       end
+
       :ok
   end
 
@@ -76,7 +70,7 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
 
   defp download_original(item) do
     url = @uploader.url({item.original_image, item})
-    Logger.debug("[ProcessImageWorker] fetching original url=#{url}")
+    Logger.debug("[ThumbnailWorker] fetching original url=#{url}")
 
     case @http.get(url, receive_timeout: 30_000) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}

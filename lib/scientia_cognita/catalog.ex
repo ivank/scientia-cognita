@@ -115,7 +115,7 @@ defmodule ScientiaCognita.Catalog do
 
   @doc """
   Returns item IDs for `source` that are stuck in an in-progress status
-  ("downloading", "processing", "color_analysis", or "render") but have no
+  ("downloading", "thumbnail", "analyze", "resize", or "render") but have no
   active Oban job — meaning their worker was discarded or cancelled before
   the telemetry handler could mark them as failed.
   """
@@ -125,7 +125,7 @@ defmodule ScientiaCognita.Catalog do
         from i in Item,
           where:
             i.source_id == ^source_id and
-              i.status in ["downloading", "processing", "color_analysis", "render"],
+              i.status in ["downloading", "thumbnail", "analyze", "resize", "render"],
           select: i.id
       )
 
@@ -138,8 +138,9 @@ defmodule ScientiaCognita.Catalog do
             where:
               j.worker in [
                 "ScientiaCognita.Workers.DownloadImageWorker",
-                "ScientiaCognita.Workers.ProcessImageWorker",
-                "ScientiaCognita.Workers.ColorAnalysisWorker",
+                "ScientiaCognita.Workers.ThumbnailWorker",
+                "ScientiaCognita.Workers.AnalyzeWorker",
+                "ScientiaCognita.Workers.ResizeWorker",
                 "ScientiaCognita.Workers.RenderWorker"
               ] and
                 j.state in ["available", "scheduled", "executing", "retryable"] and

@@ -10,6 +10,13 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
 
   setup :verify_on_exit!
 
+  @analysis %{
+    "text_color" => "#FFFFFF",
+    "bg_color" => "#1A1A2E",
+    "bg_opacity" => 0.75,
+    "subject" => "Orion Nebula"
+  }
+
   describe "perform/1 — happy path" do
     test "downloads processed image, renders text overlay, uploads final, marks ready" do
       source = source_fixture()
@@ -20,9 +27,7 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
           title: "Orion Nebula",
           description: "A stellar nursery",
           processed_image: "processed.jpg",
-          text_color: "#FFFFFF",
-          bg_color: "#1A1A2E",
-          bg_opacity: 0.75
+          image_analysis: @analysis
         })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
@@ -43,15 +48,15 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
     end
   end
 
-  describe "perform/1 — uses default colors when item has no colors stored" do
-    test "renders with fallback colors if text_color is nil" do
+  describe "perform/1 — uses default colors when item has no image_analysis" do
+    test "renders with fallback colors if image_analysis is nil" do
       source = source_fixture()
 
       item =
         item_fixture(source, %{
           status: "render",
           processed_image: "processed.jpg"
-          # text_color, bg_color, bg_opacity are nil
+          # image_analysis is nil
         })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
@@ -75,9 +80,7 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
         item_fixture(source, %{
           status: "render",
           processed_image: "processed.jpg",
-          text_color: "#FFFFFF",
-          bg_color: "#000000",
-          bg_opacity: 0.75
+          image_analysis: @analysis
         })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")

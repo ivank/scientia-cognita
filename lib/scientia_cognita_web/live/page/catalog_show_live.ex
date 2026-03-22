@@ -114,13 +114,31 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
       phx-window-keydown="close_lightbox"
     >
       <div class="modal-box max-w-5xl w-full p-0 overflow-hidden">
-        <figure class="bg-base-300">
+        <%!-- Stable 16:9 image area --%>
+        <figure class="aspect-video bg-base-300 relative overflow-hidden">
+          <%!-- Skeleton shown until at least one image is present --%>
+          <div
+            :if={is_nil(@lightbox_item.thumbnail_image) and is_nil(@lightbox_item.final_image)}
+            class="skeleton absolute inset-0 rounded-none"
+          >
+          </div>
+
+          <%!-- Thumbnail: base layer, shown immediately --%>
+          <img
+            :if={@lightbox_item.thumbnail_image}
+            src={ItemImageUploader.url({@lightbox_item.thumbnail_image, @lightbox_item})}
+            class="absolute inset-0 w-full h-full object-contain"
+          />
+
+          <%!-- Final image: top layer, crossfades in once loaded --%>
           <img
             :if={@lightbox_item.final_image}
             src={ItemImageUploader.url({@lightbox_item.final_image, @lightbox_item})}
-            class="w-full object-contain max-h-[70vh]"
+            class="absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-700"
+            onload="this.classList.add('opacity-100')"
           />
         </figure>
+
         <div class="p-4 flex items-start justify-between gap-4">
           <div>
             <p class="font-semibold">{@lightbox_item.title}</p>

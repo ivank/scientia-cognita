@@ -10,8 +10,9 @@ defmodule ScientiaCognita.ObanTelemetry do
 
   @item_workers [
     "ScientiaCognita.Workers.DownloadImageWorker",
-    "ScientiaCognita.Workers.ProcessImageWorker",
-    "ScientiaCognita.Workers.ColorAnalysisWorker",
+    "ScientiaCognita.Workers.ThumbnailWorker",
+    "ScientiaCognita.Workers.AnalyzeWorker",
+    "ScientiaCognita.Workers.ResizeWorker",
     "ScientiaCognita.Workers.RenderWorker"
   ]
 

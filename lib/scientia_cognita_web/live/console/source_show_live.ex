@@ -10,8 +10,9 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   alias ScientiaCognita.Workers.{
     FetchPageWorker,
     DownloadImageWorker,
-    ProcessImageWorker,
-    ColorAnalysisWorker,
+    ThumbnailWorker,
+    AnalyzeWorker,
+    ResizeWorker,
     RenderWorker
   }
 
@@ -203,7 +204,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                     class="w-full h-full object-contain"
                   />
                   <div
-                    :if={@selected_item.status in ~w(color_analysis render)}
+                    :if={@selected_item.status in ~w(analyze resize render)}
                     class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
                   ></div>
 
@@ -436,26 +437,19 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   def handle_event("rerender_item", %{"id" => id}, socket) do
     item = Catalog.get_item!(id)
 
-    # Clear rendered output AND color analysis results. If this re-render gets stuck
-    # in color_analysis state, the retry dispatch checks `text_color: nil` to decide
-    # whether to enqueue ColorAnalysisWorker. Leaving stale text_color would cause
-    # retry to misroute to RenderWorker instead.
-    # Note: Item.color_changeset/2 validates all three fields as required, so we use
-    # a direct Ecto.Changeset.change to clear them.
+    # Clear all derived images and analysis so the full pipeline runs from scratch.
     {:ok, item} =
       item
       |> Ecto.Changeset.change(%{
+        thumbnail_image: nil,
         processed_image: nil,
         final_image: nil,
-        text_color: nil,
-        bg_color: nil,
-        bg_opacity: nil
+        image_analysis: nil
       })
       |> ScientiaCognita.Repo.update()
 
-    {:ok, item} = Catalog.update_item_status(item, "processing", error: nil)
-    # ProcessImageWorker reads original_image, then chains color_analysis → render → ready
-    %{item_id: item.id} |> ProcessImageWorker.new() |> Oban.insert()
+    {:ok, item} = Catalog.update_item_status(item, "thumbnail", error: nil)
+    %{item_id: item.id} |> ThumbnailWorker.new() |> Oban.insert()
 
     {:noreply,
      socket
@@ -495,8 +489,9 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       {status, worker} =
         cond do
           is_nil(item.original_image) -> {"pending", DownloadImageWorker}
-          is_nil(item.processed_image) -> {"processing", ProcessImageWorker}
-          is_nil(item.text_color) -> {"color_analysis", ColorAnalysisWorker}
+          is_nil(item.thumbnail_image) -> {"thumbnail", ThumbnailWorker}
+          is_nil(item.image_analysis) -> {"analyze", AnalyzeWorker}
+          is_nil(item.processed_image) -> {"resize", ResizeWorker}
           true -> {"render", RenderWorker}
         end
 
@@ -533,7 +528,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp progress_pct(ready, total), do: Float.round(ready / total * 100, 1)
 
   defp sorted_status_counts(counts) do
-    order = ~w(pending downloading processing color_analysis render ready failed discarded)
+    order = ~w(pending downloading thumbnail analyze resize render ready failed discarded)
     Enum.sort_by(counts, fn {status, _} -> Enum.find_index(order, &(&1 == status)) || 99 end)
   end
 
@@ -542,7 +537,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp thumb_type(%{status: s}) when s in ~w(pending downloading), do: :shimmer
   defp thumb_type(%{status: s, original_image: nil}) when s in ~w(failed discarded), do: :icon
   defp thumb_type(%{status: s}) when s in ~w(failed discarded), do: :image
-  defp thumb_type(%{status: "render"}), do: :render
+  defp thumb_type(%{status: s}) when s in ~w(resize render), do: :render
   defp thumb_type(%{final_image: fi}) when not is_nil(fi), do: :image
   defp thumb_type(%{processed_image: pi}) when not is_nil(pi), do: :image
   defp thumb_type(%{original_image: oi}) when not is_nil(oi), do: :image
@@ -568,8 +563,9 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   defp row_class("pending"), do: "bg-base-200"
   defp row_class("downloading"), do: "bg-base-200"
-  defp row_class("processing"), do: "bg-info/10"
-  defp row_class("color_analysis"), do: "bg-info/10"
+  defp row_class("thumbnail"), do: "bg-info/10"
+  defp row_class("analyze"), do: "bg-info/10"
+  defp row_class("resize"), do: "bg-info/10"
   defp row_class("render"), do: "bg-info/10"
   defp row_class("ready"), do: ""
   defp row_class("failed"), do: "bg-error/10"
@@ -638,9 +634,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp status_class("failed"), do: "badge-error"
   defp status_class("discarded"), do: "badge-warning"
   defp status_class("downloading"), do: "badge-info"
-  defp status_class("processing"), do: "badge-info"
-  defp status_class("color_analysis"), do: "badge-info"
-  defp status_class("render"), do: "badge-info"
+  defp status_class("thumbnail"), do: "badge-info animate-pulse"
+  defp status_class("analyze"), do: "badge-info animate-pulse"
+  defp status_class("resize"), do: "badge-info animate-pulse"
+  defp status_class("render"), do: "badge-info animate-pulse"
   defp status_class("items_loading"), do: "badge-info animate-pulse"
   defp status_class(_), do: "badge-ghost"
 end

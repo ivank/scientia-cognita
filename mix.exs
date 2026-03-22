@@ -98,7 +98,10 @@ defmodule ScientiaCognita.MixProject do
       {:mox, "~> 1.2", only: :test},
 
       # T10 — FSM state management (Ecto-integrated)
-      {:fsmx, "~> 0.4"}
+      {:fsmx, "~> 0.4"},
+
+      # T11 — SVG generation for image overlay
+      {:victor, "~> 0.1.1"}
     ]
   end
 
