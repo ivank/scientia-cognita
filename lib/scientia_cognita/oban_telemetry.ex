@@ -1,15 +1,18 @@
 defmodule ScientiaCognita.ObanTelemetry do
   @moduledoc """
-  Listens for Oban job discard events and marks the associated item as "failed"
-  so the UI reflects the true state instead of leaving items stuck in
-  "downloading" or "processing".
+  Listens for Oban job discard events and transitions the associated item to
+  "discarded" so the UI reflects the true state and the item can be bulk-retried.
   """
 
   require Logger
 
+  alias ScientiaCognita.{Catalog, Repo}
+
   @item_workers [
     "ScientiaCognita.Workers.DownloadImageWorker",
-    "ScientiaCognita.Workers.ProcessImageWorker"
+    "ScientiaCognita.Workers.ProcessImageWorker",
+    "ScientiaCognita.Workers.ColorAnalysisWorker",
+    "ScientiaCognita.Workers.RenderWorker"
   ]
 
   def attach do
@@ -22,12 +25,12 @@ defmodule ScientiaCognita.ObanTelemetry do
   end
 
   def handle_job_stop(_event, _measurements, %{state: :discard, job: job}, _config) do
-    maybe_mark_item_failed(job)
+    maybe_mark_item_discarded(job)
   end
 
   def handle_job_stop(_event, _measurements, _meta, _config), do: :ok
 
-  defp maybe_mark_item_failed(%Oban.Job{
+  defp maybe_mark_item_discarded(%Oban.Job{
          worker: worker,
          args: %{"item_id" => item_id},
          errors: errors
@@ -40,20 +43,39 @@ defmodule ScientiaCognita.ObanTelemetry do
       end
 
     try do
-      item = ScientiaCognita.Catalog.get_item!(item_id)
-      {:ok, item} = ScientiaCognita.Catalog.update_item_status(item, "failed", error: last_error)
+      item = Catalog.get_item!(item_id)
 
-      Phoenix.PubSub.broadcast(
-        ScientiaCognita.PubSub,
-        "source:#{item.source_id}",
-        {:item_updated, item}
-      )
+      result =
+        Ecto.Multi.new()
+        |> Fsmx.transition_multi(item, :transition, "discarded", %{error: last_error},
+          state_field: :status
+        )
+        |> Repo.transaction()
+
+      case result do
+        {:ok, %{transition: updated}} ->
+          Phoenix.PubSub.broadcast(
+            ScientiaCognita.PubSub,
+            "source:#{updated.source_id}",
+            {:item_updated, updated}
+          )
+
+        {:error, :transition, _cs, _} ->
+          # Item is already in a terminal state (ready/failed/discarded) — nothing to do.
+          :ok
+
+        {:error, _, reason, _} ->
+          Logger.error(
+            "[ObanTelemetry] Failed to discard item=#{item_id}: #{inspect(reason)}"
+          )
+      end
     rescue
-      e -> Logger.error("[ObanTelemetry] Failed to mark item #{item_id} as failed: #{inspect(e)}")
+      e ->
+        Logger.error("[ObanTelemetry] Error discarding item=#{item_id}: #{inspect(e)}")
     end
   end
 
-  defp maybe_mark_item_failed(_job), do: :ok
+  defp maybe_mark_item_discarded(_job), do: :ok
 
   defp truncate(str, max) when byte_size(str) > max, do: binary_part(str, 0, max) <> "…"
   defp truncate(str, _max), do: str

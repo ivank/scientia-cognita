@@ -15,16 +15,17 @@ defmodule ScientiaCognita.Catalog.Item do
   use Fsmx.Struct,
     state_field: :status,
     transitions: %{
-      "pending" => ["downloading", "failed"],
-      "downloading" => ["processing", "failed"],
-      "processing" => ["color_analysis", "failed"],
-      "color_analysis" => ["render", "failed"],
-      "render" => ["ready", "failed"]
+      "pending" => ["downloading", "failed", "discarded"],
+      "downloading" => ["processing", "failed", "discarded"],
+      "processing" => ["color_analysis", "failed", "discarded"],
+      "color_analysis" => ["render", "failed", "discarded"],
+      "render" => ["ready", "failed", "discarded"],
+      "discarded" => ["pending"]
     }
 
   alias ScientiaCognita.Uploaders.ItemImageUploader
 
-  @statuses ~w(pending downloading processing color_analysis render ready failed)
+  @statuses ~w(pending downloading processing color_analysis render ready failed discarded)
 
   @type status :: String.t()
   # valid values: "pending" | "downloading" | "processing" |
@@ -148,5 +149,15 @@ defmodule ScientiaCognita.Catalog.Item do
     changeset
     |> cast(params, [:error])
     |> validate_required([:error])
+  end
+
+  def transition_changeset(changeset, _old, "discarded", params) do
+    changeset
+    |> cast(params, [:error])
+  end
+
+  def transition_changeset(changeset, "discarded", "pending", _params) do
+    changeset
+    |> put_change(:error, nil)
   end
 end

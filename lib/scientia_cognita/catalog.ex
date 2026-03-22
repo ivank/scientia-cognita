@@ -243,7 +243,7 @@ defmodule ScientiaCognita.Catalog do
   def count_items_not_terminal(%Source{id: source_id}) do
     Repo.aggregate(
       from(i in Item,
-        where: i.source_id == ^source_id and i.status not in ["ready", "failed"]
+        where: i.source_id == ^source_id and i.status not in ["ready", "failed", "discarded"]
       ),
       :count
     )

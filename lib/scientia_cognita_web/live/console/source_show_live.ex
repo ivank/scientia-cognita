@@ -52,6 +52,14 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
             <.icon name="hero-arrow-path" class="size-4" /> Retry {@failed_count} failed
           </button>
           <button
+            :if={@discarded_count > 0}
+            class="btn btn-warning btn-sm gap-2"
+            phx-click="retry_discarded_items"
+            phx-disable-with="Retrying…"
+          >
+            <.icon name="hero-arrow-path" class="size-4" /> Retry {@discarded_count} discarded
+          </button>
+          <button
             class="btn btn-error btn-sm gap-2"
             phx-click="confirm_delete"
           >
@@ -134,7 +142,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   {item.description}
                 </p>
                 <p
-                  :if={item.status == "failed"}
+                  :if={item.status in ["failed", "discarded"]}
                   class="text-xs text-error line-clamp-2"
                 >
                   {item.error || item.description}
@@ -230,7 +238,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
               <div class="flex gap-2 flex-1">
                 <%!-- Re-download: terminal states or any item with an error --%>
                 <button
-                  :if={@selected_item.status in ~w(ready failed) or not is_nil(@selected_item.error)}
+                  :if={@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)}
                   type="button"
                   class="btn btn-ghost btn-sm gap-1"
                   phx-click="redownload_item"
@@ -243,7 +251,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
                 <%!-- Re-render: terminal states or errored item, with original_image present --%>
                 <button
-                  :if={(@selected_item.status in ~w(ready failed) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)}
+                  :if={(@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)}
                   type="button"
                   class="btn btn-ghost btn-sm gap-1"
                   phx-click="rerender_item"
@@ -449,6 +457,32 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      |> push_navigate(to: ~p"/console/sources")}
   end
 
+  def handle_event("retry_discarded_items", _, socket) do
+    source = socket.assigns.source
+
+    items_to_retry =
+      Catalog.list_items_by_source(source)
+      |> Enum.filter(&(&1.status == "discarded"))
+
+    Enum.each(items_to_retry, fn item ->
+      {status, worker} =
+        cond do
+          is_nil(item.original_image) -> {"pending", DownloadImageWorker}
+          is_nil(item.processed_image) -> {"processing", ProcessImageWorker}
+          is_nil(item.text_color) -> {"color_analysis", ColorAnalysisWorker}
+          true -> {"render", RenderWorker}
+        end
+
+      {:ok, _} = Catalog.update_item_status(item, status, error: nil)
+      %{item_id: item.id} |> worker.new() |> Oban.insert()
+    end)
+
+    {:noreply,
+     socket
+     |> assign_source_stats(Catalog.get_source!(source.id))
+     |> put_flash(:info, "Retrying #{length(items_to_retry)} discarded items")}
+  end
+
   def handle_event("retry_failed_items", _, socket) do
     source = socket.assigns.source
     stuck_ids = socket.assigns.stuck_ids
@@ -490,6 +524,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     |> assign(:source, source)
     |> assign(:status_counts, status_counts)
     |> assign(:failed_count, status_counts["failed"] || 0)
+    |> assign(:discarded_count, status_counts["discarded"] || 0)
     |> assign(:stuck_ids, stuck_ids)
   end
 
@@ -497,15 +532,15 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp progress_pct(ready, total), do: Float.round(ready / total * 100, 1)
 
   defp sorted_status_counts(counts) do
-    order = ~w(pending downloading processing color_analysis render ready failed)
+    order = ~w(pending downloading processing color_analysis render ready failed discarded)
     Enum.sort_by(counts, fn {status, _} -> Enum.find_index(order, &(&1 == status)) || 99 end)
   end
 
   # Returns :shimmer | :icon | :render | :image
   # Rules are strict top-down first-match (like function clauses).
   defp thumb_type(%{status: s}) when s in ~w(pending downloading), do: :shimmer
-  defp thumb_type(%{status: "failed", original_image: nil}), do: :icon
-  defp thumb_type(%{status: "failed"}), do: :image
+  defp thumb_type(%{status: s, original_image: nil}) when s in ~w(failed discarded), do: :icon
+  defp thumb_type(%{status: s}) when s in ~w(failed discarded), do: :image
   defp thumb_type(%{status: "render"}), do: :render
   defp thumb_type(%{final_image: fi}) when not is_nil(fi), do: :image
   defp thumb_type(%{processed_image: pi}) when not is_nil(pi), do: :image
@@ -513,11 +548,11 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp thumb_type(_), do: :shimmer
 
   # Returns the URL string to display for :image type thumbnails
-  defp thumb_url(%{status: "failed", final_image: fi} = item) when not is_nil(fi),
+  defp thumb_url(%{status: s, final_image: fi} = item) when s in ~w(failed discarded) and not is_nil(fi),
     do: ItemImageUploader.url({fi, item})
-  defp thumb_url(%{status: "failed", processed_image: pi} = item) when not is_nil(pi),
+  defp thumb_url(%{status: s, processed_image: pi} = item) when s in ~w(failed discarded) and not is_nil(pi),
     do: ItemImageUploader.url({pi, item})
-  defp thumb_url(%{status: "failed", original_image: oi} = item) when not is_nil(oi),
+  defp thumb_url(%{status: s, original_image: oi} = item) when s in ~w(failed discarded) and not is_nil(oi),
     do: ItemImageUploader.url({oi, item})
   defp thumb_url(%{final_image: fi} = item) when not is_nil(fi),
     do: ItemImageUploader.url({fi, item})
@@ -534,6 +569,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp row_class("render"), do: "bg-info/10"
   defp row_class("ready"), do: ""
   defp row_class("failed"), do: "bg-error/10"
+  defp row_class("discarded"), do: "bg-warning/10"
   defp row_class(_), do: ""
 
   defp gemini_page_json(page) do
@@ -596,6 +632,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp status_class("done"), do: "badge-success"
   defp status_class("ready"), do: "badge-success"
   defp status_class("failed"), do: "badge-error"
+  defp status_class("discarded"), do: "badge-warning"
   defp status_class("downloading"), do: "badge-info"
   defp status_class("processing"), do: "badge-info"
   defp status_class("color_analysis"), do: "badge-info"
