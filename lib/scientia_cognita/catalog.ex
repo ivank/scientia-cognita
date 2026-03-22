@@ -87,8 +87,9 @@ defmodule ScientiaCognita.Catalog do
     items = list_items_by_source(source)
 
     Enum.each(items, fn item ->
-      if item.storage_key, do: ScientiaCognita.Storage.delete(item.storage_key)
-      if item.processed_key, do: ScientiaCognita.Storage.delete(item.processed_key)
+      if item.original_image,  do: ScientiaCognita.Uploaders.ItemImageUploader.delete({item.original_image,  item})
+      if item.processed_image, do: ScientiaCognita.Uploaders.ItemImageUploader.delete({item.processed_image, item})
+      if item.final_image,     do: ScientiaCognita.Uploaders.ItemImageUploader.delete({item.final_image,     item})
     end)
 
     Repo.delete(source)
@@ -303,12 +304,12 @@ defmodule ScientiaCognita.Catalog do
         from i in Item,
           join: ci in CatalogItem,
           on: ci.item_id == i.id,
-          where: ci.catalog_id == ^catalog_id and not is_nil(i.processed_key),
+          where: ci.catalog_id == ^catalog_id and not is_nil(i.final_image),
           order_by: [asc: ci.position, asc: ci.inserted_at],
           limit: 1
       )
 
-    if item, do: ScientiaCognita.Storage.get_url(item.processed_key), else: nil
+    if item, do: ScientiaCognita.Uploaders.ItemImageUploader.url({item.final_image, item}), else: nil
   end
 
   def add_items_to_catalog(%Catalog{id: catalog_id}, item_ids) when is_list(item_ids) do

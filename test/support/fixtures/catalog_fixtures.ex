@@ -42,12 +42,13 @@ defmodule ScientiaCognita.CatalogFixtures do
   end
 
   def item_fixture(source, attrs \\ %{}) do
-    {status, attrs} = Map.pop(attrs, :status, "pending")
-    {storage_key, attrs} = Map.pop(attrs, :storage_key)
-    {processed_key, attrs} = Map.pop(attrs, :processed_key)
-    {text_color, attrs} = Map.pop(attrs, :text_color)
-    {bg_color, attrs} = Map.pop(attrs, :bg_color)
-    {bg_opacity, attrs} = Map.pop(attrs, :bg_opacity)
+    {status, attrs}          = Map.pop(attrs, :status, "pending")
+    {original_image, attrs}  = Map.pop(attrs, :original_image)
+    {processed_image, attrs} = Map.pop(attrs, :processed_image)
+    {final_image, attrs}     = Map.pop(attrs, :final_image)
+    {text_color, attrs}      = Map.pop(attrs, :text_color)
+    {bg_color, attrs}        = Map.pop(attrs, :bg_color)
+    {bg_opacity, attrs}      = Map.pop(attrs, :bg_opacity)
 
     {:ok, item} =
       attrs
@@ -58,16 +59,22 @@ defmodule ScientiaCognita.CatalogFixtures do
       })
       |> Catalog.create_item()
 
+    # Use Ecto.Changeset.change/2 (not cast) to set image fields with plain
+    # string filenames — bypasses Waffle.Ecto.Type.cast/1, which is correct for
+    # test setup where we're simulating an already-stored file, not uploading one.
     item =
-      if storage_key || processed_key do
-        storage_attrs =
+      if original_image || processed_image || final_image do
+        changes =
           %{}
-          |> then(fn a -> if storage_key, do: Map.put(a, :storage_key, storage_key), else: a end)
-          |> then(fn a ->
-            if processed_key, do: Map.put(a, :processed_key, processed_key), else: a
-          end)
+          |> then(fn a -> if original_image,  do: Map.put(a, :original_image,  original_image),  else: a end)
+          |> then(fn a -> if processed_image, do: Map.put(a, :processed_image, processed_image), else: a end)
+          |> then(fn a -> if final_image,     do: Map.put(a, :final_image,     final_image),     else: a end)
 
-        {:ok, item} = ScientiaCognita.Catalog.update_item_storage(item, storage_attrs)
+        {:ok, item} =
+          item
+          |> Ecto.Changeset.change(changes)
+          |> ScientiaCognita.Repo.update()
+
         item
       else
         item
@@ -81,7 +88,6 @@ defmodule ScientiaCognita.CatalogFixtures do
             bg_color: bg_color,
             bg_opacity: bg_opacity
           })
-
         item
       else
         item
