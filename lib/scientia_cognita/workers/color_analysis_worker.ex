@@ -10,11 +10,13 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
 
   require Logger
 
-  alias ScientiaCognita.{Catalog, Repo, Storage}
+  alias ScientiaCognita.{Catalog, Repo}
   alias ScientiaCognita.Workers.RenderWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
   @gemini Application.compile_env(:scientia_cognita, :gemini_module, ScientiaCognita.Gemini)
+  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader)
 
   @default_colors %{"text_color" => "#FFFFFF", "bg_color" => "#000000", "bg_opacity" => 0.75}
 
@@ -33,7 +35,7 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
     item = Catalog.get_item!(item_id)
     Logger.info("[ColorAnalysisWorker] item=#{item_id}")
 
-    with {:ok, binary} <- download_processed(item.processed_key),
+    with {:ok, binary} <- download_processed(item),
          {:ok, img} <- Image.from_binary(binary),
          {:ok, thumb_binary} <- make_thumbnail(img),
          colors = get_colors(thumb_binary),
@@ -80,10 +82,12 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorker do
     end
   end
 
-  defp download_processed(nil), do: {:error, "item has no processed_key"}
+  defp download_processed(%{processed_image: nil}), do: {:error, "item has no processed_image"}
 
-  defp download_processed(key) do
-    case @http.get(Storage.get_url(key), receive_timeout: 30_000) do
+  defp download_processed(item) do
+    url = @uploader.url({item.processed_image, item})
+
+    case @http.get(url, receive_timeout: 30_000) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       {:ok, %{status: status}} -> {:error, "storage HTTP #{status}"}
       {:error, reason} -> {:error, reason}

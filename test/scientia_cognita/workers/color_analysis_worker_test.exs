@@ -5,7 +5,7 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorkerTest do
   import Mox
   import ScientiaCognita.CatalogFixtures
 
-  alias ScientiaCognita.{Catalog, MockHttp, MockGemini}
+  alias ScientiaCognita.{Catalog, MockHttp, MockGemini, MockUploader}
   alias ScientiaCognita.Workers.{ColorAnalysisWorker, RenderWorker}
 
   setup :verify_on_exit!
@@ -23,10 +23,12 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorkerTest do
       item =
         item_fixture(source, %{
           status: "color_analysis",
-          processed_key: "items/1/processed.jpg"
+          processed_image: "processed.jpg"
         })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
+
+      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
 
       expect(MockHttp, :get, fn _url, _opts ->
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
@@ -55,10 +57,12 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorkerTest do
       item =
         item_fixture(source, %{
           status: "color_analysis",
-          processed_key: "items/1/processed.jpg"
+          processed_image: "processed.jpg"
         })
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
+
+      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
 
       expect(MockHttp, :get, fn _url, _opts ->
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
@@ -71,7 +75,6 @@ defmodule ScientiaCognita.Workers.ColorAnalysisWorkerTest do
       assert :ok = perform_job(ColorAnalysisWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
-      # Falls back to defaults — still progresses
       assert item.status == "render"
       assert item.text_color == "#FFFFFF"
       assert item.bg_color == "#000000"
