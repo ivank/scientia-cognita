@@ -12,7 +12,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
   import Mox
   import ScientiaCognita.CatalogFixtures
 
-  alias ScientiaCognita.{Catalog, MockGemini, MockHttp, MockStorage}
+  alias ScientiaCognita.{Catalog, MockGemini, MockHttp, MockUploader}
 
   alias ScientiaCognita.Workers.{
     FetchPageWorker,
@@ -59,7 +59,8 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
   describe "full happy path (single page, 2 items)" do
     setup do
       # stub allows multiple calls without strict count tracking
-      stub(MockStorage, :upload, fn _key, _data, _opts -> {:ok, %{}} end)
+      stub(MockUploader, :store, fn {_upload, _item} -> {:ok, "image.jpg"} end)
+      stub(MockUploader, :url, fn _ -> "http://localhost:9000/images/test.jpg" end)
 
       stub(MockGemini, :generate_structured_with_image, fn _p, _b, _s, _o ->
         {:ok, %{"text_color" => "#FFFFFF", "bg_color" => "#000000", "bg_opacity" => 0.75}}
