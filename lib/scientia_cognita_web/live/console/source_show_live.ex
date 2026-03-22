@@ -172,94 +172,123 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       phx-key="Escape"
       phx-window-keydown="close_item"
     >
-      <div class="modal-box max-w-3xl p-0 overflow-hidden">
-        <div class="flex max-h-[80vh]">
-          <%!-- Left: status-aware image preview --%>
-          <figure class="w-56 shrink-0 bg-base-300 self-stretch overflow-hidden relative">
-            <%= cond do %>
-              <% @selected_item.status in ~w(pending downloading) -> %>
-                <div class="skeleton absolute inset-0 rounded-none"></div>
-              <% @selected_item.status == "render" -> %>
-                <img
-                  :if={@selected_item.processed_image || @selected_item.original_image}
-                  src={ItemImageUploader.url({@selected_item.processed_image || @selected_item.original_image, @selected_item})}
-                  class="w-full h-full object-contain"
-                />
-                <div class="absolute inset-0 ring-2 ring-inset ring-primary animate-pulse pointer-events-none"></div>
-              <% @selected_item.processed_image || @selected_item.original_image -> %>
-                <img
-                  src={ItemImageUploader.url({@selected_item.processed_image || @selected_item.original_image, @selected_item})}
-                  class="w-full h-full object-contain"
-                />
-              <% true -> %>
-            <% end %>
-          </figure>
+      <div class="modal-box max-w-5xl w-full p-0 overflow-hidden flex flex-col max-h-[92vh]">
+        <%!-- Image preview: full width, 16:9, best available image --%>
+        <figure class="aspect-video bg-base-300 shrink-0 relative overflow-hidden">
+          <%= cond do %>
+            <% @selected_item.status in ~w(pending downloading) -> %>
+              <div class="skeleton absolute inset-0 rounded-none"></div>
 
-          <%!-- Right: scrollable fields + pinned action bar --%>
-          <.form for={@item_form} phx-submit="save_item" phx-change="validate_item" class="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <div class="flex-1 overflow-y-auto p-5 space-y-4">
-              <%!-- Full error (if any) --%>
-              <div :if={@selected_item.error} class="alert alert-error text-sm">
-                <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
-                <span>{@selected_item.error}</span>
-              </div>
+            <% @selected_item.final_image -> %>
+              <img
+                src={ItemImageUploader.url({@selected_item.final_image, @selected_item})}
+                class="w-full h-full object-contain"
+              />
+              <div
+                :if={@selected_item.status == "render"}
+                class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
+              ></div>
 
-              <div class="form-control">
-                <label class="label pb-1">
-                  <span class="label-text text-xs font-medium uppercase tracking-wide">Title</span>
-                </label>
-                <.input field={@item_form[:title]} placeholder="Image title" />
+            <% @selected_item.processed_image -> %>
+              <img
+                src={ItemImageUploader.url({@selected_item.processed_image, @selected_item})}
+                class="w-full h-full object-contain"
+              />
+              <div
+                :if={@selected_item.status in ~w(color_analysis render)}
+                class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
+              ></div>
+
+            <% @selected_item.original_image -> %>
+              <img
+                src={ItemImageUploader.url({@selected_item.original_image, @selected_item})}
+                class="w-full h-full object-contain"
+              />
+
+            <% true -> %>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <.icon name="hero-photo" class="size-16 text-base-content/20" />
               </div>
-              <div class="form-control">
-                <label class="label pb-1">
-                  <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
-                </label>
-                <.input field={@item_form[:description]} type="textarea" rows="3" placeholder="Caption or description" />
-              </div>
-              <div class="form-control">
-                <label class="label pb-1">
-                  <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
-                </label>
-                <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
-              </div>
+          <% end %>
+
+          <%!-- Status badge pinned over image bottom-left --%>
+          <div class="absolute bottom-3 left-3">
+            <.status_badge status={@selected_item.status} />
+          </div>
+        </figure>
+
+        <%!-- Scrollable form below --%>
+        <.form
+          for={@item_form}
+          phx-submit="save_item"
+          phx-change="validate_item"
+          class="flex flex-col flex-1 min-h-0 overflow-hidden"
+        >
+          <div class="flex-1 overflow-y-auto p-6 space-y-4">
+            <%!-- Full error (if any) --%>
+            <div :if={@selected_item.error} class="alert alert-error text-sm">
+              <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
+              <span>{@selected_item.error}</span>
             </div>
 
-            <%!-- Pinned action bar --%>
-            <div class="shrink-0 border-t border-base-300 px-5 py-3 flex items-center gap-2">
-              <.status_badge status={@selected_item.status} />
-              <div class="flex gap-2 flex-1">
-                <%!-- Re-download: terminal states or any item with an error --%>
-                <button
-                  :if={@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)}
-                  type="button"
-                  class="btn btn-ghost btn-sm gap-1"
-                  phx-click="redownload_item"
-                  phx-value-id={@selected_item.id}
-                  phx-disable-with="…"
-                  title="Clear stored images and re-run the full pipeline from download"
-                >
-                  <.icon name="hero-arrow-down-tray" class="size-4" /> Re-download
-                </button>
-
-                <%!-- Re-render: terminal states or errored item, with original_image present --%>
-                <button
-                  :if={(@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)}
-                  type="button"
-                  class="btn btn-ghost btn-sm gap-1"
-                  phx-click="rerender_item"
-                  phx-value-id={@selected_item.id}
-                  phx-disable-with="…"
-                  title="Re-run from original downloaded image through the full processing chain"
-                >
-                  <.icon name="hero-paint-brush" class="size-4" /> Re-render
-                </button>
-              </div>
-
-              <button type="button" class="btn btn-ghost btn-sm" phx-click="close_item">Cancel</button>
-              <button type="submit" class="btn btn-primary btn-sm" phx-disable-with="Saving…">Save</button>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-xs font-medium uppercase tracking-wide">Title</span>
+              </label>
+              <.input field={@item_form[:title]} placeholder="Image title" />
             </div>
-          </.form>
-        </div>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
+              </label>
+              <.input field={@item_form[:description]} type="textarea" rows="4" placeholder="Caption or description" />
+            </div>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
+              </label>
+              <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
+            </div>
+          </div>
+
+          <%!-- Pinned action bar --%>
+          <div class="shrink-0 border-t border-base-300 px-6 py-3 flex items-center gap-2">
+            <div class="flex gap-2 flex-1">
+              <%!-- Re-download: terminal states or any item with an error --%>
+              <button
+                :if={@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)}
+                type="button"
+                class="btn btn-ghost btn-sm gap-1"
+                phx-click="redownload_item"
+                phx-value-id={@selected_item.id}
+                phx-disable-with="…"
+                title="Clear stored images and re-run the full pipeline from download"
+              >
+                <.icon name="hero-arrow-down-tray" class="size-4" /> Re-download
+              </button>
+
+              <%!-- Re-render: terminal states or errored item, with original_image present --%>
+              <button
+                :if={(@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)}
+                type="button"
+                class="btn btn-ghost btn-sm gap-1"
+                phx-click="rerender_item"
+                phx-value-id={@selected_item.id}
+                phx-disable-with="…"
+                title="Re-run from original downloaded image through the full processing chain"
+              >
+                <.icon name="hero-paint-brush" class="size-4" /> Re-render
+              </button>
+            </div>
+
+            <button type="button" class="btn btn-ghost btn-sm" phx-click="close_item">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary btn-sm" phx-disable-with="Saving…">
+              Save
+            </button>
+          </div>
+        </.form>
       </div>
       <div class="modal-backdrop" phx-click="close_item"></div>
     </div>
@@ -516,7 +545,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp thumb_type(%{original_image: oi}) when not is_nil(oi), do: :image
   defp thumb_type(_), do: :shimmer
 
-  # Returns the URL string to display for :image type thumbnails
+  # Returns the URL string to display for :image type thumbnails.
+  # Prefers thumbnail_image (534×300) when available; falls back to processed/original.
+  defp thumb_url(%{thumbnail_image: ti} = item) when not is_nil(ti),
+    do: ItemImageUploader.url({ti, item})
   defp thumb_url(%{status: s, final_image: fi} = item) when s in ~w(failed discarded) and not is_nil(fi),
     do: ItemImageUploader.url({fi, item})
   defp thumb_url(%{status: s, processed_image: pi} = item) when s in ~w(failed discarded) and not is_nil(pi),

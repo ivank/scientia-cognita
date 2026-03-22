@@ -53,8 +53,12 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
         >
           <figure class="aspect-video bg-base-300 relative">
             <img
-              :if={item.final_image}
-              src={ItemImageUploader.url({item.final_image, item})}
+              :if={item.thumbnail_image || item.final_image}
+              src={
+                if item.thumbnail_image,
+                  do: ItemImageUploader.url({item.thumbnail_image, item}),
+                  else: ItemImageUploader.url({item.final_image, item})
+              }
               class="w-full h-full object-cover"
               loading="lazy"
             />
@@ -182,8 +186,12 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
               />
               <figure class="aspect-video bg-base-200">
                 <img
-                  :if={item.final_image}
-                  src={ItemImageUploader.url({item.final_image, item})}
+                  :if={item.thumbnail_image || item.final_image}
+                  src={
+                    if item.thumbnail_image,
+                      do: ItemImageUploader.url({item.thumbnail_image, item}),
+                      else: ItemImageUploader.url({item.final_image, item})
+                  }
                   class="w-full h-full object-cover"
                   loading="lazy"
                 />

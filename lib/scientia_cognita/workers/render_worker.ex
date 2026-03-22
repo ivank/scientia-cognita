@@ -15,8 +15,16 @@ defmodule ScientiaCognita.Workers.RenderWorker do
   alias ScientiaCognita.{Catalog, Repo}
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
-  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
-              ScientiaCognita.Uploaders.ItemImageUploader)
+  @uploader Application.compile_env(
+              :scientia_cognita,
+              :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader
+            )
+
+  # Pango renders un-breakable text (long URLs, base64 blobs, etc.) as a
+  # single line, computing a buffer of tens of gigabytes. Cap each field.
+  @max_title_chars 200
+  @max_body_chars 400
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
@@ -28,7 +36,8 @@ defmodule ScientiaCognita.Workers.RenderWorker do
          {:ok, composed} <- compose_image(img, item),
          {:ok, output_binary} <- Image.write(composed, :memory, suffix: ".jpg", quality: 85),
          {:ok, file} <- @uploader.store({%{filename: "final.jpg", binary: output_binary}, item}),
-         {:ok, item} <- fsm_transition(item, "ready", %{final_image: %{file_name: file, updated_at: nil}}) do
+         {:ok, item} <-
+           fsm_transition(item, "ready", %{final_image: %{file_name: file, updated_at: nil}}) do
       broadcast(item.source_id, {:item_updated, item})
       maybe_complete_source(item)
       :ok
@@ -47,6 +56,7 @@ defmodule ScientiaCognita.Workers.RenderWorker do
   rescue
     e ->
       Logger.error("[RenderWorker] exception item=#{item_id}: #{inspect(e)}")
+
       try do
         fresh = Catalog.get_item!(item_id)
         {:ok, failed} = fsm_transition(fresh, "failed", %{error: inspect(e)})
@@ -54,6 +64,7 @@ defmodule ScientiaCognita.Workers.RenderWorker do
       rescue
         _ -> :ok
       end
+
       :ok
   end
 
@@ -122,11 +133,11 @@ defmodule ScientiaCognita.Workers.RenderWorker do
 
     img_width = Image.width(img)
     img_height = Image.height(img)
-    padding_x = max(trunc(img_width * 0.03), 8)
-    padding_y = max(trunc(img_height * 0.025), 6)
+    padding_x = max(trunc(img_width * 0.015), 6)
+    padding_y = max(trunc(img_height * 0.02), 8)
     body_font = max(trunc(img_height * 0.02), 8)
     title_font = max(trunc(body_font * 1), 10)
-    radius = max(trunc(img_height * 0.045), 14)
+    radius = max(trunc(img_height * 0.02), 8)
     # Align with Google Photos album title on Android TV:
     # left margin matches the system UI (~5% width), bottom gap leaves room
     # for the album title bar that appears below our box (~13% height).
@@ -134,73 +145,165 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     offset_y = max(trunc(img_height * 0.13), 40)
     inner_width = max(trunc(img_width * 0.85) - padding_x * 2, 20)
 
-    title = item.title
+    title = truncate(item.title, @max_title_chars)
     body = build_body_text(item)
 
-    pango_text = build_pango_markup(title, body, title_font, body_font)
+    svg =
+      build_overlay_svg(
+        title,
+        body,
+        text_color,
+        bg_color,
+        bg_opacity,
+        inner_width,
+        padding_x,
+        padding_y,
+        title_font,
+        body_font,
+        radius
+      )
 
-    with {:ok, text_img} <-
-           Image.Text.text({:safe, pango_text},
-             width: inner_width,
-             text_fill_color: text_color,
-             align: :left
-           ),
-         text_w = Image.width(text_img),
-         text_h = Image.height(text_img),
-         card_w = text_w + padding_x * 2,
-         card_h = text_h + padding_y * 2,
-         {:ok, bg_img} <- rounded_rect(card_w, card_h, radius, bg_color, bg_opacity),
-         {:ok, overlay} <- Image.compose(bg_img, text_img, x: padding_x, y: padding_y) do
+    with {:ok, overlay} <- Image.from_svg(svg) do
       overlay_h = Image.height(overlay)
       y = max(img_height - overlay_h - offset_y, 0)
       Image.compose(img, overlay, x: offset_x, y: y)
     end
   end
 
-  # Renders title (bold, larger) and body as a single Pango markup string.
-  # A small-font spacer line between them creates a visible margin.
-  # text_fill_color is applied as a flat layer by Image.Text so no color markup needed.
-  defp build_pango_markup(nil, "", _tf, _bf), do: " "
+  # Builds the entire text overlay as a single SVG: rounded rect + title + body.
+  # Using SVG avoids vips_text/Pango, which computes buffer sizes before allocating
+  # and will abort with "out of memory" for text that can't be word-broken.
+  # librsvg renders to the exact declared width/height, so allocation is bounded.
+  defp build_overlay_svg(
+         title,
+         body,
+         text_color,
+         bg_color,
+         bg_opacity,
+         inner_width,
+         padding_x,
+         padding_y,
+         title_font,
+         body_font,
+         radius
+       ) do
+    lh_title = trunc(title_font * 1.35)
+    lh_body = trunc(body_font * 1.35)
 
-  defp build_pango_markup(nil, body, _tf, bf),
-    do: ~s(<span font="Sans #{bf}">#{xml_escape(body)}</span>)
+    title_lines = svg_wrap(title, title_font, inner_width)
+    body_lines = svg_wrap(body, body_font, inner_width)
 
-  defp build_pango_markup(title, "", tf, _bf),
-    do: ~s(<span font="Sans Bold #{tf}">#{xml_escape(title)}</span>)
+    gap = if title_lines != [] and body_lines != [], do: trunc(body_font * 0.8), else: 0
 
-  defp build_pango_markup(title, body, tf, bf) do
-    gap_font = max(trunc(bf * 0.5), 4)
+    text_height =
+      length(title_lines) * lh_title + gap + length(body_lines) * lh_body
 
-    [
-      ~s(<span font="Sans Bold #{tf}">#{xml_escape(title)}</span>),
-      ~s(<span font="Sans #{gap_font}"> </span>),
-      ~s(<span font="Sans #{bf}">#{xml_escape(body)}</span>)
-    ]
-    |> Enum.join("\n")
+    card_w = inner_width + padding_x * 2
+    card_h = max(text_height + padding_y * 2, padding_y * 2 + lh_title)
+
+    title_svg =
+      svg_text_block(title_lines, padding_x, padding_y, title_font, lh_title, text_color,
+        bold: true
+      )
+
+    body_start_y = padding_y + length(title_lines) * lh_title + gap
+
+    body_svg =
+      svg_text_block(body_lines, padding_x, body_start_y, body_font, lh_body, text_color,
+        bold: false
+      )
+
+    """
+    <svg width="#{card_w}" height="#{card_h}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="#{card_w}" height="#{card_h}" rx="#{radius}" ry="#{radius}"
+            fill="#{bg_color}" fill-opacity="#{bg_opacity}"/>
+      #{title_svg}
+      #{body_svg}
+    </svg>
+    """
   end
 
-  defp xml_escape(text) do
+  # Wraps text into lines at inner_width. Uses avg char width ≈ 0.4 × font_size
+  # (slightly conservative to account for bold/wide characters).
+  defp svg_wrap(nil, _fs, _w), do: []
+  defp svg_wrap("", _fs, _w), do: []
+
+  defp svg_wrap(text, font_size, max_width) do
+    chars_per_line = max(trunc(max_width / (font_size * 0.46)), 10)
+
+    text
+    |> String.split("\n")
+    |> Enum.flat_map(&word_wrap_line(&1, chars_per_line))
+  end
+
+  defp word_wrap_line(line, max_chars) do
+    words = String.split(line, " ", trim: true)
+
+    {lines, current} =
+      Enum.reduce(words, {[], ""}, fn word, {lines, current} ->
+        candidate = if current == "", do: word, else: current <> " " <> word
+
+        cond do
+          String.length(candidate) <= max_chars ->
+            {lines, candidate}
+
+          current == "" ->
+            # Single word longer than the line limit — emit it as-is
+            {[word | lines], ""}
+
+          true ->
+            {[current | lines], word}
+        end
+      end)
+
+    result = if current != "", do: [current | lines], else: lines
+    Enum.reverse(result)
+  end
+
+  defp svg_text_block([], _px, _start_y, _fs, _lh, _color, _opts), do: ""
+
+  defp svg_text_block(lines, padding_x, start_y, font_size, line_height, color, opts) do
+    weight = if Keyword.get(opts, :bold, false), do: ~s( font-weight="bold"), else: ""
+
+    tspans =
+      lines
+      |> Enum.with_index()
+      |> Enum.map(fn {line, i} ->
+        # y is the text baseline; first line baseline = start_y + font_size
+        y = start_y + font_size + i * line_height
+        ~s(<tspan x="#{padding_x}" y="#{y}">#{svg_escape(line)}</tspan>)
+      end)
+      |> Enum.join("\n      ")
+
+    """
+      <text font-family="Sans"#{weight} font-size="#{font_size}" fill="#{color}">
+        #{tspans}
+      </text>
+    """
+  end
+
+  defp svg_escape(nil), do: ""
+
+  defp svg_escape(text) do
     text
     |> String.replace("&", "&amp;")
     |> String.replace("<", "&lt;")
     |> String.replace(">", "&gt;")
+    |> String.replace("\"", "&quot;")
+    |> String.replace("'", "&apos;")
   end
 
-  defp rounded_rect(width, height, radius, color, opacity) do
-    svg = """
-    <svg width="#{width}" height="#{height}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="#{width}" height="#{height}" rx="#{radius}" ry="#{radius}"
-            fill="#{color}" fill-opacity="#{opacity}" />
-    </svg>
-    """
+  defp truncate(nil), do: nil
 
-    Image.from_svg(svg)
+  defp truncate(s, max \\ @max_body_chars) do
+    if String.length(s) > max, do: String.slice(s, 0, max) <> "…", else: s
   end
 
   defp build_body_text(item) do
     [item.description, item.author && "© #{item.author}", item.copyright]
     |> Enum.reject(&is_nil/1)
     |> Enum.reject(&(String.trim(&1) == ""))
+    |> Enum.map(&truncate/1)
     |> Enum.join("\n")
   end
 

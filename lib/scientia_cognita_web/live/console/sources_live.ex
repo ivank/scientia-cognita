@@ -68,8 +68,12 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
                 style="width: 76px; height: 48px;"
               >
                 <img
-                  :if={item.final_image}
-                  src={ItemImageUploader.url({item.final_image, item})}
+                  :if={item.thumbnail_image || item.final_image}
+                  src={
+                    if item.thumbnail_image,
+                      do: ItemImageUploader.url({item.thumbnail_image, item}),
+                      else: ItemImageUploader.url({item.final_image, item})
+                  }
                   class="w-full h-full object-cover"
                   loading="lazy"
                 />

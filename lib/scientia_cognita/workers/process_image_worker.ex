@@ -20,6 +20,8 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
 
   @target_width 1920
   @target_height 1080
+  @thumb_height 300
+  @thumb_width 534
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
@@ -32,7 +34,16 @@ defmodule ScientiaCognita.Workers.ProcessImageWorker do
            Image.thumbnail(img, @target_width, height: @target_height, crop: :center),
          {:ok, output_binary} <- Image.write(resized, :memory, suffix: ".jpg", quality: 85),
          {:ok, file} <- @uploader.store({%{filename: "processed.jpg", binary: output_binary}, item}),
-         {:ok, item} <- fsm_transition(item, "color_analysis", %{processed_image: %{file_name: file, updated_at: nil}}) do
+         {:ok, thumb} <-
+           Image.thumbnail(img, @thumb_width, height: @thumb_height, crop: :center),
+         {:ok, thumb_binary} <- Image.write(thumb, :memory, suffix: ".jpg", quality: 80),
+         {:ok, thumb_file} <-
+           @uploader.store({%{filename: "thumbnail.jpg", binary: thumb_binary}, item}),
+         {:ok, item} <-
+           fsm_transition(item, "color_analysis", %{
+             processed_image: %{file_name: file, updated_at: nil},
+             thumbnail_image: %{file_name: thumb_file, updated_at: nil}
+           }) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> ColorAnalysisWorker.new() |> Oban.insert()
       :ok

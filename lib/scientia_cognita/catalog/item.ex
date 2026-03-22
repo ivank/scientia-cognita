@@ -38,9 +38,10 @@ defmodule ScientiaCognita.Catalog.Item do
           author: String.t() | nil,
           copyright: String.t() | nil,
           original_url: String.t() | nil,
-          original_image:  term() | nil,
-          processed_image: term() | nil,
-          final_image:     term() | nil,
+          original_image:   term() | nil,
+          processed_image:  term() | nil,
+          thumbnail_image:  term() | nil,
+          final_image:      term() | nil,
           status: status(),
           error: String.t() | nil,
           text_color: String.t() | nil,
@@ -59,9 +60,10 @@ defmodule ScientiaCognita.Catalog.Item do
     field :author, :string
     field :copyright, :string
     field :original_url, :string
-    field :original_image,  ItemImageUploader.Type
-    field :processed_image, ItemImageUploader.Type
-    field :final_image,     ItemImageUploader.Type
+    field :original_image,   ItemImageUploader.Type
+    field :processed_image,  ItemImageUploader.Type
+    field :thumbnail_image,  ItemImageUploader.Type
+    field :final_image,      ItemImageUploader.Type
     field :status, :string, default: "pending"
     field :error, :string
 
@@ -101,7 +103,7 @@ defmodule ScientiaCognita.Catalog.Item do
   @doc "Used by Catalog.update_item_storage/2 for fixture setup."
   def storage_changeset(item, attrs) do
     item
-    |> cast(attrs, [:original_image, :processed_image, :final_image])
+    |> cast(attrs, [:original_image, :processed_image, :thumbnail_image, :final_image])
   end
 
   @doc "Used by Catalog.update_item_colors/2 for fixture setup."
@@ -126,7 +128,7 @@ defmodule ScientiaCognita.Catalog.Item do
 
   def transition_changeset(changeset, "processing", "color_analysis", params) do
     changeset
-    |> cast(params, [:processed_image])
+    |> cast(params, [:processed_image, :thumbnail_image])
     |> validate_required([:processed_image])
   end
 
