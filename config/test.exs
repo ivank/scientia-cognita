@@ -40,6 +40,10 @@ config :phoenix_live_view,
 config :scientia_cognita, :http_module, ScientiaCognita.MockHttp
 config :scientia_cognita, :gemini_module, ScientiaCognita.MockGemini
 config :scientia_cognita, :storage_module, ScientiaCognita.MockStorage
+# Waffle: use local filesystem in tests (no real S3 calls)
+config :waffle, storage: Waffle.Storage.Local
+config :waffle, storage_dir_prefix: "priv/waffle_test"
+config :scientia_cognita, :uploader_module, ScientiaCognita.MockUploader
 
 # Oban testing mode — jobs do not run automatically
 config :scientia_cognita, Oban, testing: :manual

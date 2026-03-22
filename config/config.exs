@@ -88,6 +88,9 @@ config :scientia_cognita, Oban,
 config :ex_aws,
   json_codec: Jason
 
+# T05 — Waffle file uploads (delegates to ExAws S3)
+config :waffle, storage: Waffle.Storage.S3
+
 # T06 — Gemini API (key set via GEMINI_API_KEY env var in runtime.exs)
 config :scientia_cognita, :gemini, model: "gemini-3.1-flash-lite-preview"
 
