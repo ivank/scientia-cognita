@@ -44,20 +44,12 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
             <.icon name="hero-arrow-path" class="size-4" /> Restart
           </button>
           <button
-            :if={@source.status == "done" and @failed_count > 0}
+            :if={@retryable_count > 0}
             class="btn btn-warning btn-sm gap-2"
-            phx-click="retry_failed_items"
+            phx-click="retry_items"
             phx-disable-with="Retrying…"
           >
-            <.icon name="hero-arrow-path" class="size-4" /> Retry {@failed_count} failed
-          </button>
-          <button
-            :if={@discarded_count > 0}
-            class="btn btn-warning btn-sm gap-2"
-            phx-click="retry_discarded_items"
-            phx-disable-with="Retrying…"
-          >
-            <.icon name="hero-arrow-path" class="size-4" /> Retry {@discarded_count} discarded
+            <.icon name="hero-arrow-path" class="size-4" /> Retry {@retryable_count} items
           </button>
           <button
             class="btn btn-error btn-sm gap-2"
@@ -457,40 +449,14 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      |> push_navigate(to: ~p"/console/sources")}
   end
 
-  def handle_event("retry_discarded_items", _, socket) do
-    source = socket.assigns.source
-
-    items_to_retry =
-      Catalog.list_items_by_source(source)
-      |> Enum.filter(&(&1.status == "discarded"))
-
-    Enum.each(items_to_retry, fn item ->
-      {status, worker} =
-        cond do
-          is_nil(item.original_image) -> {"pending", DownloadImageWorker}
-          is_nil(item.processed_image) -> {"processing", ProcessImageWorker}
-          is_nil(item.text_color) -> {"color_analysis", ColorAnalysisWorker}
-          true -> {"render", RenderWorker}
-        end
-
-      {:ok, _} = Catalog.update_item_status(item, status, error: nil)
-      %{item_id: item.id} |> worker.new() |> Oban.insert()
-    end)
-
-    {:noreply,
-     socket
-     |> assign_source_stats(Catalog.get_source!(source.id))
-     |> put_flash(:info, "Retrying #{length(items_to_retry)} discarded items")}
-  end
-
-  def handle_event("retry_failed_items", _, socket) do
+  def handle_event("retry_items", _, socket) do
     source = socket.assigns.source
     stuck_ids = socket.assigns.stuck_ids
 
     items_to_retry =
       Catalog.list_items_by_source(source)
       |> Enum.filter(fn item ->
-        item.status == "failed" or MapSet.member?(stuck_ids, item.id)
+        item.status in ["failed", "discarded"] or MapSet.member?(stuck_ids, item.id)
       end)
 
     Enum.each(items_to_retry, fn item ->
@@ -519,12 +485,15 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp assign_source_stats(socket, source) do
     status_counts = Catalog.count_items_by_status(source)
     stuck_ids = Catalog.list_stuck_item_ids(source) |> MapSet.new()
+    retryable_count =
+      (status_counts["failed"] || 0) +
+        (status_counts["discarded"] || 0) +
+        MapSet.size(stuck_ids)
 
     socket
     |> assign(:source, source)
     |> assign(:status_counts, status_counts)
-    |> assign(:failed_count, status_counts["failed"] || 0)
-    |> assign(:discarded_count, status_counts["discarded"] || 0)
+    |> assign(:retryable_count, retryable_count)
     |> assign(:stuck_ids, stuck_ids)
   end
 
