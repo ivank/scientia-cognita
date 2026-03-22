@@ -27,10 +27,10 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
     else
       Logger.info("[DownloadImageWorker] item=#{item_id} url=#{item.original_url}")
 
-      with {:ok, item} <- fsm_transition(item, "downloading"),
+      with {:ok, item} <- maybe_start_downloading(item),
            {:ok, {binary, content_type}} <- download(item.original_url),
            ext = ext_from_content_type(content_type),
-           {:ok, file} <- @uploader.store({%{binary: binary, file_name: "original#{ext}"}, item}),
+           {:ok, file} <- safe_store({%{binary: binary, file_name: "original#{ext}"}, item}),
            {:ok, item} <-
              fsm_transition(item, "processing", %{
                original_image: %{file_name: file, updated_at: nil}
@@ -51,6 +51,21 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
           :ok
       end
     end
+  end
+
+  # Idempotent: if a previous Oban attempt already moved this item to "downloading"
+  # (e.g. the uploader raised before we could finish), skip the FSM transition and
+  # proceed directly to the upload step.
+  defp maybe_start_downloading(%{status: "downloading"} = item), do: {:ok, item}
+  defp maybe_start_downloading(item), do: fsm_transition(item, "downloading")
+
+  # Convert uploader exceptions (e.g. S3/MinIO connection errors) into
+  # {:error, reason} so the with-chain handles them uniformly rather than
+  # crashing the Oban job and leaving the item stuck in "downloading".
+  defp safe_store(arg) do
+    {:ok, _} = @uploader.store(arg)
+  rescue
+    e -> {:error, Exception.message(e)}
   end
 
   defp download(url) do
