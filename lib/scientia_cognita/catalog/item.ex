@@ -22,6 +22,8 @@ defmodule ScientiaCognita.Catalog.Item do
       "render" => ["ready", "failed"]
     }
 
+  alias ScientiaCognita.Uploaders.ItemImageUploader
+
   @statuses ~w(pending downloading processing color_analysis render ready failed)
 
   @type status :: String.t()
@@ -35,8 +37,9 @@ defmodule ScientiaCognita.Catalog.Item do
           author: String.t() | nil,
           copyright: String.t() | nil,
           original_url: String.t() | nil,
-          storage_key: String.t() | nil,
-          processed_key: String.t() | nil,
+          original_image:  term() | nil,
+          processed_image: term() | nil,
+          final_image:     term() | nil,
           status: status(),
           error: String.t() | nil,
           text_color: String.t() | nil,
@@ -55,8 +58,9 @@ defmodule ScientiaCognita.Catalog.Item do
     field :author, :string
     field :copyright, :string
     field :original_url, :string
-    field :storage_key, :string
-    field :processed_key, :string
+    field :original_image,  ItemImageUploader.Type
+    field :processed_image, ItemImageUploader.Type
+    field :final_image,     ItemImageUploader.Type
     field :status, :string, default: "pending"
     field :error, :string
 
@@ -96,7 +100,7 @@ defmodule ScientiaCognita.Catalog.Item do
   @doc "Used by Catalog.update_item_storage/2 for fixture setup."
   def storage_changeset(item, attrs) do
     item
-    |> cast(attrs, [:storage_key, :processed_key])
+    |> cast(attrs, [:original_image, :processed_image, :final_image])
   end
 
   @doc "Used by Catalog.update_item_colors/2 for fixture setup."
@@ -114,15 +118,15 @@ defmodule ScientiaCognita.Catalog.Item do
 
   def transition_changeset(changeset, "downloading", "processing", params) do
     changeset
-    |> cast(params, [:storage_key])
-    |> validate_required([:storage_key])
+    |> cast(params, [:original_image])
+    |> validate_required([:original_image])
     |> put_change(:error, nil)
   end
 
   def transition_changeset(changeset, "processing", "color_analysis", params) do
     changeset
-    |> cast(params, [:processed_key])
-    |> validate_required([:processed_key])
+    |> cast(params, [:processed_image])
+    |> validate_required([:processed_image])
   end
 
   def transition_changeset(changeset, "color_analysis", "render", params) do
@@ -131,12 +135,12 @@ defmodule ScientiaCognita.Catalog.Item do
     |> validate_required([:text_color, :bg_color, :bg_opacity])
   end
 
-  # NOTE: spec says "no extra fields required" but we intentionally cast processed_key
+  # NOTE: spec says "no extra fields required" but we intentionally cast final_image
   # here so RenderWorker can write the final rendered image path atomically in
   # the render→ready transition, eliminating a separate update_item_storage call.
   def transition_changeset(changeset, "render", "ready", params) do
     changeset
-    |> cast(params, [:processed_key])
+    |> cast(params, [:final_image])
     |> put_change(:error, nil)
   end
 

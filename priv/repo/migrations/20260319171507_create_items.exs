@@ -8,8 +8,9 @@ defmodule ScientiaCognita.Repo.Migrations.CreateItems do
       add :author, :string
       add :copyright, :string
       add :original_url, :string
-      add :storage_key, :string
-      add :processed_key, :string
+      add :original_image,  :string
+      add :processed_image, :string
+      add :final_image,     :string
       add :status, :string, null: false, default: "pending"
       add :error, :text
       add :source_id, references(:sources, on_delete: :delete_all), null: false
