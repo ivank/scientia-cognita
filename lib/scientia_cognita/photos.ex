@@ -16,16 +16,21 @@ defmodule ScientiaCognita.Photos do
     Repo.get_by(PhotoExport, user_id: user.id, catalog_id: catalog.id)
   end
 
-  @doc "Returns the existing export, or inserts a new pending one."
+  @doc "Returns the existing export, or inserts a new pending one. Race-safe via on_conflict."
   def get_or_create_export(user, catalog) do
-    case get_export_for_user(user, catalog) do
-      nil ->
-        %PhotoExport{}
-        |> PhotoExport.changeset(%{user_id: user.id, catalog_id: catalog.id, status: "pending"})
-        |> Repo.insert()
+    attrs = %{user_id: user.id, catalog_id: catalog.id, status: "pending"}
+    changeset = PhotoExport.changeset(%PhotoExport{}, attrs)
 
-      export ->
+    case Repo.insert(changeset, on_conflict: :nothing) do
+      {:ok, %PhotoExport{id: nil}} ->
+        # Conflict — row already existed (concurrent insert); fetch and return it
+        {:ok, get_export_for_user(user, catalog)}
+
+      {:ok, export} ->
         {:ok, export}
+
+      {:error, _} = error ->
+        error
     end
   end
 

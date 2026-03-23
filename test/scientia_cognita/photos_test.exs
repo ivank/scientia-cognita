@@ -23,6 +23,13 @@ defmodule ScientiaCognita.PhotosTest do
       {:ok, export} = Photos.get_or_create_export(user, catalog)
       assert Photos.get_export_for_user(user, catalog).id == export.id
     end
+
+    test "does not return another user's export", %{catalog: catalog} do
+      owner = user_fixture()
+      other = user_fixture()
+      {:ok, _} = Photos.get_or_create_export(owner, catalog)
+      assert Photos.get_export_for_user(other, catalog) == nil
+    end
   end
 
   describe "get_or_create_export/2" do
