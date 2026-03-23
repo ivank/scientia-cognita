@@ -100,7 +100,7 @@ config :ueberauth, Ueberauth,
     google: {
       Ueberauth.Strategy.Google,
       [
-        default_scope: "email profile https://www.googleapis.com/auth/photoslibrary.appendonly",
+        default_scope: "email profile https://www.googleapis.com/auth/photoslibrary.appendonly https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata",
         access_type: "offline",
         prompt: "consent"
       ]

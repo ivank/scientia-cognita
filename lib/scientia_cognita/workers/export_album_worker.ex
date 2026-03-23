@@ -1,17 +1,21 @@
 defmodule ScientiaCognita.Workers.ExportAlbumWorker do
   @moduledoc """
-  Oban worker that exports a catalog to a Google Photos album.
+  Oban worker that exports (or syncs) a catalog to a Google Photos album.
 
   Flow:
-    1. Create a new album in Google Photos with the catalog name.
-    2. For each item with a processed image, upload the bytes and collect upload tokens.
-    3. Batch-create media items in the album.
-    4. Broadcast progress and final album URL over PubSub.
+    1. Upsert a PhotoExport record and set status: running.
+    2. Create the Google Photos album if album_id is nil.
+    3. Determine which items are not yet uploaded (incremental sync).
+    4. Upload each new item's bytes to get an upload token. Record failures.
+    5. Batch-create media items in the album (50 per call).
+       After each successful batch, mark those items as uploaded in the DB.
+    6. Set export status: done, persist album_url, broadcast done.
+    7. On crash: set export status: failed, broadcast failed.
   """
 
   use Oban.Worker, queue: :export, max_attempts: 2
 
-  alias ScientiaCognita.{Catalog, Accounts}
+  alias ScientiaCognita.{Catalog, Accounts, Photos}
   alias ScientiaCognita.Uploaders.ItemImageUploader
 
   @photos_base "https://photoslibrary.googleapis.com/v1"
@@ -20,55 +24,110 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
   def perform(%Oban.Job{args: %{"catalog_id" => catalog_id, "user_id" => user_id}}) do
     catalog = Catalog.get_catalog!(catalog_id)
     user = Accounts.get_user!(user_id)
-    items = Catalog.list_catalog_items(catalog)
-    topic = "export:#{catalog_id}"
-
+    all_items = Catalog.list_catalog_items(catalog)
     token = user.google_access_token
+    topic = "export:#{catalog_id}:#{user_id}"
 
-    # 1. Create album
-    {:ok, album_id} = create_album(token, catalog.name)
+    # 1. Upsert export and mark running
+    {:ok, export} = Photos.get_or_create_export(user, catalog)
+    {:ok, export} = Photos.set_export_status(export, "running")
 
-    # 2. Upload images and gather tokens
-    total = Enum.count(items, & &1.final_image)
+    # 2. Create album in Google Photos if this is the first run
+    export =
+      if is_nil(export.album_id) do
+        {:ok, album_id, album_url} = create_album!(token, catalog.name)
+        {:ok, export} = Photos.set_export_status(export, "running", album_id: album_id, album_url: album_url)
+        export
+      else
+        export
+      end
 
-    upload_tokens =
-      items
+    # 3. Skip already-uploaded items (incremental sync)
+    already_uploaded_ids = Photos.list_uploaded_item_ids(export)
+
+    items_to_upload =
+      all_items
       |> Enum.filter(& &1.final_image)
+      |> Enum.reject(&(&1.id in already_uploaded_ids))
+
+    total = length(items_to_upload)
+
+    # 4. Upload bytes and collect {item, upload_token} pairs.
+    # Items are prepended (reversed at step 5) for O(1) accumulation.
+    {successful_pairs, _} =
+      items_to_upload
       |> Enum.with_index(1)
-      |> Enum.map(fn {item, idx} ->
-        image_binary = fetch_image(item)
-        {:ok, upload_token} = upload_bytes(token, image_binary, item.title)
+      |> Enum.reduce({[], 0}, fn {item, idx}, {acc, _} ->
+        fetch_result = fetch_image(item)
 
-        Phoenix.PubSub.broadcast(
-          ScientiaCognita.PubSub,
-          topic,
-          {:export_progress, %{uploaded: idx, total: total}}
-        )
+        case fetch_result do
+          {:error, reason} ->
+            {:ok, _} = Photos.set_item_failed(export, item, reason)
+            {acc, idx}
 
-        {item, upload_token}
+          {:ok, image_binary} ->
+            case upload_bytes(token, image_binary, item.title) do
+              {:ok, upload_token} ->
+                Phoenix.PubSub.broadcast(
+                  ScientiaCognita.PubSub,
+                  topic,
+                  {:export_progress, %{uploaded: idx, total: total}}
+                )
+
+                {[{item, upload_token} | acc], idx}
+
+              {:error, reason} ->
+                {:ok, _} = Photos.set_item_failed(export, item, reason)
+                {acc, idx}
+            end
+        end
       end)
 
-    # 3. Batch create media items (Google Photos allows up to 50 per call)
-    upload_tokens
+    # 5. Batch-create media items, mark each batch as uploaded in DB after confirmed success
+    successful_pairs
+    |> Enum.reverse()
     |> Enum.chunk_every(50)
     |> Enum.each(fn chunk ->
-      batch_add_items(token, album_id, chunk)
+      # NOTE: batch_add_items raises on non-200; if it raises, the rescue block
+      # catches it. Items in the failed batch stay pending and will retry on next sync.
+      :ok = batch_add_items(token, export.album_id, chunk)
+
+      Enum.each(chunk, fn {item, _token} ->
+        Photos.set_item_uploaded(export, item)
+      end)
     end)
 
-    # 4. Build shareable link
-    album_url = "https://photos.google.com/album/#{album_id}"
+    # 6. Mark done, broadcast
+    {:ok, _} = Photos.set_export_status(export, "done")
 
     Phoenix.PubSub.broadcast(
       ScientiaCognita.PubSub,
       topic,
-      {:export_done, %{album_url: album_url}}
+      {:export_done, %{album_url: export.album_url}}
     )
 
     :ok
   rescue
     e ->
-      topic = "export:#{Map.get(e, :catalog_id, "unknown")}"
-      Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {:export_failed, inspect(e)})
+      # catalog_id and user_id are local variables from the function head — use them directly.
+      # Do NOT use Map.get(e, :catalog_id) — exception structs don't carry job args.
+      try do
+        if export = Photos.get_export_for_user(
+             Accounts.get_user!(user_id),
+             Catalog.get_catalog!(catalog_id)
+           ) do
+          Photos.set_export_status(export, "failed", error: Exception.message(e))
+        end
+      rescue
+        _ -> :ok
+      end
+
+      Phoenix.PubSub.broadcast(
+        ScientiaCognita.PubSub,
+        "export:#{catalog_id}:#{user_id}",
+        {:export_failed, Exception.message(e)}
+      )
+
       reraise e, __STACKTRACE__
   end
 
@@ -76,7 +135,8 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
   # Google Photos API helpers
   # ---------------------------------------------------------------------------
 
-  defp create_album(token, name) do
+  # Raises on failure so the job fails fast with a clear error message in the rescue block.
+  defp create_album!(token, name) do
     response =
       Req.post!(
         "#{@photos_base}/albums",
@@ -85,8 +145,8 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       )
 
     case response.status do
-      200 -> {:ok, response.body["id"]}
-      _ -> {:error, response.body}
+      200 -> {:ok, response.body["id"], response.body["productUrl"]}
+      status -> raise "Failed to create Google Photos album: HTTP #{status} — #{inspect(response.body)}"
     end
   end
 
@@ -105,7 +165,7 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
 
     case response.status do
       200 -> {:ok, response.body}
-      _ -> {:error, response.body}
+      _ -> {:error, "HTTP #{response.status}: #{inspect(response.body)}"}
     end
   end
 
@@ -121,18 +181,26 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
         }
       end)
 
-    Req.post!(
-      "#{@photos_base}/mediaItems:batchCreate",
-      json: %{albumId: album_id, newMediaItems: new_media_items},
-      headers: [{"Authorization", "Bearer #{token}"}]
-    )
+    response =
+      Req.post!(
+        "#{@photos_base}/mediaItems:batchCreate",
+        json: %{albumId: album_id, newMediaItems: new_media_items},
+        headers: [{"Authorization", "Bearer #{token}"}]
+      )
+
+    case response.status do
+      200 -> :ok
+      status -> raise "batchCreate failed with HTTP #{status}: #{inspect(response.body)}"
+    end
   end
 
-  # Intentional: uses Req.get! directly rather than @http injection.
-  # ExportAlbumWorker is not unit-tested with a storage mock; direct call is fine here.
   defp fetch_image(item) do
     url = ItemImageUploader.url({item.final_image, item})
-    response = Req.get!(url)
-    response.body
+
+    case Req.get(url) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status}} -> {:error, "fetch failed HTTP #{status} for #{url}"}
+      {:error, reason} -> {:error, "fetch error: #{inspect(reason)}"}
+    end
   end
 end

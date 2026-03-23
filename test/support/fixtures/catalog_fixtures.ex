@@ -112,6 +112,17 @@ defmodule ScientiaCognita.CatalogFixtures do
     end
   end
 
+  def catalog_fixture(attrs \\ %{}) do
+    {:ok, catalog} =
+      attrs
+      |> Enum.into(%{
+        name: "Test Catalog #{System.unique_integer([:positive])}"
+      })
+      |> ScientiaCognita.Catalog.create_catalog()
+
+    catalog
+  end
+
   defp unique_url do
     "https://example-#{System.unique_integer([:positive])}.com/gallery"
   end
