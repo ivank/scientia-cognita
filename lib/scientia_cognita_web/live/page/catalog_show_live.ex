@@ -393,9 +393,14 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
 
   @impl true
   def handle_event("open_lightbox", %{"item-id" => item_id}, socket) do
-    item_id = String.to_integer(item_id)
-    item = Enum.find(socket.assigns.catalog_items, &(&1.id == item_id))
-    {:noreply, assign(socket, :lightbox_item, item)}
+    case Integer.parse(item_id) do
+      {id, ""} ->
+        item = Enum.find(socket.assigns.catalog_items, &(&1.id == id))
+        {:noreply, assign(socket, :lightbox_item, item)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event("close_lightbox", _params, socket) do
@@ -403,23 +408,22 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   end
 
   def handle_event("export_to_google_photos", _params, socket) do
-    user = socket.assigns.current_scope.user
-    catalog = socket.assigns.catalog
+    if is_nil(socket.assigns.current_scope) do
+      {:noreply, socket}
+    else
+      user = socket.assigns.current_scope.user
+      catalog = socket.assigns.catalog
 
-    {:ok, _job} =
-      %{catalog_id: catalog.id, user_id: user.id}
-      |> ScientiaCognita.Workers.ExportAlbumWorker.new()
-      |> Oban.insert()
+      {:ok, _job} =
+        %{catalog_id: catalog.id, user_id: user.id}
+        |> ScientiaCognita.Workers.ExportAlbumWorker.new()
+        |> Oban.insert()
 
-    # NOTE: The hero banner will continue showing the previous state until the
-    # worker starts and broadcasts {:export_progress, ...} (which triggers a
-    # reload_export). This is a brief delay (< 1s in normal conditions). An
-    # optimistic assign of a fake running export struct could reduce this flash,
-    # but is not required for correctness.
-    {:noreply,
-     socket
-     |> assign(:export_progress, 0)
-     |> assign(:export_total, length(socket.assigns.catalog_items))}
+      {:noreply,
+       socket
+       |> assign(:export_progress, 0)
+       |> assign(:export_total, length(socket.assigns.catalog_items))}
+    end
   end
 
   def handle_event("delete_album", _params, socket) do
@@ -432,14 +436,20 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
 
   def handle_event("confirm_delete_album", _params, socket) do
     export = socket.assigns.export
-    user = socket.assigns.current_scope.user
+    scope = socket.assigns.current_scope
 
-    {:ok, _job} =
-      %{photo_export_id: export.id, user_id: user.id}
-      |> ScientiaCognita.Workers.DeleteAlbumWorker.new()
-      |> Oban.insert()
+    if is_nil(scope) or is_nil(export) do
+      {:noreply, assign(socket, :show_delete_confirm, false)}
+    else
+      user = scope.user
 
-    {:noreply, assign(socket, :show_delete_confirm, false)}
+      {:ok, _job} =
+        %{photo_export_id: export.id, user_id: user.id}
+        |> ScientiaCognita.Workers.DeleteAlbumWorker.new()
+        |> Oban.insert()
+
+      {:noreply, assign(socket, :show_delete_confirm, false)}
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -511,6 +521,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   end
 
   defp failed_item_count(statuses) do
-    Enum.count(statuses, fn {_id, %{status: s}} -> s == "failed" end)
+    Enum.count(statuses, fn {_id, v} -> Map.get(v, :status) == "failed" end)
   end
 end
