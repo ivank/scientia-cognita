@@ -35,8 +35,8 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
     # 2. Create album in Google Photos if this is the first run
     export =
       if is_nil(export.album_id) do
-        {:ok, album_id} = create_album!(token, catalog.name)
-        {:ok, export} = Photos.set_export_status(export, "running", album_id: album_id)
+        {:ok, album_id, album_url} = create_album!(token, catalog.name)
+        {:ok, export} = Photos.set_export_status(export, "running", album_id: album_id, album_url: album_url)
         export
       else
         export
@@ -97,14 +97,13 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       end)
     end)
 
-    # 6. Mark done, persist album_url, broadcast
-    album_url = "https://photos.google.com/album/#{export.album_id}"
-    {:ok, _} = Photos.set_export_status(export, "done", album_url: album_url)
+    # 6. Mark done, broadcast
+    {:ok, _} = Photos.set_export_status(export, "done")
 
     Phoenix.PubSub.broadcast(
       ScientiaCognita.PubSub,
       topic,
-      {:export_done, %{album_url: album_url}}
+      {:export_done, %{album_url: export.album_url}}
     )
 
     :ok
@@ -146,7 +145,7 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       )
 
     case response.status do
-      200 -> {:ok, response.body["id"]}
+      200 -> {:ok, response.body["id"], response.body["productUrl"]}
       status -> raise "Failed to create Google Photos album: HTTP #{status} — #{inspect(response.body)}"
     end
   end

@@ -27,6 +27,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
       <.hero_banner
         current_scope={@current_scope}
         export={@export}
+        export_item_statuses={@export_item_statuses}
         export_progress={@export_progress}
         export_total={@export_total}
         catalog_items={@catalog_items}
@@ -334,13 +335,21 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
                 </div>
               </div>
             </div>
-            <button
-              class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
-              phx-click="export_to_google_photos"
-              phx-disable-with="Retrying…"
-            >
-              <.icon name="hero-arrow-path" class="size-4" /> Retry failed items
-            </button>
+            <div class="flex gap-2 flex-wrap shrink-0">
+              <button
+                class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
+                phx-click="export_to_google_photos"
+                phx-disable-with="Retrying…"
+              >
+                <.icon name="hero-arrow-path" class="size-4" /> Retry
+              </button>
+              <.link
+                href={~p"/auth/google"}
+                class="btn btn-sm gap-2 bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
+              >
+                <.icon name="hero-link" class="size-4" /> Reconnect Google Photos
+              </.link>
+            </div>
           </div>
         </div>
 

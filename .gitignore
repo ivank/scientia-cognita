@@ -1,3 +1,6 @@
+# MacOS
+**/.DS_Store
+
 # The directory Mix will write compiled artifacts to.
 /_build/
 
@@ -46,3 +49,6 @@ npm-debug.log
 
 # Local secrets — never commit
 /config/*.secret.exs
+
+# Superpowers scratch pads
+.superpowers
