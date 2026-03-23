@@ -74,10 +74,12 @@ list_export_item_statuses(export)              # %{item_id => %{status, error}} 
 2. If `album_id` is nil: call Google Photos API to create album, persist `album_id` on the export
 3. Load already-uploaded item IDs via `Photos.list_uploaded_item_ids/1`
 4. For each catalog item **not** in that set:
-   - Upload bytes to Google Photos
-   - On success: call `Photos.set_item_uploaded/2`, broadcast progress
-   - On failure: call `Photos.set_item_failed/3`, continue (don't abort entire job)
-5. Batch-create media items in the album (50 per call)
+   - Upload bytes to Google Photos API (`POST /v1/uploads`) to obtain an `upload_token`
+   - On success: accumulate `{item, upload_token}` pair in memory; broadcast progress (`{:export_progress, %{uploaded: idx, total: total}}`)
+   - On failure: call `Photos.set_item_failed/3` with the error string; skip this item; continue with remaining items (don't abort the job)
+5. Batch-create media items in the album using the in-memory `{item, upload_token}` pairs accumulated in step 4. Chunk into batches of 50 (`POST /v1/mediaItems:batchCreate`). **After each successful batch:** call `Photos.set_item_uploaded/2` for each item in that batch. `uploaded` status means the item is confirmed in the album, not just that bytes were transferred.
+
+   `Photos.list_uploaded_item_ids/1` returns only items with `status: uploaded`. Items with `status: failed` are intentionally excluded and will be retried on the next sync.
 6. Set export `status: done`, persist `album_url`, broadcast `:export_done`
 7. On unrecoverable crash: set export `status: failed`, broadcast `:export_failed`
 
@@ -95,13 +97,17 @@ args: %{photo_export_id, user_id}
 ```
 
 1. Load export, verify `export.user_id == user_id` (authorization guard)
-2. Call `DELETE https://photoslibrary.googleapis.com/v1/albums/:album_id` with user's access token
-3. On success: call `Photos.set_export_status(export, :deleted)`, broadcast `:export_deleted`
+2. Attempt `DELETE https://photoslibrary.googleapis.com/v1/albums/:album_id` with user's access token
+   - If the endpoint returns 200/204: album is deleted from Google Photos
+   - If the endpoint returns 404 or 405 (API does not support album deletion): fall back to `POST /v1/albums/:album_id:batchRemoveMediaItems` to remove all items, leaving an empty album in the user's library. Log a warning.
+3. On success (either path): call `Photos.set_export_status(export, :deleted)`, broadcast `:export_deleted`
 4. On failure: broadcast `:export_delete_failed` with error
+
+**Note:** The Google Photos Library API's album delete endpoint (`DELETE /v1/albums/:id`) requires the `photoslibrary.edit.appcreateddata` scope and is only available for albums created by the app. If deletion is unavailable, the fallback removes all uploaded photos from the album, which is the next-best equivalent from a user perspective.
 
 ### Required OAuth scope addition
 
-Add `photoslibrary.edit.appcreateddata` to the Google OAuth redirect scopes (alongside existing `photoslibrary.appendonly`). This allows deleting only albums/items the app itself created.
+Add `photoslibrary.edit.appcreateddata` to the Google OAuth redirect scopes (alongside existing `photoslibrary.appendonly`). This allows deleting/modifying only albums and items the app itself created.
 
 ---
 
@@ -186,7 +192,8 @@ assign(socket,
 
 Handles new PubSub messages: `:export_deleted`, `:export_delete_failed`.
 
-On `:export_progress` / `:export_done` / `:export_failed`: update `export` assign by reloading from DB (or updating inline from message payload).
+On `:export_progress` (`%{uploaded: n, total: t}`): update progress counters inline from message payload (no DB round-trip needed).
+On `:export_done` / `:export_failed` / `:export_deleted`: reload the full `export` struct from DB to get the latest persisted state, then refresh `export_item_statuses` from DB as well.
 
 ---
 
