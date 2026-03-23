@@ -11,6 +11,8 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
 
   use Oban.Worker, queue: :export, max_attempts: 2
 
+  require Logger
+
   alias ScientiaCognita.{Accounts, Photos, Repo}
   alias ScientiaCognita.Photos.PhotoExport
 
@@ -70,7 +72,6 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
 
       s when s in [404, 405] ->
         # API doesn't support album deletion — clear all items instead
-        require Logger
         Logger.warning("Google Photos album DELETE not supported (HTTP #{s}), falling back to clearing items")
         clear_album_items(token, album_id)
 
@@ -88,15 +89,19 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
       {:ok, media_item_ids} ->
         media_item_ids
         |> Enum.chunk_every(50)
-        |> Enum.each(fn chunk ->
-          Req.post!(
-            "#{@photos_base}/albums/#{album_id}:batchRemoveMediaItems",
-            json: %{mediaItemIds: chunk},
-            headers: [{"Authorization", "Bearer #{token}"}]
-          )
-        end)
+        |> Enum.reduce_while(:ok, fn chunk, :ok ->
+          response =
+            Req.post!(
+              "#{@photos_base}/albums/#{album_id}:batchRemoveMediaItems",
+              json: %{mediaItemIds: chunk},
+              headers: [{"Authorization", "Bearer #{token}"}]
+            )
 
-        :ok
+          case response.status do
+            200 -> {:cont, :ok}
+            status -> {:halt, {:error, "batchRemoveMediaItems failed HTTP #{status}: #{inspect(response.body)}"}}
+          end
+        end)
 
       {:error, reason} ->
         {:error, reason}
