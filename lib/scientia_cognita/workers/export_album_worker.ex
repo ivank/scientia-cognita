@@ -35,7 +35,7 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
     # 2. Create album in Google Photos if this is the first run
     export =
       if is_nil(export.album_id) do
-        {:ok, album_id} = create_album(token, catalog.name)
+        {:ok, album_id} = create_album!(token, catalog.name)
         {:ok, export} = Photos.set_export_status(export, "running", album_id: album_id)
         export
       else
@@ -52,24 +52,34 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
 
     total = length(items_to_upload)
 
-    # 4. Upload bytes and collect {item, upload_token} pairs
+    # 4. Upload bytes and collect {item, upload_token} pairs.
+    # Items are prepended (reversed at step 5) for O(1) accumulation.
     {successful_pairs, _} =
       items_to_upload
       |> Enum.with_index(1)
       |> Enum.reduce({[], 0}, fn {item, idx}, {acc, _} ->
-        case upload_bytes(token, fetch_image(item), item.title) do
-          {:ok, upload_token} ->
-            Phoenix.PubSub.broadcast(
-              ScientiaCognita.PubSub,
-              topic,
-              {:export_progress, %{uploaded: idx, total: total}}
-            )
+        fetch_result = fetch_image(item)
 
-            {[{item, upload_token} | acc], idx}
-
+        case fetch_result do
           {:error, reason} ->
-            Photos.set_item_failed(export, item, reason)
+            {:ok, _} = Photos.set_item_failed(export, item, reason)
             {acc, idx}
+
+          {:ok, image_binary} ->
+            case upload_bytes(token, image_binary, item.title) do
+              {:ok, upload_token} ->
+                Phoenix.PubSub.broadcast(
+                  ScientiaCognita.PubSub,
+                  topic,
+                  {:export_progress, %{uploaded: idx, total: total}}
+                )
+
+                {[{item, upload_token} | acc], idx}
+
+              {:error, reason} ->
+                {:ok, _} = Photos.set_item_failed(export, item, reason)
+                {acc, idx}
+            end
         end
       end)
 
@@ -126,7 +136,8 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
   # Google Photos API helpers
   # ---------------------------------------------------------------------------
 
-  defp create_album(token, name) do
+  # Raises on failure so the job fails fast with a clear error message in the rescue block.
+  defp create_album!(token, name) do
     response =
       Req.post!(
         "#{@photos_base}/albums",
@@ -136,7 +147,7 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
 
     case response.status do
       200 -> {:ok, response.body["id"]}
-      _ -> {:error, inspect(response.body)}
+      status -> raise "Failed to create Google Photos album: HTTP #{status} — #{inspect(response.body)}"
     end
   end
 
@@ -186,6 +197,11 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
 
   defp fetch_image(item) do
     url = ItemImageUploader.url({item.final_image, item})
-    Req.get!(url).body
+
+    case Req.get(url) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status}} -> {:error, "fetch failed HTTP #{status} for #{url}"}
+      {:error, reason} -> {:error, "fetch error: #{inspect(reason)}"}
+    end
   end
 end
