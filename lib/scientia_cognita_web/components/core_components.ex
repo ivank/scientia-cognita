@@ -452,6 +452,8 @@ defmodule ScientiaCognitaWeb.CoreComponents do
     initials
   end
 
+  def user_initials(_), do: "??"
+
   @doc """
   Renders a circular initials avatar.
 

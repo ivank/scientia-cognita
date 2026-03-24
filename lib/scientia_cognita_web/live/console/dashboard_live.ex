@@ -7,7 +7,7 @@ defmodule ScientiaCognitaWeb.Console.DashboardLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <.breadcrumb items={[%{label: "Console"}]} />
+      <.breadcrumb items={[%{label: "Console", href: ~p"/console"}, %{label: "Dashboard"}]} />
       <div>
         <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
           Dashboard
