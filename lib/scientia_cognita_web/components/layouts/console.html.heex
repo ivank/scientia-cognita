@@ -3,15 +3,14 @@
 
   <%!-- Main content area --%>
   <div class="drawer-content flex flex-col">
-    <%!-- Mobile-only top navbar --%>
-    <div class="navbar bg-base-200 border-b border-base-300 lg:hidden px-4">
+    <%!-- Mobile-only top navbar — no theme toggle --%>
+    <div class="navbar bg-base-200 border-b border-base-300 lg:hidden px-4 h-12 min-h-0">
       <label for="console-drawer" class="btn btn-ghost btn-sm">
         <.icon name="hero-bars-3" class="size-5" />
       </label>
-      <span class="font-semibold ml-2">Scientia Cognita</span>
-      <div class="ml-auto">
-        <.theme_toggle />
-      </div>
+      <span style="font-family: var(--sc-font-serif);" class="font-normal ml-2 text-base-content">
+        Scientia Cognita
+      </span>
     </div>
 
     <%!-- Page content --%>
@@ -28,10 +27,15 @@
     <aside class="w-64 min-h-full bg-base-200 border-r border-base-300 flex flex-col">
       <%!-- Logo --%>
       <div class="p-4 flex items-center gap-3 border-b border-base-300">
-        <img src="/apple-touch-icon.png" class="size-9 rounded-xl" />
+        <img src="/apple-touch-icon.png" class="size-8 rounded-[6px]" alt="" />
         <div>
-          <div class="font-bold text-sm leading-tight">Scientia Cognita</div>
-          <div class="text-xs text-base-content/50 uppercase tracking-wider">Console</div>
+          <div
+            style="font-family: var(--sc-font-serif);"
+            class="font-normal text-sm text-base-content leading-tight"
+          >
+            Scientia Cognita
+          </div>
+          <div class="text-[9px] text-neutral uppercase tracking-widest mt-0.5">Console</div>
         </div>
       </div>
 
@@ -39,54 +43,50 @@
       <nav class="flex-1 p-3 space-y-1">
         <ul class="menu menu-sm gap-0.5">
           <li>
-            <.link navigate={~p"/console"} class="flex items-center gap-3 rounded-lg">
+            <.link navigate={~p"/console"} class="flex items-center gap-3">
               <.icon name="hero-squares-2x2" class="size-4 shrink-0" /> Dashboard
             </.link>
           </li>
           <li>
-            <.link navigate={~p"/console/users"} class="flex items-center gap-3 rounded-lg">
+            <.link navigate={~p"/console/users"} class="flex items-center gap-3">
               <.icon name="hero-users" class="size-4 shrink-0" /> Users
             </.link>
           </li>
-          <li class="menu-title text-xs mt-3 mb-0.5">Content</li>
+          <li class="menu-title text-[9px] uppercase tracking-widest mt-3 mb-0.5 text-neutral/60">
+            Content
+          </li>
           <li>
-            <.link navigate={~p"/console/sources"} class="flex items-center gap-3 rounded-lg">
+            <.link navigate={~p"/console/sources"} class="flex items-center gap-3">
               <.icon name="hero-globe-alt" class="size-4 shrink-0" /> Sources
             </.link>
           </li>
           <li>
-            <.link navigate={~p"/console/catalogs"} class="flex items-center gap-3 rounded-lg">
+            <.link navigate={~p"/console/catalogs"} class="flex items-center gap-3">
               <.icon name="hero-rectangle-stack" class="size-4 shrink-0" /> Catalogs
             </.link>
           </li>
         </ul>
       </nav>
 
-      <%!-- Bottom: theme + user info + logout --%>
-      <div class="p-3 border-t border-base-300 space-y-3">
-        <div class="flex justify-center">
-          <.theme_toggle />
-        </div>
-
+      <%!-- Bottom: user info + logout — no theme toggle --%>
+      <div class="p-3 border-t border-base-300 space-y-2">
         <%= if @current_scope do %>
           <div class="flex items-center gap-2 px-1">
-            <div class="avatar placeholder">
-              <div class="bg-primary text-primary-content rounded-full size-8 text-sm font-bold">
-                <span>{String.upcase(String.first(@current_scope.user.email))}</span>
-              </div>
-            </div>
+            <.avatar initials={user_initials(@current_scope.user.email)} size="sm" />
             <div class="flex-1 min-w-0">
-              <div class="text-xs font-medium truncate">{@current_scope.user.email}</div>
-              <div class={"badge badge-xs #{if @current_scope.user.role == "owner", do: "badge-accent", else: "badge-primary"}"}>
-                {@current_scope.user.role}
+              <div class="text-xs font-medium truncate text-base-content">
+                {@current_scope.user.email}
               </div>
+              <span class={"badge badge-xs mt-0.5 #{if @current_scope.user.role == "owner", do: "badge-accent", else: "badge-primary"}"}>
+                {@current_scope.user.role}
+              </span>
             </div>
           </div>
 
           <.link
             href={~p"/users/log-out"}
             method="delete"
-            class="btn btn-ghost btn-sm w-full justify-start gap-2 text-base-content/70 hover:text-base-content"
+            class="btn btn-ghost btn-sm w-full justify-start gap-2 text-base-content/60 hover:text-base-content"
           >
             <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Sign out
           </.link>

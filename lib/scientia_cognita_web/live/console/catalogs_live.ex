@@ -10,10 +10,16 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Catalogs"}
+      ]} />
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold">Catalogs</h1>
-          <p class="text-base-content/60 mt-1">Curated collections published to Google Photos</p>
+          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+            Catalogs
+          </h1>
+          <p class="text-neutral text-sm mt-1">Curated collections published to Google Photos</p>
         </div>
         <button class="btn btn-primary gap-2" phx-click="open_new_modal">
           <.icon name="hero-plus" class="size-4" /> New Catalog
@@ -55,7 +61,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 class="font-bold text-lg">New Catalog</h3>
+        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">New Catalog</h3>
 
         <.form for={@form} phx-submit="create_catalog" phx-change="validate" class="mt-4 space-y-4">
           <div class="form-control">

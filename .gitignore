@@ -50,5 +50,5 @@ npm-debug.log
 # Local secrets — never commit
 /config/*.secret.exs
 
-# Superpowers scratch pads
-.superpowers
+# Superpowers scratch pads and visual companion mockups
+.superpowers/

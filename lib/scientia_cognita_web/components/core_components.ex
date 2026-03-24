@@ -419,6 +419,110 @@ defmodule ScientiaCognitaWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Derives two uppercase initials from a user's email address.
+
+  Algorithm:
+    1. Take local part (before "@")
+    2. Split on "." or "_"
+    3. Take first char of each segment, up to 2, uppercase
+    4. If single segment, take first 2 chars of that segment, uppercase
+
+  ## Examples
+
+      iex> user_initials("ivan.kerin@example.com")
+      "IK"
+      iex> user_initials("ivantest@example.com")
+      "IV"
+  """
+  def user_initials(email) when is_binary(email) do
+    local = email |> String.split("@") |> List.first() |> String.downcase()
+    parts = String.split(local, ~r/[._]/, trim: true)
+
+    initials =
+      case parts do
+        [single] ->
+          chars = single |> String.slice(0, 2) |> String.upcase()
+          String.pad_trailing(chars, 2, String.upcase(String.first(single)))
+
+        [first | rest] ->
+          (String.first(first) <> String.first(hd(rest))) |> String.upcase()
+      end
+
+    initials
+  end
+
+  def user_initials(_), do: "??"
+
+  @doc """
+  Renders a circular initials avatar.
+
+  ## Attributes
+
+    * `initials` - two-character string (use `user_initials/1`)
+    * `size` - "sm" (28px), "md" (32px, default), "lg" (40px)
+
+  ## Examples
+
+      <.avatar initials={user_initials(@current_scope.user.email)} />
+      <.avatar initials={user_initials(@current_scope.user.email)} size="lg" />
+  """
+  attr :initials, :string, required: true
+  attr :size, :string, default: "md", values: ~w(sm md lg)
+
+  def avatar(assigns) do
+    ~H"""
+    <div class={[
+      "rounded-full bg-primary text-primary-content font-bold font-sans",
+      "flex items-center justify-center shrink-0 select-none",
+      @size == "sm" && "w-7 h-7 text-xs",
+      @size == "md" && "w-8 h-8 text-sm",
+      @size == "lg" && "w-10 h-10 text-base"
+    ]}>
+      {@initials}
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a breadcrumb trail for console pages.
+
+  Items is a list of maps. Items with an `:href` key are rendered as links;
+  the last item (no `:href`) is rendered as plain text (current page).
+
+  ## Examples
+
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Catalogs", href: ~p"/console/catalogs"},
+        %{label: @catalog.name}
+      ]} />
+  """
+  attr :items, :list, required: true
+
+  def breadcrumb(assigns) do
+    indexed = Enum.with_index(assigns.items)
+    assigns = assign(assigns, :indexed_items, indexed)
+
+    ~H"""
+    <nav class="flex items-center gap-1.5 text-xs mb-2 font-sans">
+      <%= for {item, idx} <- @indexed_items do %>
+        <span :if={idx > 0} class="text-base-300 select-none">›</span>
+        <.link
+          :if={Map.has_key?(item, :href)}
+          navigate={item.href}
+          class="text-primary hover:underline underline-offset-2"
+        >
+          {item.label}
+        </.link>
+        <span :if={!Map.has_key?(item, :href)} class="text-base-content font-semibold">
+          {item.label}
+        </span>
+      <% end %>
+    </nav>
+    """
+  end
+
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do
