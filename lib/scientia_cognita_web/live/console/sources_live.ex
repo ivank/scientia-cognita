@@ -12,11 +12,16 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <%!-- Page header --%>
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Sources"}
+      ]} />
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold">Sources</h1>
-          <p class="text-base-content/60 mt-1 text-sm">
+          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+            Sources
+          </h1>
+          <p class="text-neutral text-sm mt-1">
             URLs crawled and extracted by Gemini into individual items
           </p>
         </div>
@@ -98,7 +103,7 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 class="font-bold text-lg">Add Source</h3>
+        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Add Source</h3>
         <p class="text-sm text-base-content/60 mt-1 mb-5">
           Enter the starting URL. Gemini will extract the title, items, and pagination automatically.
         </p>
