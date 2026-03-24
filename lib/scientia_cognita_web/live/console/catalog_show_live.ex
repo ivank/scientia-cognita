@@ -89,7 +89,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
     >
       <div class="modal-box max-w-4xl w-full">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-lg">Add Items to Catalog</h3>
+          <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Add Items to Catalog</h3>
           <button class="btn btn-ghost btn-sm btn-circle" phx-click="close_picker">
             <.icon name="hero-x-mark" class="size-4" />
           </button>
