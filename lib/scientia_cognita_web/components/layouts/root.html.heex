@@ -33,29 +33,29 @@
     </script>
   </head>
   <body class="min-h-screen flex flex-col">
-    <nav class="navbar bg-base-200 border-b border-base-300 px-4 sm:px-6">
+    <nav class="navbar bg-base-200 border-b border-base-300 px-4 sm:px-6 h-12 min-h-0">
       <div class="flex-1 flex items-center gap-3">
-        <a href="/" class="flex items-center gap-2 font-bold text-lg">
-          <img src="/apple-touch-icon.png" class="size-8 rounded" /> Scientia Cognita
+        <a href="/" class="flex items-center gap-2">
+          <img src="/apple-touch-icon.png" class="size-7 rounded-[6px]" />
+          <span style="font-family: var(--sc-font-serif);" class="font-normal text-base text-base-content tracking-tight">
+            Scientia Cognita
+          </span>
         </a>
       </div>
       <div class="flex-none flex items-center gap-2">
-        <button
-          class="btn btn-ghost btn-sm btn-circle"
-          onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); localStorage.setItem('phx:theme', document.documentElement.getAttribute('data-theme'))"
-        >
-          <.icon name="hero-sun" class="size-4" />
-        </button>
+        <.theme_toggle />
         <%= if @current_scope do %>
           <div class="dropdown dropdown-end">
-            <label tabindex="0" class="btn btn-ghost btn-sm gap-1">
-              <span class="text-sm max-w-32 truncate">{@current_scope.user.email}</span>
-              <.icon name="hero-chevron-down" class="size-3" />
+            <label tabindex="0" class="cursor-pointer">
+              <.avatar initials={user_initials(@current_scope.user.email)} size="sm" />
             </label>
             <ul
               tabindex="0"
-              class="dropdown-content menu bg-base-200 rounded-box shadow-lg w-48 p-2 z-50"
+              class="dropdown-content menu bg-base-200 border border-base-300 rounded-box shadow-lg w-48 p-2 z-50 mt-1"
             >
+              <li class="menu-title text-xs truncate px-2 pb-1 text-neutral">
+                {@current_scope.user.email}
+              </li>
               <li><.link href={~p"/users/settings"}>Settings</.link></li>
               <%= if @current_scope.user.role in ~w(admin owner) do %>
                 <li><.link navigate={~p"/console"}>Console</.link></li>
