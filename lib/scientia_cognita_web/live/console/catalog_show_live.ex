@@ -14,14 +14,14 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
       <%!-- Header --%>
       <div class="flex items-start justify-between gap-4">
         <div>
-          <div class="flex items-center gap-2 text-sm text-base-content/50 mb-1">
-            <.link navigate={~p"/console/catalogs"} class="hover:text-base-content">
-              Catalogs
-            </.link>
-            <.icon name="hero-chevron-right" class="size-3" />
-            <span>{@catalog.name}</span>
-          </div>
-          <h1 class="text-2xl font-bold">{@catalog.name}</h1>
+          <.breadcrumb items={[
+            %{label: "Console", href: ~p"/console"},
+            %{label: "Catalogs", href: ~p"/console/catalogs"},
+            %{label: @catalog.name}
+          ]} />
+          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+            {@catalog.name}
+          </h1>
           <p :if={@catalog.description} class="text-base-content/60 mt-1">{@catalog.description}</p>
           <p class="font-mono text-xs text-base-content/40 mt-1">/{@catalog.slug}</p>
         </div>
