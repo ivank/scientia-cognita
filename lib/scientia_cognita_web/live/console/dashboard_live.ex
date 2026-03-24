@@ -7,9 +7,12 @@ defmodule ScientiaCognitaWeb.Console.DashboardLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
+      <.breadcrumb items={[%{label: "Console"}]} />
       <div>
-        <h1 class="text-2xl font-bold">Dashboard</h1>
-        <p class="text-base-content/60 mt-1">Welcome to the Scientia Cognita console.</p>
+        <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+          Dashboard
+        </h1>
+        <p class="text-neutral text-sm mt-1">Welcome to the Scientia Cognita console.</p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
