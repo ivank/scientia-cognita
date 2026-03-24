@@ -10,27 +10,34 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Users"}
+      ]} />
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold">Users</h1>
-          <p class="text-base-content/60 mt-1">{length(@users)} registered accounts</p>
+          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+            Users
+          </h1>
+          <p class="text-neutral text-sm mt-1">{length(@users)} registered accounts</p>
         </div>
       </div>
 
-      <div class="card bg-base-200">
+      <div class="border border-base-300 rounded-box overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="table table-zebra">
+          <table class="table w-full">
             <thead>
-              <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Joined</th>
-                <th>Confirmed</th>
+              <tr class="bg-base-200 border-b border-base-300">
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Email</th>
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Role</th>
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Joined</th>
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Confirmed</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={user <- @users} id={"user-#{user.id}"}>
+              <tr :for={user <- @users} id={"user-#{user.id}"}
+                  class="border-b border-base-300 last:border-0 hover:bg-base-200/60 transition-colors duration-[150ms]">
                 <td class="font-mono text-sm">{user.email}</td>
                 <td><.role_badge role={user.role} /></td>
                 <td class="text-sm text-base-content/60">
@@ -65,7 +72,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 class="font-bold text-lg">Change Role</h3>
+        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Change Role</h3>
         <p class="text-sm text-base-content/60 mt-1 mb-4">
           Update role for <span class="font-mono font-semibold">{@modal_user.email}</span>
         </p>
