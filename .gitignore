@@ -52,3 +52,6 @@ npm-debug.log
 
 # Superpowers scratch pads
 .superpowers
+
+# Visual companion mockups
+.superpowers/
