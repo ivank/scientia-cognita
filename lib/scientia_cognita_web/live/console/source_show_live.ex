@@ -23,12 +23,12 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       <%!-- Header --%>
       <div class="flex items-start justify-between gap-4">
         <div>
-          <div class="flex items-center gap-2 text-sm text-base-content/50 mb-1">
-            <.link navigate={~p"/console/sources"} class="hover:text-base-content">Sources</.link>
-            <.icon name="hero-chevron-right" class="size-3" />
-            <span>{Source.display_name(@source)}</span>
-          </div>
-          <h1 class="text-2xl font-bold flex items-center gap-3">
+          <.breadcrumb items={[
+            %{label: "Console", href: ~p"/console"},
+            %{label: "Sources", href: ~p"/console/sources"},
+            %{label: Source.display_name(@source)}
+          ]} />
+          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content flex items-center gap-3">
             {Source.display_name(@source)}
             <.status_badge status={@source.status} />
           </h1>
