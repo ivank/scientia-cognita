@@ -112,7 +112,7 @@ slot :action                           # optional CTA button
 </div>
 ```
 
-**Canonical styling:** `p-14`, icon `size-12 text-base-content/25`, title `text-sm font-medium`, subtitle `text-xs text-neutral`. These values are the resolved consensus from the 4 existing variants.
+**Canonical styling:** `p-14`, icon `size-12 text-base-content/25`, title `text-sm font-medium`, subtitle `text-xs text-neutral`. These values are the resolved consensus from the 4 existing variants. The public page empty state (`page/catalog_show_live.ex`) currently uses `size-16` for its icon and `p-16` padding — the harmonized component intentionally reduces both to match the console convention. This is an accepted visual normalization.
 
 **Usage examples:**
 ```heex
@@ -141,7 +141,12 @@ attr :status, :string, required: true
 attr :size, :string, default: "sm", values: ~w(xs sm)
 ```
 
-**Colour mapping** — consolidated from the existing `status_class/1` and `role_class/1` private functions across `sources_live.ex`, `source_show_live.ex`, and `users_live.ex`. `source_show_live.ex` has a superset of statuses vs `sources_live.ex` (e.g., `"done"` is only handled in `source_show_live.ex`; `sources_live.ex` lets it fall through to the default). The new unified component covers all values. The `animate-pulse` classes are embedded in the return value of `status_badge_class/1` (not a separate conditional in the template) to keep all status logic in one place.
+**Colour mapping** — consolidated from the existing `status_class/1` and `role_class/1` private functions across `sources_live.ex`, `source_show_live.ex`, and `users_live.ex`. `source_show_live.ex` has a superset of statuses vs `sources_live.ex`: `sources_live.ex` covers `pending`, `fetching`, `extracting`, `items_loading`, `done`, and `failed`; `source_show_live.ex` additionally handles the item-pipeline statuses `discarded`, `downloading`, `thumbnail`, `analyze`, `resize`, `render`, and `ready`. The new unified component covers all values from both files. The `animate-pulse` classes are embedded in the return value of `status_badge_class/1` (not a separate conditional in the template) to keep all status logic in one place.
+
+**Call-site sizes:** `sources_live.ex` uses `badge-sm` (default); `source_show_live.ex` uses `badge-xs`. When replacing the inline badge in each file, pass the appropriate `size` attr:
+- `sources_live.ex` → `<.status_badge status={...} />` (default `size="sm"`)
+- `source_show_live.ex` → `<.status_badge status={...} size="xs" />`
+- `users_live.ex` → `<.status_badge status={...} />` (default `size="sm"`)
 
 Source statuses (unified — `source_show_live.ex` has a superset):
 
@@ -218,7 +223,9 @@ end
 
 ## 5. `<.progress_bar>` Component
 
-**Problem:** Two near-identical progress bars exist. `source_show_live.ex` uses `bg-success` for the fill (correct design token — progress toward completion). `page/catalog_show_live.ex` hero uses `bg-slate-700` for the track and `bg-gradient-to-r from-blue-500 to-blue-400` for the fill — hardcoded colours that bypass the design token system.
+**Problem:** `source_show_live.ex` has an inline progress bar using `bg-success` (correct design token). The pattern is worth extracting as a reusable component for future use.
+
+**Scope note:** `page/catalog_show_live.ex` also contains a progress bar, but it lives inside `hero_banner/1` which is explicitly out of scope (see Section 10). The `<.progress_bar>` component is applied to `source_show_live.ex` only. The hero banner progress bar's off-token colours (`bg-gradient-to-r from-blue-500 to-blue-400`) will be addressed in the dedicated hero banner spec.
 
 **Attrs:**
 ```elixir
@@ -245,7 +252,9 @@ attr :label, :string, default: nil
 
 Note: `style` is used for the dynamic `width` percentage. This is the correct approach for dynamic CSS values in Phoenix LiveView — it does not count as an inline style smell since it carries runtime data that cannot be a Tailwind class.
 
-**Pages updated:** `source_show_live.ex`, `page/catalog_show_live.ex` (also corrects the off-token colours in the hero upload progress bar).
+Note: The existing `source_show_live.ex` uses `Float.round(@value / @max * 100, 1)`, which produces decimal percentages (e.g. `33.3`). The new component uses `trunc(@value / max(@max, 1) * 100)`, producing integer percentages (e.g. `33`). This is an intentional simplification — integer percentages are cleaner for UI display and the difference is imperceptible on the bar width itself.
+
+**Pages updated:** `source_show_live.ex` only (see scope note above).
 
 ---
 
@@ -344,7 +353,7 @@ end
     </div>
   </figure>
   <div class="card-body p-3">
-    <p class="text-xs font-medium truncate text-base-content">{@item.title}</p>
+    <p class="text-xs font-medium truncate">{@item.title}</p>
     <p :if={@item[:author]} class="text-xs text-base-content/50 truncate">{@item[:author]}</p>
   </div>
 </div>
@@ -397,7 +406,7 @@ The `<.breadcrumb>` component uses `text-primary` for links, which renders corre
 
 ## 8. Testing
 
-New tests added to `test/scientia_cognita_web/live/core_components_test.exs`:
+Tests appended to the existing file `test/scientia_cognita_web/live/core_components_test.exs`:
 
 ```elixir
 describe "status_badge_class/1" do
@@ -440,7 +449,7 @@ Component rendering tests for `page_header` (with and without action slot) and `
 | `lib/scientia_cognita_web/live/console/source_show_live.ex` | `page_header`, `status_badge`, `progress_bar`, `font-serif-display` |
 | `lib/scientia_cognita_web/live/console/catalogs_live.ex` | `page_header`, `empty_state`, `font-serif-display` |
 | `lib/scientia_cognita_web/live/console/catalog_show_live.ex` | `page_header`, `empty_state`, `item_card`, `font-serif-display` |
-| `lib/scientia_cognita_web/live/page/catalog_show_live.ex` | `breadcrumb`, `empty_state`, `item_card`, `progress_bar` |
+| `lib/scientia_cognita_web/live/page/catalog_show_live.ex` | `breadcrumb`, `empty_state`, `item_card` |
 | `docs/design-system.md` | Document the 5 new components |
 
 ---
