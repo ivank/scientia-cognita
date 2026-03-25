@@ -127,6 +127,10 @@
   --sc-transition-slow: 250ms ease;
 }
 
+@utility font-serif-display {
+  font-family: var(--sc-font-serif);
+}
+
 [data-theme=light] {
   --sc-primary-pale: oklch(93% 0.03 218);
   --sc-accent-pale: oklch(95% 0.04 28);

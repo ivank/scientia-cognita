@@ -16,7 +16,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
       ]} />
       <div class="flex items-center justify-between">
         <div>
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+          <h1 class="text-xl text-base-content font-serif-display">
             Users
           </h1>
           <p class="text-neutral text-sm mt-1">{length(@users)} registered accounts</p>
@@ -72,7 +72,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Change Role</h3>
+        <h3 class="text-lg text-base-content font-serif-display">Change Role</h3>
         <p class="text-sm text-base-content/60 mt-1 mb-4">
           Update role for <span class="font-mono font-semibold">{@modal_user.email}</span>
         </p>

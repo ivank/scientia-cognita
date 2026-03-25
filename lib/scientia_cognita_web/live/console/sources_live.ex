@@ -18,7 +18,7 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
       ]} />
       <div class="flex items-center justify-between">
         <div>
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+          <h1 class="text-xl text-base-content font-serif-display">
             Sources
           </h1>
           <p class="text-neutral text-sm mt-1">
@@ -103,7 +103,7 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Add Source</h3>
+        <h3 class="text-lg text-base-content font-serif-display">Add Source</h3>
         <p class="text-sm text-base-content/60 mt-1 mb-5">
           Enter the starting URL. Gemini will extract the title, items, and pagination automatically.
         </p>

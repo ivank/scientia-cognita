@@ -16,7 +16,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
       ]} />
       <div class="flex items-center justify-between">
         <div>
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+          <h1 class="text-xl text-base-content font-serif-display">
             Catalogs
           </h1>
           <p class="text-neutral text-sm mt-1">Curated collections published to Google Photos</p>
@@ -61,7 +61,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">New Catalog</h3>
+        <h3 class="text-lg text-base-content font-serif-display">New Catalog</h3>
 
         <.form for={@form} phx-submit="create_catalog" phx-change="validate" class="mt-4 space-y-4">
           <div class="form-control">

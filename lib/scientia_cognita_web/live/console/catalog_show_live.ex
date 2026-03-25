@@ -19,7 +19,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
             %{label: "Catalogs", href: ~p"/console/catalogs"},
             %{label: @catalog.name}
           ]} />
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
+          <h1 class="text-xl text-base-content font-serif-display">
             {@catalog.name}
           </h1>
           <p :if={@catalog.description} class="text-base-content/60 mt-1">{@catalog.description}</p>
@@ -89,7 +89,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
     >
       <div class="modal-box max-w-4xl w-full">
         <div class="flex items-center justify-between mb-4">
-          <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Add Items to Catalog</h3>
+          <h3 class="text-lg text-base-content font-serif-display">Add Items to Catalog</h3>
           <button class="btn btn-ghost btn-sm btn-circle" phx-click="close_picker">
             <.icon name="hero-x-mark" class="size-4" />
           </button>

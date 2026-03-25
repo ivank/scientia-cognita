@@ -28,7 +28,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
             %{label: "Sources", href: ~p"/console/sources"},
             %{label: Source.display_name(@source)}
           ]} />
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content flex items-center gap-3">
+          <h1 class="text-xl text-base-content flex items-center gap-3 font-serif-display">
             {Source.display_name(@source)}
             <.status_badge status={@source.status} />
           </h1>
@@ -305,7 +305,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       phx-window-keydown="cancel_delete"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-error">Delete source?</h3>
+        <h3 class="text-lg text-error font-serif-display">Delete source?</h3>
         <p class="mt-3 text-base-content/80">
           This will permanently delete <span class="font-semibold">{@source.name}</span>
           and all <span class="font-semibold">{@source.total_items} items</span>
