@@ -143,14 +143,14 @@ attr :status, :string, required: true
 attr :size, :string, default: "sm", values: ~w(xs sm)
 ```
 
-**Colour mapping** — consolidated from the existing `status_class/1` and `role_class/1` private functions across `sources_live.ex`, `source_show_live.ex`, and `users_live.ex`. The two files do not have a strict subset relationship: `sources_live.ex` handles `"done"` while `source_show_live.ex` does not; `source_show_live.ex` additionally handles the item-pipeline statuses `"discarded"`, `"downloading"`, `"thumbnail"`, `"analyze"`, `"resize"`, `"render"`, and `"ready"` while `sources_live.ex` does not. The new unified component covers all values from both files. The `animate-pulse` classes are embedded in the return value of `status_badge_class/1` (not a separate conditional in the template) to keep all status logic in one place.
+**Colour mapping** — consolidated from the existing `status_class/1` and `role_class/1` private functions across `sources_live.ex`, `source_show_live.ex`, and `users_live.ex`. `source_show_live.ex` is a proper superset of `sources_live.ex`: it handles all statuses `sources_live.ex` handles plus the item-pipeline statuses `"discarded"`, `"downloading"`, `"thumbnail"`, `"analyze"`, `"resize"`, `"render"`, and `"ready"`. The new unified component covers all values from both files. The `animate-pulse` classes are embedded in the return value of `status_badge_class/1` (not a separate conditional in the template) to keep all status logic in one place.
 
-**Call-site sizes:** `sources_live.ex` uses `badge-sm` (default); `source_show_live.ex` uses `badge-xs`. When replacing the inline badge in each file, pass the appropriate `size` attr:
+**Call-site sizes:** `sources_live.ex` uses `badge-sm` (default); `source_show_live.ex` uses `badge-xs`. When replacing the local private function in each file, pass the appropriate `size` attr:
 - `sources_live.ex` → `<.status_badge status={...} />` (default `size="sm"`)
 - `source_show_live.ex` → `<.status_badge status={...} size="xs" />`
 - `users_live.ex` → `<.status_badge status={...} />` (default `size="sm"`)
 
-Source statuses (unified — `source_show_live.ex` has a superset):
+Source statuses (unified — `source_show_live.ex` is a superset of `sources_live.ex`):
 
 | Value | DaisyUI classes |
 |---|---|
