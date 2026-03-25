@@ -547,6 +547,38 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   end
 
   @doc """
+  Renders a console page header with serif title, optional subtitle, and optional
+  right-aligned action slot.
+
+  ## Examples
+
+      <.page_header title="Sources" subtitle="Manage content sources" />
+
+      <.page_header title="Catalogs" subtitle="Your collections">
+        <:action>
+          <button class="btn btn-primary btn-sm">New</button>
+        </:action>
+      </.page_header>
+  """
+  attr :title, :string, required: true
+  attr :subtitle, :string, default: nil
+  slot :action
+
+  def page_header(assigns) do
+    ~H"""
+    <div class="flex items-start justify-between mb-6">
+      <div>
+        <h1 class="font-serif-display text-xl text-base-content">{@title}</h1>
+        <p :if={@subtitle} class="text-neutral text-sm mt-1">{@subtitle}</p>
+      </div>
+      <div :if={@action != []} class="shrink-0">
+        {render_slot(@action)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do
