@@ -133,7 +133,9 @@ slot :action                           # optional CTA button
 
 ## 4. `<.status_badge>` Component
 
-**Problem:** Two parallel implementations exist — `role_class/1` in `users_live.ex` and `status_class/1` in `sources_live.ex` and `source_show_live.ex`. Both are private functions that produce badge classes. They cannot be reused or tested in isolation.
+**Problem:** Both `sources_live.ex` and `source_show_live.ex` define private `status_badge/1` component functions backed by private `status_class/1` helpers. `users_live.ex` defines a private `role_badge/1` component backed by `role_class/1`. All three produce badge markup with different class sets, but none are accessible from other modules or testable in isolation.
+
+**Implementation note:** Both `sources_live.ex` and `source_show_live.ex` already call `<.status_badge status={...} />` at their call sites — but these call the private local function of the same name, not the shared module-level one. After this change, the call sites remain syntactically identical; only the private `status_badge/1` function and its companion `status_class/1` are deleted from each file.
 
 **Attrs:**
 ```elixir
@@ -141,7 +143,7 @@ attr :status, :string, required: true
 attr :size, :string, default: "sm", values: ~w(xs sm)
 ```
 
-**Colour mapping** — consolidated from the existing `status_class/1` and `role_class/1` private functions across `sources_live.ex`, `source_show_live.ex`, and `users_live.ex`. `source_show_live.ex` has a superset of statuses vs `sources_live.ex`: `sources_live.ex` covers `pending`, `fetching`, `extracting`, `items_loading`, `done`, and `failed`; `source_show_live.ex` additionally handles the item-pipeline statuses `discarded`, `downloading`, `thumbnail`, `analyze`, `resize`, `render`, and `ready`. The new unified component covers all values from both files. The `animate-pulse` classes are embedded in the return value of `status_badge_class/1` (not a separate conditional in the template) to keep all status logic in one place.
+**Colour mapping** — consolidated from the existing `status_class/1` and `role_class/1` private functions across `sources_live.ex`, `source_show_live.ex`, and `users_live.ex`. The two files do not have a strict subset relationship: `sources_live.ex` handles `"done"` while `source_show_live.ex` does not; `source_show_live.ex` additionally handles the item-pipeline statuses `"discarded"`, `"downloading"`, `"thumbnail"`, `"analyze"`, `"resize"`, `"render"`, and `"ready"` while `sources_live.ex` does not. The new unified component covers all values from both files. The `animate-pulse` classes are embedded in the return value of `status_badge_class/1` (not a separate conditional in the template) to keep all status logic in one place.
 
 **Call-site sizes:** `sources_live.ex` uses `badge-sm` (default); `source_show_live.ex` uses `badge-xs`. When replacing the inline badge in each file, pass the appropriate `size` attr:
 - `sources_live.ex` → `<.status_badge status={...} />` (default `size="sm"`)
@@ -241,9 +243,9 @@ attr :label, :string, default: nil
     <span class="text-xs text-neutral">{@label}</span>
     <span class="text-xs text-neutral">{trunc(@value / max(@max, 1) * 100)}%</span>
   </div>
-  <div class="w-full bg-base-300 rounded-full h-1.5 overflow-hidden">
+  <div class="w-full bg-base-300 rounded-full h-2 overflow-hidden">
     <div
-      class="bg-success h-1.5 rounded-full transition-all duration-500"
+      class="bg-success h-2 rounded-full transition-all duration-500"
       style={"width: #{trunc(@value / max(@max, 1) * 100)}%"}
     />
   </div>
@@ -268,9 +270,15 @@ attr :item, :map, required: true
   # Required keys: :title, :thumbnail_image, :final_image, :id
   # Optional key for card body: :author
 
+attr :id, :string, default: nil
+  # DOM id for the outer card element. Callers pass their preferred format:
+  # console: id={"catalog-item-#{item.id}"}
+  # public:  id={"item-#{item.id}"}
+
 attr :on_remove, :string, default: nil
   # If set: shows a "Remove" button on hover (console use)
   # Event is fired with phx-value-item-id={@item.id}
+  # When on_remove is set, on_click is nil — console cards are not clickable
 
 attr :on_click, :string, default: nil
   # If set: the card is clickable and fires this event (public lightbox)
@@ -301,7 +309,7 @@ end
 **Template:**
 ```heex
 <div
-  id={"item-#{@item.id}"}
+  id={@id}
   class={[
     "card bg-base-200 overflow-hidden group",
     @on_click && "cursor-pointer",
@@ -363,11 +371,12 @@ Note: `@item[:author]` uses map access syntax to safely handle both structs (whe
 
 **Usage examples:**
 ```heex
-<%!-- Console: hover remove --%>
-<.item_card item={item} on_remove="remove_item" />
+<%!-- Console: hover remove (cards are not clickable at card level) --%>
+<.item_card id={"catalog-item-#{item.id}"} item={item} on_remove="remove_item" />
 
 <%!-- Public: clickable lightbox with status overlays --%>
 <.item_card
+  id={"item-#{item.id}"}
   item={item}
   on_click="open_lightbox"
   failed={item_failed?(@export_item_statuses, item.id)}
@@ -409,7 +418,7 @@ The `<.breadcrumb>` component uses `text-primary` for links, which renders corre
 Tests appended to the existing file `test/scientia_cognita_web/live/core_components_test.exs`:
 
 ```elixir
-describe "status_badge_class/1" do
+describe "status_badge_class/1 via status_badge component" do
   test "pending → badge-ghost"
   test "fetching → badge-warning animate-pulse"
   test "extracting → badge-warning animate-pulse"
