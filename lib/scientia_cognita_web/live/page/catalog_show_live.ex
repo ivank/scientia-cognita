@@ -231,13 +231,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               <span class="loading loading-spinner loading-xs"></span> In progress…
             </button>
           </div>
-          <div class="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-            <div
-              class="bg-gradient-to-r from-blue-500 to-blue-400 h-2.5 rounded-full transition-all duration-500"
-              style={"width: #{progress_pct(@export_progress, @export_total)}%"}
-            >
-            </div>
-          </div>
+          <.progress_bar value={@export_progress} max={@export_total} />
           <div class="flex justify-between mt-1.5 text-xs text-slate-500">
             <span>0</span><span>{@export_progress} / {@export_total}</span><span>{@export_total}</span>
           </div>
@@ -467,9 +461,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
 
   defp has_google_token?(nil), do: false
   defp has_google_token?(scope), do: not is_nil(scope.user.google_access_token)
-
-  defp progress_pct(0, 0), do: 0
-  defp progress_pct(progress, total), do: Float.round(progress / total * 100, 1)
 
   defp item_failed?(statuses, item_id) do
     case Map.get(statuses, item_id) do
