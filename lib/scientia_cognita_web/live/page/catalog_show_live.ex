@@ -10,12 +10,10 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   def render(assigns) do
     ~H"""
     <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
-      <%!-- Breadcrumb --%>
-      <div class="flex items-center gap-2 text-sm text-base-content/50">
-        <.link navigate={~p"/"} class="hover:text-base-content">Catalogs</.link>
-        <.icon name="hero-chevron-right" class="size-3" />
-        <span>{@catalog.name}</span>
-      </div>
+      <.breadcrumb items={[
+        %{label: "Catalogs", href: ~p"/"},
+        %{label: @catalog.name}
+      ]} />
 
       <%!-- Catalog title --%>
       <div>
@@ -34,56 +32,21 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
       />
 
       <%!-- Items grid --%>
-      <div :if={@catalog_items == []} class="card bg-base-200 p-16 text-center">
-        <.icon name="hero-photo" class="size-16 mx-auto text-base-content/30" />
-        <p class="mt-4 text-base-content/50">No items in this catalog yet.</p>
-      </div>
+      <.empty_state
+        :if={@catalog_items == []}
+        icon="hero-photo"
+        title="No items in this catalog yet."
+      />
 
       <div :if={@catalog_items != []} class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <div
+        <.item_card
           :for={item <- @catalog_items}
           id={"item-#{item.id}"}
-          class={[
-            "card bg-base-200 overflow-hidden group cursor-pointer",
-            item_failed?(@export_item_statuses, item.id) && "ring-2 ring-error"
-          ]}
-          phx-click="open_lightbox"
-          phx-value-item-id={item.id}
-        >
-          <figure class="aspect-video bg-base-300 relative">
-            <img
-              :if={item.thumbnail_image || item.final_image}
-              src={
-                if item.thumbnail_image,
-                  do: ItemImageUploader.url({item.thumbnail_image, item}),
-                  else: ItemImageUploader.url({item.final_image, item})
-              }
-              class={[
-                "w-full h-full object-cover group-hover:scale-105 transition-transform duration-300",
-                item_failed?(@export_item_statuses, item.id) && "opacity-50"
-              ]}
-              loading="lazy"
-            />
-            <%!-- Failed badge --%>
-            <div
-              :if={item_failed?(@export_item_statuses, item.id)}
-              class="absolute top-1.5 right-1.5 bg-error text-error-content text-[10px] font-bold px-1.5 py-0.5 rounded"
-            >
-              ⚠ FAILED
-            </div>
-            <%!-- Uploaded check --%>
-            <div
-              :if={item_uploaded?(@export_item_statuses, item.id)}
-              class="absolute bottom-1.5 right-1.5 bg-success text-success-content rounded-full w-5 h-5 flex items-center justify-center"
-            >
-              <.icon name="hero-check" class="size-3" />
-            </div>
-          </figure>
-          <div class="card-body p-3">
-            <p class="text-xs font-medium truncate">{item.title}</p>
-            <p :if={item.author} class="text-xs text-base-content/50 truncate">{item.author}</p>
-          </div>
-        </div>
+          item={item}
+          on_click="open_lightbox"
+          failed={item_failed?(@export_item_statuses, item.id)}
+          uploaded={item_uploaded?(@export_item_statuses, item.id)}
+        />
       </div>
     </div>
 
@@ -268,13 +231,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               <span class="loading loading-spinner loading-xs"></span> In progress…
             </button>
           </div>
-          <div class="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-            <div
-              class="bg-gradient-to-r from-blue-500 to-blue-400 h-2.5 rounded-full transition-all duration-500"
-              style={"width: #{progress_pct(@export_progress, @export_total)}%"}
-            >
-            </div>
-          </div>
+          <.progress_bar value={@export_progress} max={@export_total} />
           <div class="flex justify-between mt-1.5 text-xs text-slate-500">
             <span>0</span><span>{@export_progress} / {@export_total}</span><span>{@export_total}</span>
           </div>
@@ -504,9 +461,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
 
   defp has_google_token?(nil), do: false
   defp has_google_token?(scope), do: not is_nil(scope.user.google_access_token)
-
-  defp progress_pct(0, 0), do: 0
-  defp progress_pct(progress, total), do: Float.round(progress / total * 100, 1)
 
   defp item_failed?(statuses, item_id) do
     case Map.get(statuses, item_id) do

@@ -547,6 +547,241 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   end
 
   @doc """
+  Renders a console page header with serif title, optional subtitle, and optional
+  right-aligned action slot.
+
+  ## Examples
+
+      <.page_header title="Sources" subtitle="Manage content sources" />
+
+      <.page_header title="Catalogs" subtitle="Your collections">
+        <:action>
+          <button class="btn btn-primary btn-sm">New</button>
+        </:action>
+      </.page_header>
+  """
+  attr :title, :string, required: true
+  attr :subtitle, :string, default: nil
+  slot :action
+
+  def page_header(assigns) do
+    ~H"""
+    <div class="flex items-start justify-between mb-6">
+      <div>
+        <h1 class="font-serif-display text-xl text-base-content">{@title}</h1>
+        <p :if={@subtitle} class="text-neutral text-sm mt-1">{@subtitle}</p>
+      </div>
+      <div :if={@action != []} class="shrink-0">
+        {render_slot(@action)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a centred empty-state placeholder with icon, title, optional subtitle,
+  and optional CTA action slot.
+
+  ## Examples
+
+      <.empty_state icon="hero-globe-alt" title="No sources yet" subtitle="Add a URL to begin." />
+
+      <.empty_state icon="hero-photo" title="No items yet">
+        <:action>
+          <button class="btn btn-primary btn-sm" phx-click="open_picker">Add Items</button>
+        </:action>
+      </.empty_state>
+  """
+  attr :icon, :string, required: true
+  attr :title, :string, required: true
+  attr :subtitle, :string, default: nil
+  slot :action
+
+  def empty_state(assigns) do
+    ~H"""
+    <div class="border border-base-300 rounded-box p-14 text-center">
+      <.icon name={@icon} class="size-12 mx-auto text-base-content/25" />
+      <p class="text-sm font-medium text-base-content mt-3">{@title}</p>
+      <p :if={@subtitle} class="text-xs text-neutral mt-1">{@subtitle}</p>
+      <div :if={@action != []} class="mt-4 flex justify-center">
+        {render_slot(@action)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a DaisyUI badge for source processing statuses and user roles.
+
+  ## Examples
+
+      <.status_badge status={source.status} />
+      <.status_badge status={source.status} size="xs" />
+      <.status_badge status={user.role} />
+  """
+  attr :status, :string, required: true
+  attr :size, :string, default: "sm", values: ~w(xs sm)
+
+  def status_badge(assigns) do
+    ~H"""
+    <span class={"badge badge-#{@size} #{status_badge_class(@status)}"}>
+      {@status}
+    </span>
+    """
+  end
+
+  defp status_badge_class(status) do
+    case status do
+      # Source statuses
+      "pending"       -> "badge-ghost"
+      "fetching"      -> "badge-warning animate-pulse"
+      "extracting"    -> "badge-warning animate-pulse"
+      "items_loading" -> "badge-info animate-pulse"
+      "done"          -> "badge-success"
+      "ready"         -> "badge-success"
+      "failed"        -> "badge-error"
+      "discarded"     -> "badge-warning"
+      "downloading"   -> "badge-info"
+      "thumbnail"     -> "badge-info animate-pulse"
+      "analyze"       -> "badge-info animate-pulse"
+      "resize"        -> "badge-info animate-pulse"
+      "render"        -> "badge-info animate-pulse"
+      # Role values
+      "owner"         -> "badge-accent font-semibold"
+      "admin"         -> "badge-primary"
+      # Default
+      _               -> "badge-ghost"
+    end
+  end
+
+  @doc """
+  Renders a progress bar with optional label and integer percentage.
+
+  ## Examples
+
+      <.progress_bar value={@ready_count} max={@total_items} label="Processing items" />
+      <.progress_bar value={42} max={100} />
+  """
+  attr :value, :integer, required: true
+  attr :max, :integer, required: true
+  attr :label, :string, default: nil
+
+  def progress_bar(assigns) do
+    ~H"""
+    <div>
+      <div :if={@label} class="flex justify-between mb-1">
+        <span class="text-xs text-neutral">{@label}</span>
+        <span class="text-xs text-neutral">{trunc(@value / max(@max, 1) * 100)}%</span>
+      </div>
+      <div class="w-full bg-base-300 rounded-full h-2 overflow-hidden">
+        <div
+          class="bg-success h-2 rounded-full transition-all duration-500"
+          style={"width: #{trunc(@value / max(@max, 1) * 100)}%"}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders an image card for a catalog item.
+
+  Set `on_remove` (a phx-click event name) for console edit mode, or `on_click`
+  for public lightbox mode. `failed` and `uploaded` are pre-computed booleans
+  from the parent (derived from `export_item_statuses`).
+
+  ## Examples
+
+      <%!-- Console --%>
+      <.item_card id={"catalog-item-\#{item.id}"} item={item} on_remove="remove_item" />
+
+      <%!-- Public --%>
+      <.item_card
+        id={"item-\#{item.id}"}
+        item={item}
+        on_click="open_lightbox"
+        failed={item_failed?(@export_item_statuses, item.id)}
+        uploaded={item_uploaded?(@export_item_statuses, item.id)}
+      />
+  """
+  attr :item, :map, required: true
+  attr :id, :string, default: nil
+  attr :on_remove, :string, default: nil
+  attr :on_click, :string, default: nil
+  attr :failed, :boolean, default: false
+  attr :uploaded, :boolean, default: false
+
+  def item_card(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class={[
+        "card bg-base-200 overflow-hidden group",
+        @on_click && "cursor-pointer",
+        @failed && "ring-2 ring-error"
+      ]}
+      phx-click={@on_click}
+      phx-value-item-id={@on_click && @item.id}
+    >
+      <figure class="aspect-video bg-base-300 relative">
+        <img
+          :if={item_thumb_url(@item)}
+          src={item_thumb_url(@item)}
+          class={[
+            "w-full h-full object-cover",
+            @on_click && "group-hover:scale-105 transition-transform duration-300",
+            @failed && "opacity-50"
+          ]}
+          loading="lazy"
+        />
+
+        <%!-- Console: hover remove overlay --%>
+        <div
+          :if={@on_remove}
+          class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        >
+          <button
+            class="btn btn-error btn-xs"
+            phx-click={@on_remove}
+            phx-value-item-id={@item.id}
+          >
+            Remove
+          </button>
+        </div>
+
+        <%!-- Public: failed overlay badge --%>
+        <div
+          :if={@failed}
+          class="absolute top-1.5 right-1.5 bg-error text-error-content text-[10px] font-bold px-1.5 py-0.5 rounded"
+        >
+          ⚠ FAILED
+        </div>
+
+        <%!-- Public: uploaded check overlay --%>
+        <div
+          :if={@uploaded}
+          class="absolute bottom-1.5 right-1.5 bg-success text-success-content rounded-full w-5 h-5 flex items-center justify-center"
+        >
+          <.icon name="hero-check" class="size-3" />
+        </div>
+      </figure>
+      <div class="card-body p-3">
+        <p class="text-xs font-medium truncate">{@item.title}</p>
+        <p :if={@item.author} class="text-xs text-base-content/50 truncate">{@item.author}</p>
+      </div>
+    </div>
+    """
+  end
+
+  defp item_thumb_url(item) do
+    cond do
+      item.thumbnail_image -> ScientiaCognita.Uploaders.ItemImageUploader.url({item.thumbnail_image, item})
+      item.final_image     -> ScientiaCognita.Uploaders.ItemImageUploader.url({item.final_image, item})
+      true                 -> nil
+    end
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do

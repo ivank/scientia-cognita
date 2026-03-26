@@ -16,25 +16,21 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
         %{label: "Console", href: ~p"/console"},
         %{label: "Sources"}
       ]} />
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
-            Sources
-          </h1>
-          <p class="text-neutral text-sm mt-1">
-            URLs crawled and extracted by Gemini into individual items
-          </p>
-        </div>
-        <button class="btn btn-primary btn-sm gap-2" phx-click="open_new_modal">
-          <.icon name="hero-plus" class="size-4" /> Add Source
-        </button>
-      </div>
+      <.page_header title="Sources" subtitle="URLs crawled and extracted by Gemini into individual items">
+        <:action>
+          <button class="btn btn-primary btn-sm gap-2" phx-click="open_new_modal">
+            <.icon name="hero-plus" class="size-4" /> Add Source
+          </button>
+        </:action>
+      </.page_header>
 
       <%!-- Empty state --%>
-      <div :if={@sources == []} class="card bg-base-200 p-16 text-center">
-        <.icon name="hero-globe-alt" class="size-12 mx-auto text-base-content/20" />
-        <p class="mt-4 text-base-content/50 text-sm">No sources yet. Add a URL to begin.</p>
-      </div>
+      <.empty_state
+        :if={@sources == []}
+        icon="hero-globe-alt"
+        title="No sources yet"
+        subtitle="Add a URL to begin."
+      />
 
       <%!-- Source list --%>
       <div class="grid gap-2">
@@ -103,7 +99,7 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Add Source</h3>
+        <h3 class="text-lg text-base-content font-serif-display">Add Source</h3>
         <p class="text-sm text-base-content/60 mt-1 mb-5">
           Enter the starting URL. Gemini will extract the title, items, and pagination automatically.
         </p>
@@ -227,17 +223,4 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
     List.duplicate(nil, max(count, 0))
   end
 
-  defp status_badge(assigns) do
-    ~H"""
-    <span class={"badge badge-sm #{status_class(@status)}"}>{@status}</span>
-    """
-  end
-
-  defp status_class("pending"), do: "badge-ghost"
-  defp status_class("fetching"), do: "badge-warning animate-pulse"
-  defp status_class("extracting"), do: "badge-warning animate-pulse"
-  defp status_class("items_loading"), do: "badge-info animate-pulse"
-  defp status_class("done"), do: "badge-success"
-  defp status_class("failed"), do: "badge-error"
-  defp status_class(_), do: "badge-ghost"
 end

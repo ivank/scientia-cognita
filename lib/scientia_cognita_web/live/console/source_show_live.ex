@@ -20,45 +20,42 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <%!-- Header --%>
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <.breadcrumb items={[
-            %{label: "Console", href: ~p"/console"},
-            %{label: "Sources", href: ~p"/console/sources"},
-            %{label: Source.display_name(@source)}
-          ]} />
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content flex items-center gap-3">
-            {Source.display_name(@source)}
-            <.status_badge status={@source.status} />
-          </h1>
-          <p class="text-sm text-base-content/50 mt-1 font-mono">{@source.url}</p>
-        </div>
-
-        <div class="flex gap-2 shrink-0">
-          <button
-            :if={@source.status == "failed"}
-            class="btn btn-warning btn-sm gap-2"
-            phx-click="restart_source"
-            phx-disable-with="Restarting…"
-          >
-            <.icon name="hero-arrow-path" class="size-4" /> Restart
-          </button>
-          <button
-            :if={@retryable_count > 0}
-            class="btn btn-warning btn-sm gap-2"
-            phx-click="retry_items"
-            phx-disable-with="Retrying…"
-          >
-            <.icon name="hero-arrow-path" class="size-4" /> Retry {@retryable_count} items
-          </button>
-          <button
-            class="btn btn-error btn-sm gap-2"
-            phx-click="confirm_delete"
-          >
-            <.icon name="hero-trash" class="size-4" /> Delete
-          </button>
-        </div>
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Sources", href: ~p"/console/sources"},
+        %{label: Source.display_name(@source)}
+      ]} />
+      <.page_header title={Source.display_name(@source)}>
+        <:action>
+          <div class="flex gap-2 shrink-0">
+            <button
+              :if={@source.status == "failed"}
+              class="btn btn-warning btn-sm gap-2"
+              phx-click="restart_source"
+              phx-disable-with="Restarting…"
+            >
+              <.icon name="hero-arrow-path" class="size-4" /> Restart
+            </button>
+            <button
+              :if={@retryable_count > 0}
+              class="btn btn-warning btn-sm gap-2"
+              phx-click="retry_items"
+              phx-disable-with="Retrying…"
+            >
+              <.icon name="hero-arrow-path" class="size-4" /> Retry {@retryable_count} items
+            </button>
+            <button
+              class="btn btn-error btn-sm gap-2"
+              phx-click="confirm_delete"
+            >
+              <.icon name="hero-trash" class="size-4" /> Delete
+            </button>
+          </div>
+        </:action>
+      </.page_header>
+      <div class="flex items-center gap-2 -mt-4 mb-4">
+        <.status_badge status={@source.status} size="xs" />
+        <span class="text-xs text-neutral font-mono">{@source.url}</span>
       </div>
 
       <%!-- Error message --%>
@@ -69,20 +66,14 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
       <%!-- Progress bar --%>
       <div :if={@source.total_items > 0} class="space-y-1">
-        <div class="flex justify-between text-xs text-base-content/60">
-          <span>Processing items</span>
-          <span>{@status_counts["ready"] || 0} / {@source.total_items} ready</span>
-        </div>
-        <div class="w-full bg-base-300 rounded-full h-2">
-          <div
-            class="bg-success h-2 rounded-full transition-all duration-500"
-            style={"width: #{progress_pct(@status_counts["ready"] || 0, @source.total_items)}%"}
-          >
-          </div>
-        </div>
+        <.progress_bar
+          value={@status_counts["ready"] || 0}
+          max={@source.total_items}
+          label="Processing items"
+        />
         <div class="flex gap-4 text-xs text-base-content/50 mt-1">
           <span :for={{status, count} <- sorted_status_counts(@status_counts)} :if={count > 0}>
-            <.status_badge status={status} /> {count}
+            <.status_badge status={status} size="xs" /> {count}
           </span>
         </div>
       </div>
@@ -116,7 +107,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                 <.item_thumbnail item={item} />
               </td>
               <td class="whitespace-nowrap">
-                <.status_badge status={item.status} />
+                <.status_badge status={item.status} size="xs" />
                 <span
                   :if={MapSet.member?(@stuck_ids, item.id)}
                   class="badge badge-warning badge-sm ml-1"
@@ -222,7 +213,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
               <%!-- Status badge pinned over image bottom-left --%>
               <div class="absolute bottom-3 left-3">
-                <.status_badge status={@selected_item.status} />
+                <.status_badge status={@selected_item.status} size="xs" />
               </div>
             </figure>
 
@@ -305,7 +296,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       phx-window-keydown="cancel_delete"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-error">Delete source?</h3>
+        <h3 class="text-lg text-error font-serif-display">Delete source?</h3>
         <p class="mt-3 text-base-content/80">
           This will permanently delete <span class="font-semibold">{@source.name}</span>
           and all <span class="font-semibold">{@source.total_items} items</span>
@@ -524,9 +515,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     |> assign(:stuck_ids, stuck_ids)
   end
 
-  defp progress_pct(0, _), do: 0
-  defp progress_pct(ready, total), do: Float.round(ready / total * 100, 1)
-
   defp sorted_status_counts(counts) do
     order = ~w(pending downloading thumbnail analyze resize render ready failed discarded)
     Enum.sort_by(counts, fn {status, _} -> Enum.find_index(order, &(&1 == status)) || 99 end)
@@ -620,24 +608,4 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     """
   end
 
-  defp status_badge(assigns) do
-    ~H"""
-    <span class={"badge badge-xs #{status_class(@status)}"}>{@status}</span>
-    """
-  end
-
-  defp status_class("pending"), do: "badge-ghost"
-  defp status_class("fetching"), do: "badge-warning animate-pulse"
-  defp status_class("extracting"), do: "badge-warning animate-pulse"
-  defp status_class("done"), do: "badge-success"
-  defp status_class("ready"), do: "badge-success"
-  defp status_class("failed"), do: "badge-error"
-  defp status_class("discarded"), do: "badge-warning"
-  defp status_class("downloading"), do: "badge-info"
-  defp status_class("thumbnail"), do: "badge-info animate-pulse"
-  defp status_class("analyze"), do: "badge-info animate-pulse"
-  defp status_class("resize"), do: "badge-info animate-pulse"
-  defp status_class("render"), do: "badge-info animate-pulse"
-  defp status_class("items_loading"), do: "badge-info animate-pulse"
-  defp status_class(_), do: "badge-ghost"
 end

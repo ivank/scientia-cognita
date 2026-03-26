@@ -14,22 +14,15 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
         %{label: "Console", href: ~p"/console"},
         %{label: "Catalogs"}
       ]} />
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
-            Catalogs
-          </h1>
-          <p class="text-neutral text-sm mt-1">Curated collections published to Google Photos</p>
-        </div>
-        <button class="btn btn-primary gap-2" phx-click="open_new_modal">
-          <.icon name="hero-plus" class="size-4" /> New Catalog
-        </button>
-      </div>
+      <.page_header title="Catalogs" subtitle="Curated collections published to Google Photos">
+        <:action>
+          <button class="btn btn-primary gap-2" phx-click="open_new_modal">
+            <.icon name="hero-plus" class="size-4" /> New Catalog
+          </button>
+        </:action>
+      </.page_header>
 
-      <div :if={@catalogs == []} class="card bg-base-200 p-12 text-center">
-        <.icon name="hero-rectangle-stack" class="size-12 mx-auto text-base-content/30" />
-        <p class="mt-3 text-base-content/50">No catalogs yet.</p>
-      </div>
+      <.empty_state :if={@catalogs == []} icon="hero-rectangle-stack" title="No catalogs yet." />
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <.link
@@ -61,7 +54,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">New Catalog</h3>
+        <h3 class="text-lg text-base-content font-serif-display">New Catalog</h3>
 
         <.form for={@form} phx-submit="create_catalog" phx-change="validate" class="mt-4 space-y-4">
           <div class="form-control">

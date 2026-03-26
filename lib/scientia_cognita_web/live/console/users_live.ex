@@ -14,14 +14,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
         %{label: "Console", href: ~p"/console"},
         %{label: "Users"}
       ]} />
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
-            Users
-          </h1>
-          <p class="text-neutral text-sm mt-1">{length(@users)} registered accounts</p>
-        </div>
-      </div>
+      <.page_header title="Users" subtitle={"#{length(@users)} registered accounts"} />
 
       <div class="border border-base-300 rounded-box overflow-hidden">
         <div class="overflow-x-auto">
@@ -39,7 +32,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
               <tr :for={user <- @users} id={"user-#{user.id}"}
                   class="border-b border-base-300 last:border-0 hover:bg-base-200/60 transition-colors duration-[150ms]">
                 <td class="font-mono text-sm">{user.email}</td>
-                <td><.role_badge role={user.role} /></td>
+                <td><.status_badge status={user.role} /></td>
                 <td class="text-sm text-base-content/60">
                   {Calendar.strftime(user.inserted_at, "%b %d, %Y")}
                 </td>
@@ -72,7 +65,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
       phx-window-keydown="close_modal"
     >
       <div class="modal-box">
-        <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Change Role</h3>
+        <h3 class="text-lg text-base-content font-serif-display">Change Role</h3>
         <p class="text-sm text-base-content/60 mt-1 mb-4">
           Update role for <span class="font-mono font-semibold">{@modal_user.email}</span>
         </p>
@@ -159,18 +152,6 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
-
-  defp role_badge(assigns) do
-    ~H"""
-    <span class={"badge badge-sm #{role_class(@role)}"}>
-      {@role}
-    </span>
-    """
-  end
-
-  defp role_class("owner"), do: "badge-accent font-semibold"
-  defp role_class("admin"), do: "badge-primary"
-  defp role_class(_), do: "badge-ghost"
 
   # Roles the actor can assign
   defp allowed_roles(%User{role: "owner"}), do: User.roles()

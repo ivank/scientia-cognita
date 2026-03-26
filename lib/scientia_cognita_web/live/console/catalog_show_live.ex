@@ -11,72 +11,40 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <%!-- Header --%>
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <.breadcrumb items={[
-            %{label: "Console", href: ~p"/console"},
-            %{label: "Catalogs", href: ~p"/console/catalogs"},
-            %{label: @catalog.name}
-          ]} />
-          <h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
-            {@catalog.name}
-          </h1>
-          <p :if={@catalog.description} class="text-base-content/60 mt-1">{@catalog.description}</p>
-          <p class="font-mono text-xs text-base-content/40 mt-1">/{@catalog.slug}</p>
-        </div>
-        <div class="flex gap-2 shrink-0">
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Catalogs", href: ~p"/console/catalogs"},
+        %{label: @catalog.name}
+      ]} />
+      <.page_header title={@catalog.name} subtitle={@catalog.description}>
+        <:action>
           <button
-            class="btn btn-primary btn-sm gap-2"
+            class="btn btn-primary btn-sm"
             phx-click="open_picker"
             phx-disable-with="Loading…"
           >
             <.icon name="hero-plus" class="size-4" /> Add Items
           </button>
-        </div>
-      </div>
+        </:action>
+      </.page_header>
+      <p class="font-mono text-xs text-base-content/40 -mt-4 mb-4">/{@catalog.slug}</p>
 
       <%!-- Items grid --%>
-      <div :if={@catalog_items == []} class="card bg-base-200 p-12 text-center">
-        <.icon name="hero-photo" class="size-12 mx-auto text-base-content/30" />
-        <p class="mt-3 text-base-content/50">No items yet. Add items from a source.</p>
-        <button class="btn btn-primary btn-sm mt-4 mx-auto" phx-click="open_picker">
-          Add Items
-        </button>
-      </div>
+      <.empty_state :if={@catalog_items == []} icon="hero-photo" title="No items in this catalog yet.">
+        <:action>
+          <button class="btn btn-primary btn-sm" phx-click="open_picker">
+            <.icon name="hero-plus" class="size-4" /> Add Items
+          </button>
+        </:action>
+      </.empty_state>
 
       <div :if={@catalog_items != []} class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <div
+        <.item_card
           :for={item <- @catalog_items}
           id={"catalog-item-#{item.id}"}
-          class="card bg-base-200 overflow-hidden group"
-        >
-          <figure class="aspect-video bg-base-300 relative">
-            <img
-              :if={item.thumbnail_image || item.final_image}
-              src={
-                if item.thumbnail_image,
-                  do: ItemImageUploader.url({item.thumbnail_image, item}),
-                  else: ItemImageUploader.url({item.final_image, item})
-              }
-              class="w-full h-full object-cover"
-              loading="lazy"
-            />
-            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <button
-                class="btn btn-error btn-xs"
-                phx-click="remove_item"
-                phx-value-item-id={item.id}
-              >
-                Remove
-              </button>
-            </div>
-          </figure>
-          <div class="card-body p-3">
-            <p class="text-xs font-medium truncate">{item.title}</p>
-            <p :if={item.author} class="text-xs text-base-content/50 truncate">{item.author}</p>
-          </div>
-        </div>
+          item={item}
+          on_remove="remove_item"
+        />
       </div>
     </div>
 
@@ -89,7 +57,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
     >
       <div class="modal-box max-w-4xl w-full">
         <div class="flex items-center justify-between mb-4">
-          <h3 style="font-family: var(--sc-font-serif);" class="text-lg text-base-content">Add Items to Catalog</h3>
+          <h3 class="text-lg text-base-content font-serif-display">Add Items to Catalog</h3>
           <button class="btn btn-ghost btn-sm btn-circle" phx-click="close_picker">
             <.icon name="hero-x-mark" class="size-4" />
           </button>
