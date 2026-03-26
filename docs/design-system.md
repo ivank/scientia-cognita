@@ -314,10 +314,7 @@ Scientia Cognita — curated image catalogs
 
 ```heex
 <.breadcrumb items={[%{label: "Console", href: ~p"/console"}, %{label: "Page"}]} />
-<h1 style="font-family: var(--sc-font-serif);" class="text-xl text-base-content">
-  Page
-</h1>
-<p class="text-neutral text-sm mt-1">Subtitle</p>
+<.page_header title="Page" subtitle="Subtitle" />
 ```
 
 ### Tables
@@ -341,7 +338,7 @@ Scientia Cognita — curated image catalogs
 
 ### Modals
 
-Title uses serif font: `style="font-family: var(--sc-font-serif);" class="text-lg text-base-content"`. Destructive modals keep `text-error` on the title.
+Title uses serif font: `class="font-serif-display text-lg text-base-content"`. Destructive modals keep `text-error` on the title.
 
 ---
 
