@@ -45,7 +45,12 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
 
     test "omits subtitle when nil" do
       html = render_component(&page_header/1, %{title: "Dashboard", subtitle: nil, action: []})
-      refute html =~ ~r/text-neutral text-sm mt-1/
+      refute html =~ "<p"
+    end
+
+    test "omits action wrapper when no action given" do
+      html = render_component(&page_header/1, %{title: "Dashboard", subtitle: nil, action: []})
+      refute html =~ "shrink-0"
     end
 
     test "has mb-6 bottom margin" do
