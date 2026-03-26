@@ -10,12 +10,10 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   def render(assigns) do
     ~H"""
     <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
-      <%!-- Breadcrumb --%>
-      <div class="flex items-center gap-2 text-sm text-base-content/50">
-        <.link navigate={~p"/"} class="hover:text-base-content">Catalogs</.link>
-        <.icon name="hero-chevron-right" class="size-3" />
-        <span>{@catalog.name}</span>
-      </div>
+      <.breadcrumb items={[
+        %{label: "Catalogs", href: ~p"/"},
+        %{label: @catalog.name}
+      ]} />
 
       <%!-- Catalog title --%>
       <div>
