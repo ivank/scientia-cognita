@@ -3,7 +3,7 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
   use ExUnit.Case, async: true
   import Phoenix.LiveViewTest
 
-  import ScientiaCognitaWeb.CoreComponents, only: [user_initials: 1, page_header: 1, empty_state: 1, status_badge: 1]
+  import ScientiaCognitaWeb.CoreComponents, only: [user_initials: 1, page_header: 1, empty_state: 1, status_badge: 1, item_card: 1]
 
   describe "user_initials/1" do
     test "splits on dot — ivan.kerin@example.com → IK" do
@@ -172,6 +172,31 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
     test "unknown → badge-ghost" do
       html = render_component(&status_badge/1, %{status: "nonexistent_status", size: "sm"})
       assert html =~ "badge-ghost"
+    end
+  end
+
+  describe "item_card/1" do
+    @item %{id: 1, title: "Test Item", author: "Alice", thumbnail_image: nil, final_image: nil}
+    @item_no_author %{id: 2, title: "No Author", author: nil, thumbnail_image: nil, final_image: nil}
+
+    test "renders item title" do
+      html = render_component(&item_card/1, %{item: @item, id: nil, on_remove: nil, on_click: nil, failed: false, uploaded: false})
+      assert html =~ "Test Item"
+    end
+
+    test "renders author when present" do
+      html = render_component(&item_card/1, %{item: @item, id: nil, on_remove: nil, on_click: nil, failed: false, uploaded: false})
+      assert html =~ "Alice"
+    end
+
+    test "omits author paragraph when author is nil" do
+      html = render_component(&item_card/1, %{item: @item_no_author, id: nil, on_remove: nil, on_click: nil, failed: false, uploaded: false})
+      refute html =~ "text-base-content/50"
+    end
+
+    test "applies ring-error when failed" do
+      html = render_component(&item_card/1, %{item: @item, id: nil, on_remove: nil, on_click: nil, failed: true, uploaded: false})
+      assert html =~ "ring-2 ring-error"
     end
   end
 end

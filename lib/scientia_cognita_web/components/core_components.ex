@@ -767,7 +767,7 @@ defmodule ScientiaCognitaWeb.CoreComponents do
       </figure>
       <div class="card-body p-3">
         <p class="text-xs font-medium truncate">{@item.title}</p>
-        <p :if={@item[:author]} class="text-xs text-base-content/50 truncate">{@item[:author]}</p>
+        <p :if={@item.author} class="text-xs text-base-content/50 truncate">{@item.author}</p>
       </div>
     </div>
     """
