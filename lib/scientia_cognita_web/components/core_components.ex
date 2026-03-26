@@ -601,7 +601,7 @@ defmodule ScientiaCognitaWeb.CoreComponents do
     ~H"""
     <div class="border border-base-300 rounded-box p-14 text-center">
       <.icon name={@icon} class="size-12 mx-auto text-base-content/25" />
-      <h3 class="text-sm font-medium text-base-content mt-3">{@title}</h3>
+      <p class="text-sm font-medium text-base-content mt-3">{@title}</p>
       <p :if={@subtitle} class="text-xs text-neutral mt-1">{@subtitle}</p>
       <div :if={@action != []} class="mt-4 flex justify-center">
         {render_slot(@action)}

@@ -73,7 +73,12 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
 
     test "omits subtitle when nil" do
       html = render_component(&empty_state/1, %{icon: "hero-photo", title: "No items", subtitle: nil, action: []})
-      refute html =~ "<p"
+      refute html =~ "text-xs text-neutral"
+    end
+
+    test "omits action wrapper when no action given" do
+      html = render_component(&empty_state/1, %{icon: "hero-photo", title: "No items", subtitle: nil, action: []})
+      refute html =~ "mt-4 flex justify-center"
     end
   end
 end
