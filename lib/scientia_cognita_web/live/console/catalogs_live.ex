@@ -22,10 +22,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
         </:action>
       </.page_header>
 
-      <div :if={@catalogs == []} class="card bg-base-200 p-12 text-center">
-        <.icon name="hero-rectangle-stack" class="size-12 mx-auto text-base-content/30" />
-        <p class="mt-3 text-base-content/50">No catalogs yet.</p>
-      </div>
+      <.empty_state :if={@catalogs == []} icon="hero-rectangle-stack" title="No catalogs yet." />
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <.link

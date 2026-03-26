@@ -30,13 +30,13 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
       <p class="font-mono text-xs text-base-content/40 -mt-4 mb-4">/{@catalog.slug}</p>
 
       <%!-- Items grid --%>
-      <div :if={@catalog_items == []} class="card bg-base-200 p-12 text-center">
-        <.icon name="hero-photo" class="size-12 mx-auto text-base-content/30" />
-        <p class="mt-3 text-base-content/50">No items yet. Add items from a source.</p>
-        <button class="btn btn-primary btn-sm mt-4 mx-auto" phx-click="open_picker">
-          Add Items
-        </button>
-      </div>
+      <.empty_state :if={@catalog_items == []} icon="hero-photo" title="No items in this catalog yet.">
+        <:action>
+          <button class="btn btn-primary btn-sm" phx-click="open_picker">
+            <.icon name="hero-plus" class="size-4" /> Add Items
+          </button>
+        </:action>
+      </.empty_state>
 
       <div :if={@catalog_items != []} class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <div

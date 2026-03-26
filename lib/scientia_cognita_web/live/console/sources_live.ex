@@ -25,10 +25,12 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
       </.page_header>
 
       <%!-- Empty state --%>
-      <div :if={@sources == []} class="card bg-base-200 p-16 text-center">
-        <.icon name="hero-globe-alt" class="size-12 mx-auto text-base-content/20" />
-        <p class="mt-4 text-base-content/50 text-sm">No sources yet. Add a URL to begin.</p>
-      </div>
+      <.empty_state
+        :if={@sources == []}
+        icon="hero-globe-alt"
+        title="No sources yet"
+        subtitle="Add a URL to begin."
+      />
 
       <%!-- Source list --%>
       <div class="grid gap-2">

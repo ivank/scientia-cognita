@@ -34,10 +34,11 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
       />
 
       <%!-- Items grid --%>
-      <div :if={@catalog_items == []} class="card bg-base-200 p-16 text-center">
-        <.icon name="hero-photo" class="size-16 mx-auto text-base-content/30" />
-        <p class="mt-4 text-base-content/50">No items in this catalog yet.</p>
-      </div>
+      <.empty_state
+        :if={@catalog_items == []}
+        icon="hero-photo"
+        title="No items in this catalog yet."
+      />
 
       <div :if={@catalog_items != []} class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <div
