@@ -79,7 +79,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         </div>
         <div class="flex gap-4 text-xs text-base-content/50 mt-1">
           <span :for={{status, count} <- sorted_status_counts(@status_counts)} :if={count > 0}>
-            <.status_badge status={status} /> {count}
+            <.status_badge status={status} size="xs" /> {count}
           </span>
         </div>
       </div>
@@ -113,7 +113,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                 <.item_thumbnail item={item} />
               </td>
               <td class="whitespace-nowrap">
-                <.status_badge status={item.status} />
+                <.status_badge status={item.status} size="xs" />
                 <span
                   :if={MapSet.member?(@stuck_ids, item.id)}
                   class="badge badge-warning badge-sm ml-1"
@@ -219,7 +219,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
               <%!-- Status badge pinned over image bottom-left --%>
               <div class="absolute bottom-3 left-3">
-                <.status_badge status={@selected_item.status} />
+                <.status_badge status={@selected_item.status} size="xs" />
               </div>
             </figure>
 
