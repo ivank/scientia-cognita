@@ -579,6 +579,38 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   end
 
   @doc """
+  Renders a centred empty-state placeholder with icon, title, optional subtitle,
+  and optional CTA action slot.
+
+  ## Examples
+
+      <.empty_state icon="hero-globe-alt" title="No sources yet" subtitle="Add a URL to begin." />
+
+      <.empty_state icon="hero-photo" title="No items yet">
+        <:action>
+          <button class="btn btn-primary btn-sm" phx-click="open_picker">Add Items</button>
+        </:action>
+      </.empty_state>
+  """
+  attr :icon, :string, required: true
+  attr :title, :string, required: true
+  attr :subtitle, :string, default: nil
+  slot :action
+
+  def empty_state(assigns) do
+    ~H"""
+    <div class="border border-base-300 rounded-box p-14 text-center">
+      <.icon name={@icon} class="size-12 mx-auto text-base-content/25" />
+      <h3 class="text-sm font-medium text-base-content mt-3">{@title}</h3>
+      <p :if={@subtitle} class="text-xs text-neutral mt-1">{@subtitle}</p>
+      <div :if={@action != []} class="mt-4 flex justify-center">
+        {render_slot(@action)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do
