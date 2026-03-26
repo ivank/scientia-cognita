@@ -16,19 +16,13 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
         %{label: "Console", href: ~p"/console"},
         %{label: "Sources"}
       ]} />
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl text-base-content font-serif-display">
-            Sources
-          </h1>
-          <p class="text-neutral text-sm mt-1">
-            URLs crawled and extracted by Gemini into individual items
-          </p>
-        </div>
-        <button class="btn btn-primary btn-sm gap-2" phx-click="open_new_modal">
-          <.icon name="hero-plus" class="size-4" /> Add Source
-        </button>
-      </div>
+      <.page_header title="Sources" subtitle="URLs crawled and extracted by Gemini into individual items">
+        <:action>
+          <button class="btn btn-primary btn-sm gap-2" phx-click="open_new_modal">
+            <.icon name="hero-plus" class="size-4" /> Add Source
+          </button>
+        </:action>
+      </.page_header>
 
       <%!-- Empty state --%>
       <div :if={@sources == []} class="card bg-base-200 p-16 text-center">

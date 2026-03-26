@@ -8,12 +8,7 @@ defmodule ScientiaCognitaWeb.Console.DashboardLive do
     ~H"""
     <div class="space-y-6">
       <.breadcrumb items={[%{label: "Console", href: ~p"/console"}, %{label: "Dashboard"}]} />
-      <div>
-        <h1 class="text-xl text-base-content font-serif-display">
-          Dashboard
-        </h1>
-        <p class="text-neutral text-sm mt-1">Welcome to the Scientia Cognita console.</p>
-      </div>
+      <.page_header title="Dashboard" subtitle="Welcome to the Scientia Cognita console." />
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <.link

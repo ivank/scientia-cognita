@@ -14,14 +14,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
         %{label: "Console", href: ~p"/console"},
         %{label: "Users"}
       ]} />
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl text-base-content font-serif-display">
-            Users
-          </h1>
-          <p class="text-neutral text-sm mt-1">{length(@users)} registered accounts</p>
-        </div>
-      </div>
+      <.page_header title="Users" subtitle={"#{length(@users)} registered accounts"} />
 
       <div class="border border-base-300 rounded-box overflow-hidden">
         <div class="overflow-x-auto">

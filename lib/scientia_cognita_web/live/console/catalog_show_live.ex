@@ -11,30 +11,23 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <%!-- Header --%>
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <.breadcrumb items={[
-            %{label: "Console", href: ~p"/console"},
-            %{label: "Catalogs", href: ~p"/console/catalogs"},
-            %{label: @catalog.name}
-          ]} />
-          <h1 class="text-xl text-base-content font-serif-display">
-            {@catalog.name}
-          </h1>
-          <p :if={@catalog.description} class="text-base-content/60 mt-1">{@catalog.description}</p>
-          <p class="font-mono text-xs text-base-content/40 mt-1">/{@catalog.slug}</p>
-        </div>
-        <div class="flex gap-2 shrink-0">
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Catalogs", href: ~p"/console/catalogs"},
+        %{label: @catalog.name}
+      ]} />
+      <.page_header title={@catalog.name} subtitle={@catalog.description}>
+        <:action>
           <button
-            class="btn btn-primary btn-sm gap-2"
+            class="btn btn-primary btn-sm"
             phx-click="open_picker"
             phx-disable-with="Loading…"
           >
-            <.icon name="hero-plus" class="size-4" /> Add Items
+            Add Items
           </button>
-        </div>
-      </div>
+        </:action>
+      </.page_header>
+      <p class="font-mono text-xs text-base-content/40 -mt-4 mb-4">/{@catalog.slug}</p>
 
       <%!-- Items grid --%>
       <div :if={@catalog_items == []} class="card bg-base-200 p-12 text-center">

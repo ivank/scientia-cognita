@@ -20,45 +20,42 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   def render(assigns) do
     ~H"""
     <div class="space-y-6">
-      <%!-- Header --%>
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <.breadcrumb items={[
-            %{label: "Console", href: ~p"/console"},
-            %{label: "Sources", href: ~p"/console/sources"},
-            %{label: Source.display_name(@source)}
-          ]} />
-          <h1 class="text-xl text-base-content flex items-center gap-3 font-serif-display">
-            {Source.display_name(@source)}
-            <.status_badge status={@source.status} />
-          </h1>
-          <p class="text-sm text-base-content/50 mt-1 font-mono">{@source.url}</p>
-        </div>
-
-        <div class="flex gap-2 shrink-0">
-          <button
-            :if={@source.status == "failed"}
-            class="btn btn-warning btn-sm gap-2"
-            phx-click="restart_source"
-            phx-disable-with="Restarting…"
-          >
-            <.icon name="hero-arrow-path" class="size-4" /> Restart
-          </button>
-          <button
-            :if={@retryable_count > 0}
-            class="btn btn-warning btn-sm gap-2"
-            phx-click="retry_items"
-            phx-disable-with="Retrying…"
-          >
-            <.icon name="hero-arrow-path" class="size-4" /> Retry {@retryable_count} items
-          </button>
-          <button
-            class="btn btn-error btn-sm gap-2"
-            phx-click="confirm_delete"
-          >
-            <.icon name="hero-trash" class="size-4" /> Delete
-          </button>
-        </div>
+      <.breadcrumb items={[
+        %{label: "Console", href: ~p"/console"},
+        %{label: "Sources", href: ~p"/console/sources"},
+        %{label: Source.display_name(@source)}
+      ]} />
+      <.page_header title={Source.display_name(@source)}>
+        <:action>
+          <div class="flex gap-2 shrink-0">
+            <button
+              :if={@source.status == "failed"}
+              class="btn btn-warning btn-sm gap-2"
+              phx-click="restart_source"
+              phx-disable-with="Restarting…"
+            >
+              <.icon name="hero-arrow-path" class="size-4" /> Restart
+            </button>
+            <button
+              :if={@retryable_count > 0}
+              class="btn btn-warning btn-sm gap-2"
+              phx-click="retry_items"
+              phx-disable-with="Retrying…"
+            >
+              <.icon name="hero-arrow-path" class="size-4" /> Retry {@retryable_count} items
+            </button>
+            <button
+              class="btn btn-error btn-sm gap-2"
+              phx-click="confirm_delete"
+            >
+              <.icon name="hero-trash" class="size-4" /> Delete
+            </button>
+          </div>
+        </:action>
+      </.page_header>
+      <div class="flex items-center gap-2 -mt-4 mb-4">
+        <.status_badge status={@source.status} size="xs" />
+        <span class="text-xs text-neutral font-mono">{@source.url}</span>
       </div>
 
       <%!-- Error message --%>

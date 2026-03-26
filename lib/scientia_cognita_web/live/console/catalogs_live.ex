@@ -14,17 +14,13 @@ defmodule ScientiaCognitaWeb.Console.CatalogsLive do
         %{label: "Console", href: ~p"/console"},
         %{label: "Catalogs"}
       ]} />
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-xl text-base-content font-serif-display">
-            Catalogs
-          </h1>
-          <p class="text-neutral text-sm mt-1">Curated collections published to Google Photos</p>
-        </div>
-        <button class="btn btn-primary gap-2" phx-click="open_new_modal">
-          <.icon name="hero-plus" class="size-4" /> New Catalog
-        </button>
-      </div>
+      <.page_header title="Catalogs" subtitle="Curated collections published to Google Photos">
+        <:action>
+          <button class="btn btn-primary gap-2" phx-click="open_new_modal">
+            <.icon name="hero-plus" class="size-4" /> New Catalog
+          </button>
+        </:action>
+      </.page_header>
 
       <div :if={@catalogs == []} class="card bg-base-200 p-12 text-center">
         <.icon name="hero-rectangle-stack" class="size-12 mx-auto text-base-content/30" />
