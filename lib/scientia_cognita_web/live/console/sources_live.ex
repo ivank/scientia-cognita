@@ -223,17 +223,4 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
     List.duplicate(nil, max(count, 0))
   end
 
-  defp status_badge(assigns) do
-    ~H"""
-    <span class={"badge badge-sm #{status_class(@status)}"}>{@status}</span>
-    """
-  end
-
-  defp status_class("pending"), do: "badge-ghost"
-  defp status_class("fetching"), do: "badge-warning animate-pulse"
-  defp status_class("extracting"), do: "badge-warning animate-pulse"
-  defp status_class("items_loading"), do: "badge-info animate-pulse"
-  defp status_class("done"), do: "badge-success"
-  defp status_class("failed"), do: "badge-error"
-  defp status_class(_), do: "badge-ghost"
 end

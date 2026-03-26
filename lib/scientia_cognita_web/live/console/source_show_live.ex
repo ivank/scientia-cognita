@@ -617,24 +617,4 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     """
   end
 
-  defp status_badge(assigns) do
-    ~H"""
-    <span class={"badge badge-xs #{status_class(@status)}"}>{@status}</span>
-    """
-  end
-
-  defp status_class("pending"), do: "badge-ghost"
-  defp status_class("fetching"), do: "badge-warning animate-pulse"
-  defp status_class("extracting"), do: "badge-warning animate-pulse"
-  defp status_class("done"), do: "badge-success"
-  defp status_class("ready"), do: "badge-success"
-  defp status_class("failed"), do: "badge-error"
-  defp status_class("discarded"), do: "badge-warning"
-  defp status_class("downloading"), do: "badge-info"
-  defp status_class("thumbnail"), do: "badge-info animate-pulse"
-  defp status_class("analyze"), do: "badge-info animate-pulse"
-  defp status_class("resize"), do: "badge-info animate-pulse"
-  defp status_class("render"), do: "badge-info animate-pulse"
-  defp status_class("items_loading"), do: "badge-info animate-pulse"
-  defp status_class(_), do: "badge-ghost"
 end

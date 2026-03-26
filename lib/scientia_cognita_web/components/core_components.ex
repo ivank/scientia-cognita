@@ -611,6 +611,50 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   end
 
   @doc """
+  Renders a DaisyUI badge for source processing statuses and user roles.
+
+  ## Examples
+
+      <.status_badge status={source.status} />
+      <.status_badge status={source.status} size="xs" />
+      <.status_badge status={user.role} />
+  """
+  attr :status, :string, required: true
+  attr :size, :string, default: "sm", values: ~w(xs sm)
+
+  def status_badge(assigns) do
+    ~H"""
+    <span class={"badge badge-#{@size} #{status_badge_class(@status)}"}>
+      {@status}
+    </span>
+    """
+  end
+
+  defp status_badge_class(status) do
+    case status do
+      # Source statuses
+      "pending"       -> "badge-ghost"
+      "fetching"      -> "badge-warning animate-pulse"
+      "extracting"    -> "badge-warning animate-pulse"
+      "items_loading" -> "badge-info animate-pulse"
+      "done"          -> "badge-success"
+      "ready"         -> "badge-success"
+      "failed"        -> "badge-error"
+      "discarded"     -> "badge-warning"
+      "downloading"   -> "badge-info"
+      "thumbnail"     -> "badge-info animate-pulse"
+      "analyze"       -> "badge-info animate-pulse"
+      "resize"        -> "badge-info animate-pulse"
+      "render"        -> "badge-info animate-pulse"
+      # Role values
+      "owner"         -> "badge-accent font-semibold"
+      "admin"         -> "badge-primary"
+      # Default
+      _               -> "badge-ghost"
+    end
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do
