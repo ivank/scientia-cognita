@@ -23,7 +23,7 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
             phx-click="open_picker"
             phx-disable-with="Loading…"
           >
-            Add Items
+            <.icon name="hero-plus" class="size-4" /> Add Items
           </button>
         </:action>
       </.page_header>
