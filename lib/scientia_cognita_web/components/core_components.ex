@@ -655,6 +655,35 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   end
 
   @doc """
+  Renders a progress bar with optional label and integer percentage.
+
+  ## Examples
+
+      <.progress_bar value={@ready_count} max={@total_items} label="Processing items" />
+      <.progress_bar value={42} max={100} />
+  """
+  attr :value, :integer, required: true
+  attr :max, :integer, required: true
+  attr :label, :string, default: nil
+
+  def progress_bar(assigns) do
+    ~H"""
+    <div>
+      <div :if={@label} class="flex justify-between mb-1">
+        <span class="text-xs text-neutral">{@label}</span>
+        <span class="text-xs text-neutral">{trunc(@value / max(@max, 1) * 100)}%</span>
+      </div>
+      <div class="w-full bg-base-300 rounded-full h-2 overflow-hidden">
+        <div
+          class="bg-success h-2 rounded-full transition-all duration-500"
+          style={"width: #{trunc(@value / max(@max, 1) * 100)}%"}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do

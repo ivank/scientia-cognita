@@ -66,17 +66,11 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
       <%!-- Progress bar --%>
       <div :if={@source.total_items > 0} class="space-y-1">
-        <div class="flex justify-between text-xs text-base-content/60">
-          <span>Processing items</span>
-          <span>{@status_counts["ready"] || 0} / {@source.total_items} ready</span>
-        </div>
-        <div class="w-full bg-base-300 rounded-full h-2">
-          <div
-            class="bg-success h-2 rounded-full transition-all duration-500"
-            style={"width: #{progress_pct(@status_counts["ready"] || 0, @source.total_items)}%"}
-          >
-          </div>
-        </div>
+        <.progress_bar
+          value={@status_counts["ready"] || 0}
+          max={@source.total_items}
+          label="Processing items"
+        />
         <div class="flex gap-4 text-xs text-base-content/50 mt-1">
           <span :for={{status, count} <- sorted_status_counts(@status_counts)} :if={count > 0}>
             <.status_badge status={status} size="xs" /> {count}
@@ -520,9 +514,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     |> assign(:retryable_count, retryable_count)
     |> assign(:stuck_ids, stuck_ids)
   end
-
-  defp progress_pct(0, _), do: 0
-  defp progress_pct(ready, total), do: Float.round(ready / total * 100, 1)
 
   defp sorted_status_counts(counts) do
     order = ~w(pending downloading thumbnail analyze resize render ready failed discarded)
