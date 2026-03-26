@@ -39,37 +39,12 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
       </.empty_state>
 
       <div :if={@catalog_items != []} class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <div
+        <.item_card
           :for={item <- @catalog_items}
           id={"catalog-item-#{item.id}"}
-          class="card bg-base-200 overflow-hidden group"
-        >
-          <figure class="aspect-video bg-base-300 relative">
-            <img
-              :if={item.thumbnail_image || item.final_image}
-              src={
-                if item.thumbnail_image,
-                  do: ItemImageUploader.url({item.thumbnail_image, item}),
-                  else: ItemImageUploader.url({item.final_image, item})
-              }
-              class="w-full h-full object-cover"
-              loading="lazy"
-            />
-            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <button
-                class="btn btn-error btn-xs"
-                phx-click="remove_item"
-                phx-value-item-id={item.id}
-              >
-                Remove
-              </button>
-            </div>
-          </figure>
-          <div class="card-body p-3">
-            <p class="text-xs font-medium truncate">{item.title}</p>
-            <p :if={item.author} class="text-xs text-base-content/50 truncate">{item.author}</p>
-          </div>
-        </div>
+          item={item}
+          on_remove="remove_item"
+        />
       </div>
     </div>
 

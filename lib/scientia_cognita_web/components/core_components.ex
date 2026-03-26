@@ -684,6 +684,104 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   end
 
   @doc """
+  Renders an image card for a catalog item.
+
+  Set `on_remove` (a phx-click event name) for console edit mode, or `on_click`
+  for public lightbox mode. `failed` and `uploaded` are pre-computed booleans
+  from the parent (derived from `export_item_statuses`).
+
+  ## Examples
+
+      <%!-- Console --%>
+      <.item_card id={"catalog-item-\#{item.id}"} item={item} on_remove="remove_item" />
+
+      <%!-- Public --%>
+      <.item_card
+        id={"item-\#{item.id}"}
+        item={item}
+        on_click="open_lightbox"
+        failed={item_failed?(@export_item_statuses, item.id)}
+        uploaded={item_uploaded?(@export_item_statuses, item.id)}
+      />
+  """
+  attr :item, :map, required: true
+  attr :id, :string, default: nil
+  attr :on_remove, :string, default: nil
+  attr :on_click, :string, default: nil
+  attr :failed, :boolean, default: false
+  attr :uploaded, :boolean, default: false
+
+  def item_card(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class={[
+        "card bg-base-200 overflow-hidden group",
+        @on_click && "cursor-pointer",
+        @failed && "ring-2 ring-error"
+      ]}
+      phx-click={@on_click}
+      phx-value-item-id={@on_click && @item.id}
+    >
+      <figure class="aspect-video bg-base-300 relative">
+        <img
+          :if={item_thumb_url(@item)}
+          src={item_thumb_url(@item)}
+          class={[
+            "w-full h-full object-cover",
+            @on_click && "group-hover:scale-105 transition-transform duration-300",
+            @failed && "opacity-50"
+          ]}
+          loading="lazy"
+        />
+
+        <%!-- Console: hover remove overlay --%>
+        <div
+          :if={@on_remove}
+          class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        >
+          <button
+            class="btn btn-error btn-xs"
+            phx-click={@on_remove}
+            phx-value-item-id={@item.id}
+          >
+            Remove
+          </button>
+        </div>
+
+        <%!-- Public: failed overlay badge --%>
+        <div
+          :if={@failed}
+          class="absolute top-1.5 right-1.5 bg-error text-error-content text-[10px] font-bold px-1.5 py-0.5 rounded"
+        >
+          ⚠ FAILED
+        </div>
+
+        <%!-- Public: uploaded check overlay --%>
+        <div
+          :if={@uploaded}
+          class="absolute bottom-1.5 right-1.5 bg-success text-success-content rounded-full w-5 h-5 flex items-center justify-center"
+        >
+          <.icon name="hero-check" class="size-3" />
+        </div>
+      </figure>
+      <div class="card-body p-3">
+        <p class="text-xs font-medium truncate">{@item.title}</p>
+        <p :if={@item[:author]} class="text-xs text-base-content/50 truncate">{@item[:author]}</p>
+      </div>
+    </div>
+    """
+  end
+
+  defp item_thumb_url(item) do
+    cond do
+      item.thumbnail_image -> ScientiaCognita.Uploaders.ItemImageUploader.url({item.thumbnail_image, item})
+      item.final_image     -> ScientiaCognita.Uploaders.ItemImageUploader.url({item.final_image, item})
+      true                 -> nil
+    end
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do

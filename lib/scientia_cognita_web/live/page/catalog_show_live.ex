@@ -41,50 +41,14 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
       />
 
       <div :if={@catalog_items != []} class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <div
+        <.item_card
           :for={item <- @catalog_items}
           id={"item-#{item.id}"}
-          class={[
-            "card bg-base-200 overflow-hidden group cursor-pointer",
-            item_failed?(@export_item_statuses, item.id) && "ring-2 ring-error"
-          ]}
-          phx-click="open_lightbox"
-          phx-value-item-id={item.id}
-        >
-          <figure class="aspect-video bg-base-300 relative">
-            <img
-              :if={item.thumbnail_image || item.final_image}
-              src={
-                if item.thumbnail_image,
-                  do: ItemImageUploader.url({item.thumbnail_image, item}),
-                  else: ItemImageUploader.url({item.final_image, item})
-              }
-              class={[
-                "w-full h-full object-cover group-hover:scale-105 transition-transform duration-300",
-                item_failed?(@export_item_statuses, item.id) && "opacity-50"
-              ]}
-              loading="lazy"
-            />
-            <%!-- Failed badge --%>
-            <div
-              :if={item_failed?(@export_item_statuses, item.id)}
-              class="absolute top-1.5 right-1.5 bg-error text-error-content text-[10px] font-bold px-1.5 py-0.5 rounded"
-            >
-              ⚠ FAILED
-            </div>
-            <%!-- Uploaded check --%>
-            <div
-              :if={item_uploaded?(@export_item_statuses, item.id)}
-              class="absolute bottom-1.5 right-1.5 bg-success text-success-content rounded-full w-5 h-5 flex items-center justify-center"
-            >
-              <.icon name="hero-check" class="size-3" />
-            </div>
-          </figure>
-          <div class="card-body p-3">
-            <p class="text-xs font-medium truncate">{item.title}</p>
-            <p :if={item.author} class="text-xs text-base-content/50 truncate">{item.author}</p>
-          </div>
-        </div>
+          item={item}
+          on_click="open_lightbox"
+          failed={item_failed?(@export_item_statuses, item.id)}
+          uploaded={item_uploaded?(@export_item_statuses, item.id)}
+        />
       </div>
     </div>
 
