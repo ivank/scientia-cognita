@@ -32,7 +32,7 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
               <tr :for={user <- @users} id={"user-#{user.id}"}
                   class="border-b border-base-300 last:border-0 hover:bg-base-200/60 transition-colors duration-[150ms]">
                 <td class="font-mono text-sm">{user.email}</td>
-                <td><.role_badge role={user.role} /></td>
+                <td><.status_badge status={user.role} /></td>
                 <td class="text-sm text-base-content/60">
                   {Calendar.strftime(user.inserted_at, "%b %d, %Y")}
                 </td>
@@ -152,18 +152,6 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
-
-  defp role_badge(assigns) do
-    ~H"""
-    <span class={"badge badge-sm #{role_class(@role)}"}>
-      {@role}
-    </span>
-    """
-  end
-
-  defp role_class("owner"), do: "badge-accent font-semibold"
-  defp role_class("admin"), do: "badge-primary"
-  defp role_class(_), do: "badge-ghost"
 
   # Roles the actor can assign
   defp allowed_roles(%User{role: "owner"}), do: User.roles()
