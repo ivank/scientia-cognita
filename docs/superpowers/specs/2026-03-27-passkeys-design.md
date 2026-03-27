@@ -73,6 +73,7 @@ Changesets:
 ```elixir
 list_passkeys(user)                      # returns [%UserPasskey{}], ordered by inserted_at desc
 get_passkey_by_credential_id(cred_id)    # returns %UserPasskey{} preloaded with :user, or nil
+user_has_passkeys?(user)                 # returns boolean — cheap existence check for banner plug
 register_passkey(user, attrs)            # {:ok, passkey} | {:error, changeset}
 update_passkey_label(passkey, label)     # {:ok, passkey} | {:error, changeset}
 delete_passkey(user, passkey_id)         # {:ok, passkey} | {:error, :not_found | :unauthorized}
@@ -193,7 +194,7 @@ Actions:
 - `authenticate/2` — verifies assertion, logs user in
 - `update_label/2` — updates passkey label, returns JSON
 - `delete/2` — deletes passkey (with ownership check), returns JSON
-- `dismiss_banner/2` — sets `:passkey_banner_dismissed` in session, redirects back
+- `dismiss_banner/2` — sets `:passkey_banner_dismissed` in session, returns JSON `{ok: true}` — JS hides the banner client-side
 
 Private helpers:
 - `origin/0` — returns `Application.get_env(:scientia_cognita, :webauthn)[:origin]`
@@ -261,10 +262,11 @@ The banner is rendered in the `Layouts.app` function component (`lib/scientia_co
 attr :show_passkey_banner, :boolean, default: false
 ```
 
-This assign is set in a new `:fetch_passkey_banner` plug added to the `:browser` pipeline in `router.ex`:
+This assign is set by a `fetch_passkey_banner/2` plug defined in `lib/scientia_cognita_web/user_auth.ex` (alongside the other auth plugs) and called from the `:browser` pipeline in `router.ex`:
 
 ```elixir
-defp fetch_passkey_banner(conn, _opts) do
+# in user_auth.ex
+def fetch_passkey_banner(conn, _opts) do
   if scope = conn.assigns[:current_scope] do
     dismissed = get_session(conn, :passkey_banner_dismissed)
     has_passkeys = Accounts.user_has_passkeys?(scope.user)
@@ -318,8 +320,8 @@ Banner styling: `bg-sc-primary-pale border border-primary/20`, passkey icon, hea
 | `lib/scientia_cognita/accounts/user_passkey.ex` | New schema |
 | `lib/scientia_cognita/accounts.ex` | New context functions |
 | `lib/scientia_cognita_web/controllers/user_passkey_controller.ex` | New controller |
-| `lib/scientia_cognita_web/router.ex` | New routes + `fetch_passkey_banner` plug |
 | `lib/scientia_cognita_web/user_auth.ex` | Add `fetch_passkey_banner/2` plug |
+| `lib/scientia_cognita_web/router.ex` | New routes; add `fetch_passkey_banner` to `:browser` pipeline |
 | `lib/scientia_cognita_web/components/layouts.ex` | Add `:show_passkey_banner` attr + banner markup to `Layouts.app` |
 | `lib/scientia_cognita_web/controllers/user_session_html/new.html.heex` | Add passkey button at top |
 | `lib/scientia_cognita_web/controllers/user_settings_html/edit.html.heex` | Add passkeys section |
