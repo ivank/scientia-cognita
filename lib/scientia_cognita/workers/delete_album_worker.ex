@@ -7,6 +7,10 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
   items from the album via batchRemoveMediaItems, leaving it empty.
 
   Authorization: verifies export.user_id == user_id before proceeding.
+
+  Status flow: running → deleting → deleted (success) or running (error).
+  On error the export is reset to "done" and an {:export_delete_error} event
+  is broadcast so the LiveView can offer a "delete local record" escape hatch.
   """
 
   use Oban.Worker, queue: :export, max_attempts: 2
@@ -14,7 +18,7 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
   require Logger
 
   alias ScientiaCognita.{Accounts, Photos, Repo}
-  alias ScientiaCognita.Photos.PhotoExport
+  alias ScientiaCognita.Photos.{PhotoExport, GoogleErrors}
 
   @photos_base "https://photoslibrary.googleapis.com/v1"
 
@@ -30,6 +34,15 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
       topic = "export:#{export.catalog_id}:#{user_id}"
       token = user.google_access_token
 
+      # Mark as deleting so the LiveView can show progress
+      {:ok, export} = Photos.set_export_status(export, "deleting")
+
+      Phoenix.PubSub.broadcast(
+        ScientiaCognita.PubSub,
+        topic,
+        {:export_deleting, %{}}
+      )
+
       case delete_or_clear_album(token, export.album_id) do
         :ok ->
           {:ok, _} = Photos.set_export_status(export, "deleted")
@@ -42,14 +55,19 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
 
           :ok
 
-        {:error, reason} ->
+        {:error, raw_reason} ->
+          friendly = GoogleErrors.translate(to_string(raw_reason))
+
+          # Reset to "done" so the user can retry or keep using the export
+          Photos.set_export_status(export, "done")
+
           Phoenix.PubSub.broadcast(
             ScientiaCognita.PubSub,
             topic,
-            {:export_delete_failed, reason}
+            {:export_delete_error, friendly}
           )
 
-          {:error, reason}
+          {:error, friendly}
       end
     end
   end

@@ -84,6 +84,15 @@ defmodule ScientiaCognita.Photos do
     |> Map.new()
   end
 
+  @doc "Freshly reloads the export from the DB. Use in workers to check for cancellation."
+  def reload_export(%PhotoExport{id: id}), do: Repo.get!(PhotoExport, id)
+
+  @doc "Sets the export status to cancelled, stopping any in-progress worker."
+  def cancel_export(export), do: set_export_status(export, "cancelled")
+
+  @doc "Deletes the local PhotoExport record without making any Google Photos API call."
+  def delete_local_only(export), do: Repo.delete(export)
+
   # ---------------------------------------------------------------------------
   # Private
   # ---------------------------------------------------------------------------

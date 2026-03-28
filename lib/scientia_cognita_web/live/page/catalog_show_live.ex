@@ -31,7 +31,9 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
         export_total={@export_total}
         export_failed_items={@export_failed_items}
         export_new_count={@export_new_count}
+        export_delete_error={@export_delete_error}
         catalog_items={@catalog_items}
+        token_status={@token_status}
       />
 
       <%!-- Items grid --%>
@@ -203,15 +205,22 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
                 <div class="text-sm text-slate-400 mt-0.5">
                   {length(@catalog_items)} photos ready to save
                 </div>
+                <.token_status_line token_status={@token_status} />
               </div>
             </div>
-            <button
-              class="btn btn-primary gap-2 shrink-0"
-              phx-click="export_to_google_photos"
-              phx-disable-with="Starting…"
-            >
-              <.icon name="hero-arrow-up-tray" class="size-4" /> Save to Google Photos
-            </button>
+            <%= if token_needs_reconnect?(@token_status) do %>
+              <.link href={~p"/auth/google"} class="btn btn-warning gap-2 shrink-0">
+                <.icon name="hero-link" class="size-4" /> Reconnect Google Photos
+              </.link>
+            <% else %>
+              <button
+                class="btn btn-primary gap-2 shrink-0"
+                phx-click="export_to_google_photos"
+                phx-disable-with="Starting…"
+              >
+                <.icon name="hero-arrow-up-tray" class="size-4" /> Save to Google Photos
+              </button>
+            <% end %>
           </div>
         </div>
 
@@ -233,8 +242,12 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
                 </div>
               </div>
             </div>
-            <button class="btn btn-sm gap-2" disabled>
-              <span class="loading loading-spinner loading-xs"></span> In progress…
+            <button
+              class="btn btn-sm btn-ghost gap-2 text-slate-400 hover:text-white border border-slate-600"
+              phx-click="cancel_export"
+              phx-disable-with="Cancelling…"
+            >
+              <.icon name="hero-x-mark" class="size-4" /> Cancel
             </button>
           </div>
           <.progress_bar
@@ -247,6 +260,59 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             <span>{@export_total}</span>
           </div>
           <.failed_items_list :if={@export_failed_items != []} items={@export_failed_items} />
+        </div>
+
+      <% @export.status == "cancelled" -> %>
+        <div class="rounded-xl p-5 bg-slate-900 border border-slate-600 text-white">
+          <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0">
+                <.icon name="hero-x-circle" class="size-6 text-slate-400" />
+              </div>
+              <div>
+                <div class="font-bold text-base">Upload cancelled</div>
+                <div class="text-sm text-slate-400 mt-0.5">
+                  {uploaded_item_count(@export_item_statuses)} uploaded
+                  <span :if={length(@export_failed_items) > 0} class="text-red-400 ml-2">
+                    · {length(@export_failed_items)} failed
+                  </span>
+                </div>
+                <.token_status_line token_status={@token_status} />
+              </div>
+            </div>
+            <div class="flex gap-2 flex-wrap shrink-0">
+              <%= if token_needs_reconnect?(@token_status) do %>
+                <.link href={~p"/auth/google"} class="btn btn-sm btn-warning gap-2">
+                  <.icon name="hero-link" class="size-4" /> Reconnect Google Photos
+                </.link>
+              <% else %>
+                <button
+                  class="btn btn-sm gap-2 bg-slate-700 border-slate-500 text-white hover:bg-slate-600"
+                  phx-click="export_to_google_photos"
+                  phx-disable-with="Starting…"
+                >
+                  <.icon name="hero-arrow-up-tray" class="size-4" /> Resume upload
+                </button>
+              <% end %>
+            </div>
+          </div>
+          <.failed_items_list :if={@export_failed_items != []} items={@export_failed_items} />
+        </div>
+
+      <% @export.status == "deleting" -> %>
+        <div class="rounded-xl p-5 bg-slate-900 border border-slate-600 text-white">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0 animate-pulse">
+              <.icon name="hero-trash" class="size-6 text-slate-400" />
+            </div>
+            <div>
+              <div class="font-bold text-base">Deleting album from Google Photos…</div>
+              <div class="text-sm text-slate-400 mt-0.5">
+                <span class="loading loading-spinner loading-xs align-middle mr-1"></span>
+                This may take a moment.
+              </div>
+            </div>
+          </div>
         </div>
 
       <% @export.status == "done" -> %>
@@ -275,41 +341,74 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
                     View album ↗
                   </a>
                 </div>
+                <.token_status_line token_status={@token_status} />
               </div>
             </div>
             <div class="flex gap-2 flex-wrap shrink-0">
-              <button
-                :if={length(@export_failed_items) > 0}
-                class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
-                phx-click="retry_failed_items"
-                phx-disable-with="Retrying…"
-              >
-                <.icon name="hero-arrow-path" class="size-4" />
-                Retry failed ({length(@export_failed_items)})
-              </button>
-              <button
-                :if={@export_new_count > 0}
-                class="btn btn-sm gap-2 bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
-                phx-click="sync_new_items"
-                phx-disable-with="Syncing…"
-              >
-                <.icon name="hero-arrow-up-tray" class="size-4" />
-                Upload {@export_new_count} new
-              </button>
-              <button
-                :if={length(@export_failed_items) == 0 and @export_new_count == 0}
-                class="btn btn-sm gap-2 bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
-                phx-click="export_to_google_photos"
-                phx-disable-with="Syncing…"
-              >
-                <.icon name="hero-arrow-path" class="size-4" /> Sync new items
-              </button>
+              <%= if token_needs_reconnect?(@token_status) do %>
+                <.link href={~p"/auth/google"} class="btn btn-sm btn-warning gap-2">
+                  <.icon name="hero-link" class="size-4" /> Reconnect to sync
+                </.link>
+              <% else %>
+                <button
+                  :if={length(@export_failed_items) > 0}
+                  class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
+                  phx-click="retry_failed_items"
+                  phx-disable-with="Retrying…"
+                >
+                  <.icon name="hero-arrow-path" class="size-4" />
+                  Retry failed ({length(@export_failed_items)})
+                </button>
+                <button
+                  :if={@export_new_count > 0}
+                  class="btn btn-sm gap-2 bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
+                  phx-click="sync_new_items"
+                  phx-disable-with="Syncing…"
+                >
+                  <.icon name="hero-arrow-up-tray" class="size-4" />
+                  Upload {@export_new_count} new
+                </button>
+                <button
+                  :if={length(@export_failed_items) == 0 and @export_new_count == 0}
+                  class="btn btn-sm gap-2 bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
+                  phx-click="export_to_google_photos"
+                  phx-disable-with="Syncing…"
+                >
+                  <.icon name="hero-arrow-path" class="size-4" /> Sync new items
+                </button>
+              <% end %>
               <button
                 class="btn btn-sm gap-2 bg-slate-900 border-red-900 text-red-400 hover:bg-red-950"
                 phx-click="delete_album"
               >
                 <.icon name="hero-trash" class="size-4" /> Delete album
               </button>
+            </div>
+          </div>
+          <%!-- Delete error section --%>
+          <div :if={@export_delete_error} class="mt-3 border-t border-white/10 pt-3">
+            <div class="flex items-start gap-2 rounded px-3 py-2.5 bg-red-900/40 text-xs">
+              <.icon name="hero-exclamation-triangle" class="size-4 text-red-400 shrink-0 mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-red-200 mb-1">Could not delete album from Google Photos</div>
+                <div class="text-red-400/80">{@export_delete_error}</div>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button
+                  class="btn btn-ghost btn-xs text-red-300 hover:text-white"
+                  phx-click="delete_album"
+                  title="Try deleting again"
+                >
+                  Try again
+                </button>
+                <button
+                  class="btn btn-ghost btn-xs text-slate-400 hover:text-white"
+                  phx-click="delete_local_only"
+                  title="Remove from this app without deleting from Google Photos"
+                >
+                  Delete local record
+                </button>
+              </div>
             </div>
           </div>
           <.failed_items_list :if={@export_failed_items != []} items={@export_failed_items} />
@@ -330,31 +429,32 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
                   </span>
                   <span :if={@export.error} class="ml-1 opacity-70">· {@export.error}</span>
                 </div>
+                <.token_status_line token_status={@token_status} />
               </div>
             </div>
             <div class="flex gap-2 flex-wrap shrink-0">
-              <button
-                :if={length(@export_failed_items) > 0}
-                class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
-                phx-click="retry_failed_items"
-                phx-disable-with="Retrying…"
-              >
-                <.icon name="hero-arrow-path" class="size-4" />
-                Retry failed ({length(@export_failed_items)})
-              </button>
-              <button
-                class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
-                phx-click="export_to_google_photos"
-                phx-disable-with="Retrying…"
-              >
-                <.icon name="hero-arrow-path" class="size-4" /> Retry all
-              </button>
-              <.link
-                href={~p"/auth/google"}
-                class="btn btn-sm gap-2 bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
-              >
-                <.icon name="hero-link" class="size-4" /> Reconnect Google Photos
-              </.link>
+              <%= if token_needs_reconnect?(@token_status) do %>
+                <.link href={~p"/auth/google"} class="btn btn-sm btn-warning gap-2">
+                  <.icon name="hero-link" class="size-4" /> Reconnect Google Photos
+                </.link>
+              <% else %>
+                <button
+                  :if={length(@export_failed_items) > 0}
+                  class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
+                  phx-click="retry_failed_items"
+                  phx-disable-with="Retrying…"
+                >
+                  <.icon name="hero-arrow-path" class="size-4" />
+                  Retry failed ({length(@export_failed_items)})
+                </button>
+                <button
+                  class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
+                  phx-click="export_to_google_photos"
+                  phx-disable-with="Retrying…"
+                >
+                  <.icon name="hero-arrow-path" class="size-4" /> Retry all
+                </button>
+              <% end %>
             </div>
           </div>
           <.failed_items_list :if={@export_failed_items != []} items={@export_failed_items} />
@@ -362,6 +462,33 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
 
       <% true -> %>
         <%!-- Fallback: shouldn't occur in practice --%>
+    <% end %>
+    """
+  end
+
+  # Renders token status as a small info line (expired / expiring soon / valid).
+  # Returns nothing if the token has no expiry data.
+  defp token_status_line(%{token_status: :no_token} = assigns), do: ~H""
+  defp token_status_line(%{token_status: :no_expiry} = assigns), do: ~H""
+
+  defp token_status_line(assigns) do
+    ~H"""
+    <%= case @token_status do %>
+      <% {:expired, _} -> %>
+        <div class="flex items-center gap-1 mt-1 text-xs text-amber-400">
+          <.icon name="hero-exclamation-circle" class="size-3" />
+          Google token expired — reconnect to upload
+        </div>
+      <% {:expiring_soon, _, secs} -> %>
+        <div class="flex items-center gap-1 mt-1 text-xs text-amber-300">
+          <.icon name="hero-clock" class="size-3" />
+          Token expires in {format_duration(secs)} — reconnect to stay connected
+        </div>
+      <% {:valid, _, secs} -> %>
+        <div class="flex items-center gap-1 mt-1 text-xs text-slate-500">
+          <.icon name="hero-check" class="size-3" />
+          Token valid for {format_duration(secs)}
+        </div>
     <% end %>
     """
   end
@@ -432,7 +559,9 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
      |> assign(:export_new_count, compute_new_item_count(export_item_statuses, items))
      |> assign(:export_progress, 0)
      |> assign(:export_total, length(items))
-     |> assign(:show_delete_confirm, false)}
+     |> assign(:export_delete_error, nil)
+     |> assign(:show_delete_confirm, false)
+     |> assign(:token_status, compute_token_status(socket.assigns.current_scope))}
   end
 
   # ---------------------------------------------------------------------------
@@ -459,13 +588,13 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     if is_nil(socket.assigns.current_scope) do
       {:noreply, socket}
     else
-      do_start_export(socket)
+      socket |> assign(:export_delete_error, nil) |> do_start_export()
     end
   end
 
   def handle_event("retry_failed_items", _params, socket) do
     ids = Enum.map(socket.assigns.export_failed_items, & &1.id)
-    do_start_export(socket, item_ids: ids)
+    socket |> assign(:export_delete_error, nil) |> do_start_export(item_ids: ids)
   end
 
   def handle_event("retry_item", %{"item-id" => item_id_str}, socket) do
@@ -485,11 +614,27 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
 
   def handle_event("sync_new_items", _params, socket) do
     ids = new_item_ids(socket.assigns.export_item_statuses, socket.assigns.catalog_items)
-    do_start_export(socket, item_ids: ids)
+    socket |> assign(:export_delete_error, nil) |> do_start_export(item_ids: ids)
+  end
+
+  def handle_event("cancel_export", _params, socket) do
+    export = socket.assigns.export
+
+    if export && export.status == "running" do
+      case Photos.cancel_export(export) do
+        {:ok, cancelled_export} ->
+          {:noreply, assign(socket, :export, cancelled_export)}
+
+        {:error, _} ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("delete_album", _params, socket) do
-    {:noreply, assign(socket, :show_delete_confirm, true)}
+    {:noreply, socket |> assign(:show_delete_confirm, true) |> assign(:export_delete_error, nil)}
   end
 
   def handle_event("cancel_delete_album", _params, socket) do
@@ -511,6 +656,29 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
         |> Oban.insert()
 
       {:noreply, assign(socket, :show_delete_confirm, false)}
+    end
+  end
+
+  def handle_event("delete_local_only", _params, socket) do
+    export = socket.assigns.export
+    scope = socket.assigns.current_scope
+
+    if is_nil(scope) or is_nil(export) do
+      {:noreply, socket}
+    else
+      case Photos.delete_local_only(export) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> assign(:export, nil)
+           |> assign(:export_item_statuses, %{})
+           |> assign(:export_failed_items, [])
+           |> assign(:export_new_count, 0)
+           |> assign(:export_delete_error, nil)}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Could not remove local record. Please try again.")}
+      end
     end
   end
 
@@ -549,8 +717,17 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     {:noreply, put_flash(socket, :error, "Export failed. Check failed items below.")}
   end
 
+  def handle_info({:export_deleting, _}, socket) do
+    {:noreply, reload_export(socket)}
+  end
+
   def handle_info({:export_deleted, _}, socket) do
     {:noreply, reload_export(socket)}
+  end
+
+  def handle_info({:export_delete_error, reason}, socket) do
+    socket = reload_export(socket)
+    {:noreply, assign(socket, :export_delete_error, reason)}
   end
 
   def handle_info({:export_delete_failed, reason}, socket) do
@@ -599,8 +776,47 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     |> assign(:export_new_count, compute_new_item_count(statuses, items))
   end
 
+  # ---------------------------------------------------------------------------
+  # Token helpers
+  # ---------------------------------------------------------------------------
+
   defp has_google_token?(nil), do: false
   defp has_google_token?(scope), do: not is_nil(scope.user.google_access_token)
+
+  defp compute_token_status(nil), do: :no_token
+
+  defp compute_token_status(scope) do
+    case scope.user.google_token_expires_at do
+      nil ->
+        :no_expiry
+
+      %DateTime{} = expires_at ->
+        diff = DateTime.diff(expires_at, DateTime.utc_now(), :second)
+
+        cond do
+          diff <= 0 -> {:expired, expires_at}
+          diff < 300 -> {:expiring_soon, expires_at, diff}
+          true -> {:valid, expires_at, diff}
+        end
+    end
+  end
+
+  defp token_needs_reconnect?({:expired, _}), do: true
+  defp token_needs_reconnect?({:expiring_soon, _, _}), do: true
+  defp token_needs_reconnect?(_), do: false
+
+  defp format_duration(seconds) do
+    cond do
+      seconds < 60 -> "#{seconds}s"
+      seconds < 3600 -> "#{div(seconds, 60)}m"
+      seconds < 86400 -> "#{div(seconds, 3600)}h #{rem(div(seconds, 60), 60)}m"
+      true -> "#{div(seconds, 86400)}d"
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Item status helpers
+  # ---------------------------------------------------------------------------
 
   defp item_failed?(statuses, item_id) do
     case Map.get(statuses, item_id) do

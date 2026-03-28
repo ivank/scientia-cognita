@@ -7,17 +7,19 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
     2. Create the Google Photos album if album_id is nil.
     3. Determine which items to upload (all non-uploaded, or a specific subset via
        the optional `item_ids` job arg — used for targeted retry / new-only sync).
-    4. Upload each item's bytes to get an upload token. Record failures per item
+    4. Upload each item's bytes to get an upload token. Before each item, check
+       whether the export has been cancelled (DB flag). Record per-item failures
        without stopping; broadcast progress and per-item failure events.
-    5. Batch-create media items in the album (50 per call).
+    5. If not cancelled: batch-create media items in the album (50 per call).
        After each successful batch, mark those items as uploaded in the DB.
-    6. Set export status: done, broadcast done.
+    6. If not cancelled: set export status: done, broadcast done.
     7. On crash: set export status: failed, broadcast failed.
   """
 
   use Oban.Worker, queue: :export, max_attempts: 2
 
   alias ScientiaCognita.{Catalog, Accounts, Photos}
+  alias ScientiaCognita.Photos.GoogleErrors
   alias ScientiaCognita.Uploaders.ItemImageUploader
 
   @photos_base "https://photoslibrary.googleapis.com/v1"
@@ -66,36 +68,17 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
     total = length(items_to_upload)
 
     # 4. Upload bytes and collect {item, upload_token} pairs.
-    #    Each failure is recorded per-item and broadcast; the loop always continues.
+    #    Before each item, check whether the user cancelled (DB flag).
+    #    Each failure is recorded per-item and broadcast; the loop always continues
+    #    unless cancelled.
     #    Accumulator: {reversed_success_pairs, uploaded_count, failed_count}
     {successful_pairs_reversed, _uploaded, _failed} =
-      Enum.reduce(items_to_upload, {[], 0, 0}, fn item, {acc, uploaded, failed} ->
-        case fetch_image(item) do
-          {:error, reason} ->
-            {:ok, _} = Photos.set_item_failed(export, item, reason)
-
-            Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {
-              :export_item_failed,
-              %{item_id: item.id, title: item.title, error: to_string(reason)}
-            })
-
-            Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {
-              :export_progress,
-              %{uploaded: uploaded, failed: failed + 1, total: total}
-            })
-
-            {acc, uploaded, failed + 1}
-
-          {:ok, image_binary} ->
-            case upload_bytes(token, image_binary, item.title) do
-              {:ok, upload_token} ->
-                Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {
-                  :export_progress,
-                  %{uploaded: uploaded + 1, failed: failed, total: total}
-                })
-
-                {[{item, upload_token} | acc], uploaded + 1, failed}
-
+      Enum.reduce_while(items_to_upload, {[], 0, 0}, fn item, {acc, uploaded, failed} ->
+        if Photos.reload_export(export).status == "cancelled" do
+          {:halt, {acc, uploaded, failed}}
+        else
+          result =
+            case fetch_image(item) do
               {:error, reason} ->
                 {:ok, _} = Photos.set_item_failed(export, item, reason)
 
@@ -110,45 +93,77 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
                 })
 
                 {acc, uploaded, failed + 1}
+
+              {:ok, image_binary} ->
+                case upload_bytes(token, image_binary, item.title) do
+                  {:ok, upload_token} ->
+                    Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {
+                      :export_progress,
+                      %{uploaded: uploaded + 1, failed: failed, total: total}
+                    })
+
+                    {[{item, upload_token} | acc], uploaded + 1, failed}
+
+                  {:error, raw_reason} ->
+                    friendly = GoogleErrors.translate(to_string(raw_reason))
+                    {:ok, _} = Photos.set_item_failed(export, item, friendly)
+
+                    Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {
+                      :export_item_failed,
+                      %{item_id: item.id, title: item.title, error: friendly}
+                    })
+
+                    Phoenix.PubSub.broadcast(ScientiaCognita.PubSub, topic, {
+                      :export_progress,
+                      %{uploaded: uploaded, failed: failed + 1, total: total}
+                    })
+
+                    {acc, uploaded, failed + 1}
+                end
             end
+
+          {:cont, result}
         end
       end)
 
-    # 5. Batch-create media items, mark each batch as uploaded in DB after confirmed success
-    successful_pairs_reversed
-    |> Enum.reverse()
-    |> Enum.chunk_every(50)
-    |> Enum.each(fn chunk ->
-      # NOTE: batch_add_items raises on non-200; if it raises, the rescue block
-      # catches it. Items in the failed batch stay pending and will retry on next sync.
-      :ok = batch_add_items(token, export.album_id, chunk)
+    # 5 & 6. If not cancelled: batch-create and mark done.
+    unless Photos.reload_export(export).status == "cancelled" do
+      successful_pairs_reversed
+      |> Enum.reverse()
+      |> Enum.chunk_every(50)
+      |> Enum.each(fn chunk ->
+        # NOTE: batch_add_items raises on non-200; if it raises, the rescue block
+        # catches it. Items in the failed batch stay pending and will retry on next sync.
+        :ok = batch_add_items(token, export.album_id, chunk)
 
-      Enum.each(chunk, fn {item, _token} ->
-        Photos.set_item_uploaded(export, item)
+        Enum.each(chunk, fn {item, _token} ->
+          Photos.set_item_uploaded(export, item)
+        end)
       end)
-    end)
 
-    # 6. Mark done, broadcast
-    {:ok, _} = Photos.set_export_status(export, "done")
+      {:ok, done_export} = Photos.set_export_status(export, "done")
 
-    Phoenix.PubSub.broadcast(
-      ScientiaCognita.PubSub,
-      topic,
-      {:export_done, %{album_url: export.album_url}}
-    )
+      Phoenix.PubSub.broadcast(
+        ScientiaCognita.PubSub,
+        topic,
+        {:export_done, %{album_url: done_export.album_url}}
+      )
+    end
 
     :ok
   rescue
     e ->
       # catalog_id and user_id are local variables from the function head — use them directly.
       # Do NOT use Map.get(e, :catalog_id) — exception structs don't carry job args.
+      friendly = GoogleErrors.translate(Exception.message(e))
+
       try do
         if export =
              Photos.get_export_for_user(
                Accounts.get_user!(user_id),
                Catalog.get_catalog!(catalog_id)
              ) do
-          Photos.set_export_status(export, "failed", error: Exception.message(e))
+          Photos.set_export_status(export, "failed", error: friendly)
         end
       rescue
         _ -> :ok
@@ -157,7 +172,7 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       Phoenix.PubSub.broadcast(
         ScientiaCognita.PubSub,
         "export:#{catalog_id}:#{user_id}",
-        {:export_failed, Exception.message(e)}
+        {:export_failed, friendly}
       )
 
       reraise e, __STACKTRACE__

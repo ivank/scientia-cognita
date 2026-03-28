@@ -2,7 +2,7 @@ defmodule ScientiaCognita.Photos.PhotoExport do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @statuses ~w(pending running done failed deleted)
+  @statuses ~w(pending running done failed deleted deleting cancelled)
 
   schema "photo_exports" do
     field :album_id, :string
