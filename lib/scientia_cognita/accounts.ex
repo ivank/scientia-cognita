@@ -6,7 +6,7 @@ defmodule ScientiaCognita.Accounts do
   import Ecto.Query, warn: false
   alias ScientiaCognita.Repo
 
-  alias ScientiaCognita.Accounts.{User, UserToken, UserNotifier}
+  alias ScientiaCognita.Accounts.{User, UserPasskey, UserToken, UserNotifier}
 
   ## User management (admin/owner)
 
@@ -357,5 +357,60 @@ defmodule ScientiaCognita.Accounts do
         {:ok, {user, tokens_to_expire}}
       end
     end)
+  end
+
+  ## Passkeys
+
+  @doc "Returns all passkeys for a user, newest first."
+  def list_passkeys(%User{} = user) do
+    Repo.all(from p in UserPasskey, where: p.user_id == ^user.id, order_by: [desc: p.inserted_at, desc: p.id])
+  end
+
+  @doc "Returns true if the user has at least one registered passkey."
+  def user_has_passkeys?(%User{} = user) do
+    Repo.exists?(from p in UserPasskey, where: p.user_id == ^user.id)
+  end
+
+  @doc "Finds a passkey by credential ID, preloading the associated user. Returns nil if not found."
+  def get_passkey_by_credential_id(credential_id) when is_binary(credential_id) do
+    Repo.one(from p in UserPasskey, where: p.credential_id == ^credential_id, preload: [:user])
+  end
+
+  @doc "Finds a passkey by id only if it belongs to the given user. Returns nil otherwise."
+  def get_passkey_for_user(%User{} = user, passkey_id) do
+    Repo.get_by(UserPasskey, id: passkey_id, user_id: user.id)
+  end
+
+  @doc "Registers a new passkey for the user."
+  def register_passkey(%User{} = user, attrs) do
+    %UserPasskey{user_id: user.id}
+    |> UserPasskey.creation_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Updates a passkey's label."
+  def update_passkey_label(%UserPasskey{} = passkey, label) do
+    passkey
+    |> UserPasskey.label_changeset(%{label: label})
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a passkey. Returns `{:error, :not_found}` if the passkey doesn't exist,
+  `{:error, :unauthorized}` if it belongs to a different user.
+  """
+  def delete_passkey(%User{} = user, passkey_id) do
+    case Repo.get(UserPasskey, passkey_id) do
+      nil -> {:error, :not_found}
+      %UserPasskey{user_id: uid} when uid != user.id -> {:error, :unauthorized}
+      passkey -> Repo.delete(passkey)
+    end
+  end
+
+  @doc "Updates sign_count and last_used_at after a successful passkey authentication."
+  def update_passkey_after_auth(%UserPasskey{} = passkey, sign_count, last_used_at) do
+    passkey
+    |> Ecto.Changeset.change(sign_count: sign_count, last_used_at: last_used_at)
+    |> Repo.update!()
   end
 end
