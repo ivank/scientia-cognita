@@ -134,10 +134,11 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       |> Enum.each(fn chunk ->
         # NOTE: batch_add_items raises on non-200; if it raises, the rescue block
         # catches it. Items in the failed batch stay pending and will retry on next sync.
-        :ok = batch_add_items(token, export.album_id, chunk)
+        {:ok, token_to_media_id} = batch_add_items(token, export.album_id, chunk)
 
-        Enum.each(chunk, fn {item, _token} ->
-          Photos.set_item_uploaded(export, item)
+        Enum.each(chunk, fn {item, upload_token} ->
+          media_id = Map.get(token_to_media_id, upload_token)
+          Photos.set_item_uploaded(export, item, media_id)
         end)
       end)
 
@@ -249,8 +250,19 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       )
 
     case response.status do
-      200 -> :ok
-      status -> raise "batchCreate failed with HTTP #{status}: #{inspect(response.body)}"
+      200 ->
+        results = response.body["newMediaItemResults"] || []
+
+        token_to_media_id =
+          Map.new(results, fn r ->
+            media_id = get_in(r, ["mediaItem", "id"])
+            {r["uploadToken"], media_id}
+          end)
+
+        {:ok, token_to_media_id}
+
+      status ->
+        raise "batchCreate failed with HTTP #{status}: #{inspect(response.body)}"
     end
   end
 

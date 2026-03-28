@@ -16,6 +16,9 @@ defmodule ScientiaCognita.Photos do
     Repo.get_by(PhotoExport, user_id: user.id, catalog_id: catalog.id)
   end
 
+  @doc "Fetches an export by ID, raising if not found."
+  def get_export!(id), do: Repo.get!(PhotoExport, id)
+
   @doc "Returns the existing export, or inserts a new pending one. Race-safe via on_conflict."
   def get_or_create_export(user, catalog) do
     attrs = %{user_id: user.id, catalog_id: catalog.id, status: "pending"}
@@ -61,14 +64,36 @@ defmodule ScientiaCognita.Photos do
     )
   end
 
-  @doc "Marks an item as successfully added to the Google Photos album (upsert)."
-  def set_item_uploaded(export, item) do
-    upsert_export_item(export, item, %{status: "uploaded", error: nil})
+  @doc "Marks an item as successfully added to the Google Photos album (upsert). Stores optional media_id."
+  def set_item_uploaded(export, item, media_id \\ nil) do
+    upsert_export_item(export, item, %{
+      status: "uploaded",
+      error: nil,
+      google_photos_media_id: media_id
+    })
   end
 
   @doc "Records an upload failure for an item (upsert — safe to call multiple times)."
   def set_item_failed(export, item, error) do
     upsert_export_item(export, item, %{status: "failed", error: to_string(error)})
+  end
+
+  @doc "Marks an item as being removed from the album (upsert)."
+  def set_item_removing(export, item) do
+    upsert_export_item(export, item, %{status: "removing", error: nil})
+  end
+
+  @doc "Returns the PhotoExportItem for a given export and item, or nil."
+  def get_export_item(export, item) do
+    Repo.get_by(PhotoExportItem, photo_export_id: export.id, item_id: item.id)
+  end
+
+  @doc "Deletes the PhotoExportItem record for the given export and item."
+  def delete_export_item(export, item) do
+    case get_export_item(export, item) do
+      nil -> {:ok, nil}
+      record -> Repo.delete(record)
+    end
   end
 
   @doc """
@@ -103,7 +128,7 @@ defmodule ScientiaCognita.Photos do
     %PhotoExportItem{}
     |> PhotoExportItem.changeset(Map.merge(base, attrs))
     |> Repo.insert(
-      on_conflict: {:replace, [:status, :error, :updated_at]},
+      on_conflict: {:replace, [:status, :error, :google_photos_media_id, :updated_at]},
       conflict_target: [:photo_export_id, :item_id]
     )
   end

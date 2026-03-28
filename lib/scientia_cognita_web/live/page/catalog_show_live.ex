@@ -10,19 +10,27 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
-      <.breadcrumb items={[
-        %{label: "Catalogs", href: ~p"/"},
-        %{label: @catalog.name}
-      ]} />
-
-      <%!-- Catalog title --%>
-      <div>
-        <h1 class="text-3xl font-bold">{@catalog.name}</h1>
-        <p :if={@catalog.description} class="text-base-content/60 mt-1">{@catalog.description}</p>
+    <div>
+      <%!-- Full-width dark catalog hero header --%>
+      <div class="bg-[oklch(13%_0.025_222)] px-4 sm:px-8 pt-10 pb-14">
+        <div class="max-w-7xl mx-auto">
+          <a
+            href="/"
+            class="inline-flex items-center gap-1.5 text-[oklch(64%_0.115_218)] text-xs font-semibold tracking-[0.15em] uppercase hover:underline mb-5"
+          >
+            <.icon name="hero-arrow-left" class="size-3" /> Catalogs
+          </a>
+          <h1 class="font-serif-display text-5xl lg:text-6xl text-white leading-[1.08] tracking-tight">
+            {@catalog.name}
+          </h1>
+          <p :if={@catalog.description} class="text-white/50 text-lg mt-3 max-w-2xl leading-relaxed">
+            {@catalog.description}
+          </p>
+        </div>
       </div>
 
-      <%!-- Hero Banner --%>
+      <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        <%!-- Hero Banner --%>
       <.hero_banner
         current_scope={@current_scope}
         export={@export}
@@ -89,17 +97,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
           </div>
         </figure>
 
-        <%!-- Upload error banner (if any) --%>
-        <div
-          :if={item_error(@export_item_statuses, @lightbox_item.id)}
-          class="bg-error/20 border-b border-error/30 px-4 py-2 flex items-center gap-2"
-        >
-          <.icon name="hero-exclamation-triangle" class="size-4 text-error flex-shrink-0" />
-          <span class="text-sm text-error">
-            Upload failed: {item_error(@export_item_statuses, @lightbox_item.id)}
-          </span>
-        </div>
-
         <div class="p-4 flex items-start justify-between gap-4">
           <div>
             <p class="font-semibold">{@lightbox_item.title}</p>
@@ -114,6 +111,15 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             <.icon name="hero-x-mark" class="size-4" />
           </button>
         </div>
+
+        <%!-- Per-item Google Photos status + add/remove controls --%>
+        <.item_album_controls
+          item={@lightbox_item}
+          export={@export}
+          export_item_statuses={@export_item_statuses}
+          current_scope={@current_scope}
+          token_status={@token_status}
+        />
       </div>
       <div class="modal-backdrop" phx-click="close_lightbox"></div>
     </div>
@@ -134,6 +140,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
         </div>
       </div>
       <div class="modal-backdrop" phx-click="cancel_delete_album"></div>
+    </div>
     </div>
     """
   end
@@ -523,6 +530,96 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     """
   end
 
+  # Per-item Google Photos status strip shown at the bottom of the lightbox modal.
+  # Only rendered when the album already exists — bulk export creates the album first.
+  defp item_album_controls(%{current_scope: nil} = assigns), do: ~H""
+  defp item_album_controls(%{export: nil} = assigns), do: ~H""
+
+  defp item_album_controls(%{export: %{album_id: nil}} = assigns), do: ~H""
+
+  defp item_album_controls(assigns) do
+    ~H"""
+    <% item_status = Map.get(@export_item_statuses, @item.id) %>
+    <% busy_export = @export.status in ~w(running pending deleting) %>
+    <div class="border-t border-base-300 px-4 py-3 flex items-center justify-between gap-3 min-h-[52px]">
+      <%= cond do %>
+        <% busy_export -> %>
+          <div class="flex items-center gap-2 text-sm text-base-content/50">
+            <span class="loading loading-spinner loading-xs"></span>
+            Album operation in progress…
+          </div>
+
+        <% token_needs_reconnect?(@token_status) -> %>
+          <div class="text-sm text-warning flex items-center gap-2">
+            <.icon name="hero-exclamation-circle" class="size-4" />
+            Reconnect Google Photos to manage items
+          </div>
+          <.link href={~p"/auth/google"} class="btn btn-xs btn-warning gap-1.5 shrink-0">
+            <.icon name="hero-link" class="size-3" /> Reconnect
+          </.link>
+
+        <% is_nil(item_status) -> %>
+          <div class="flex items-center gap-2 text-sm text-base-content/50">
+            <.icon name="hero-cloud" class="size-4" /> Not in album
+          </div>
+          <button
+            class="btn btn-xs btn-primary gap-1.5 shrink-0"
+            phx-click="add_item"
+            phx-value-item-id={@item.id}
+            phx-disable-with="Adding…"
+          >
+            <.icon name="hero-plus" class="size-3" /> Add to album
+          </button>
+
+        <% item_status.status == "pending" -> %>
+          <div class="flex items-center gap-2 text-sm text-base-content/60">
+            <span class="loading loading-spinner loading-xs"></span>
+            Adding to album…
+          </div>
+
+        <% item_status.status == "uploaded" -> %>
+          <div class="flex items-center gap-2 text-sm text-success">
+            <.icon name="hero-check-circle" class="size-4" /> In your Google Photos album
+          </div>
+          <button
+            class="btn btn-xs btn-ghost gap-1.5 text-error hover:bg-error/10 shrink-0"
+            phx-click="remove_item"
+            phx-value-item-id={@item.id}
+            phx-disable-with="Removing…"
+          >
+            <.icon name="hero-trash" class="size-3" /> Remove
+          </button>
+
+        <% item_status.status == "removing" -> %>
+          <div class="flex items-center gap-2 text-sm text-base-content/60">
+            <span class="loading loading-spinner loading-xs"></span>
+            Removing from album…
+          </div>
+
+        <% item_status.status == "failed" -> %>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 text-sm text-error">
+              <.icon name="hero-exclamation-triangle" class="size-4 shrink-0" /> Failed to add
+            </div>
+            <div :if={item_status.error} class="text-xs text-error/70 mt-0.5 truncate">
+              {item_status.error}
+            </div>
+          </div>
+          <button
+            class="btn btn-xs btn-ghost gap-1.5 text-error shrink-0"
+            phx-click="add_item"
+            phx-value-item-id={@item.id}
+            phx-disable-with="Retrying…"
+          >
+            <.icon name="hero-arrow-path" class="size-3" /> Retry
+          </button>
+
+        <% true -> %>
+      <% end %>
+    </div>
+    """
+  end
+
   # ---------------------------------------------------------------------------
   # Lifecycle
   # ---------------------------------------------------------------------------
@@ -682,6 +779,46 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     end
   end
 
+  def handle_event("add_item", %{"item-id" => item_id_str}, socket) do
+    with {item_id, ""} <- Integer.parse(item_id_str),
+         %{current_scope: scope} when not is_nil(scope) <- socket.assigns,
+         %{export: export} when not is_nil(export) and not is_nil(export.album_id) <-
+           socket.assigns do
+      # Optimistically set to pending so the UI shows a spinner immediately
+      statuses =
+        Map.put(socket.assigns.export_item_statuses, item_id, %{status: "pending", error: nil})
+
+      {:ok, _job} =
+        %{export_id: export.id, item_id: item_id, user_id: scope.user.id}
+        |> ScientiaCognita.Workers.AddItemWorker.new()
+        |> Oban.insert()
+
+      {:noreply, assign(socket, :export_item_statuses, statuses)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("remove_item", %{"item-id" => item_id_str}, socket) do
+    with {item_id, ""} <- Integer.parse(item_id_str),
+         %{current_scope: scope} when not is_nil(scope) <- socket.assigns,
+         %{export: export} when not is_nil(export) and not is_nil(export.album_id) <-
+           socket.assigns do
+      # Optimistically set to removing so the UI shows a spinner immediately
+      statuses =
+        Map.put(socket.assigns.export_item_statuses, item_id, %{status: "removing", error: nil})
+
+      {:ok, _job} =
+        %{export_id: export.id, item_id: item_id, user_id: scope.user.id}
+        |> ScientiaCognita.Workers.RemoveItemWorker.new()
+        |> Oban.insert()
+
+      {:noreply, assign(socket, :export_item_statuses, statuses)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # PubSub
   # ---------------------------------------------------------------------------
@@ -734,6 +871,39 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     {:noreply, put_flash(socket, :error, "Could not delete album: #{reason}")}
   end
 
+  def handle_info({:item_added, %{item_id: item_id}}, socket) do
+    # Reload from DB to get the definitive uploaded status with media_id stored
+    {:noreply, reload_item_status(socket, item_id)}
+  end
+
+  def handle_info({:item_add_failed, %{item_id: item_id, error: error}}, socket) do
+    statuses =
+      Map.put(socket.assigns.export_item_statuses, item_id, %{status: "failed", error: error})
+
+    items = socket.assigns.catalog_items
+
+    {:noreply,
+     socket
+     |> assign(:export_item_statuses, statuses)
+     |> assign(:export_failed_items, compute_failed_items(statuses, items))}
+  end
+
+  def handle_info({:item_removed, %{item_id: item_id}}, socket) do
+    statuses = Map.delete(socket.assigns.export_item_statuses, item_id)
+    items = socket.assigns.catalog_items
+
+    {:noreply,
+     socket
+     |> assign(:export_item_statuses, statuses)
+     |> assign(:export_failed_items, compute_failed_items(statuses, items))
+     |> assign(:export_new_count, compute_new_item_count(statuses, items))}
+  end
+
+  def handle_info({:item_remove_failed, %{item_id: item_id, error: _error}}, socket) do
+    # Worker restored the item to "uploaded" in DB — reload to sync
+    {:noreply, reload_item_status(socket, item_id)}
+  end
+
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
@@ -760,6 +930,18 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
      socket
      |> assign(:export_progress, 0)
      |> assign(:export_total, total)}
+  end
+
+  # Reloads all item statuses from the DB and recomputes derived assigns.
+  defp reload_item_status(socket, _item_id) do
+    export = socket.assigns.export
+    items = socket.assigns.catalog_items
+    statuses = if export, do: Photos.list_export_item_statuses(export), else: socket.assigns.export_item_statuses
+
+    socket
+    |> assign(:export_item_statuses, statuses)
+    |> assign(:export_failed_items, compute_failed_items(statuses, items))
+    |> assign(:export_new_count, compute_new_item_count(statuses, items))
   end
 
   defp reload_export(socket) do
@@ -829,13 +1011,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     case Map.get(statuses, item_id) do
       %{status: "uploaded"} -> true
       _ -> false
-    end
-  end
-
-  defp item_error(statuses, item_id) do
-    case Map.get(statuses, item_id) do
-      %{status: "failed", error: error} -> error
-      _ -> nil
     end
   end
 
