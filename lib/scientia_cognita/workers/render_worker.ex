@@ -34,6 +34,7 @@ defmodule ScientiaCognita.Workers.RenderWorker do
     with {:ok, binary} <- download_processed(item),
          {:ok, img} <- Image.from_binary(binary),
          {:ok, composed} <- compose_image(img, item),
+         {:ok, composed} <- compose_watermark(composed),
          {:ok, output_binary} <- Image.write(composed, :memory, suffix: ".jpg", quality: 85),
          {:ok, file} <- @uploader.store({%{filename: "final.jpg", binary: output_binary}, item}),
          {:ok, item} <-
@@ -113,6 +114,43 @@ defmodule ScientiaCognita.Workers.RenderWorker do
 
       {:error, _, reason, _} ->
         {:error, reason}
+    end
+  end
+
+  defp compose_watermark(img) do
+    img_w = Image.width(img)
+    img_h = Image.height(img)
+    wm_font = max(trunc(img_h * 0.013), 10)
+    margin = max(trunc(img_w * 0.012), 10)
+
+    # rotate(-90) makes the +x text direction point downward in screen space.
+    # translate(right_x + wm_font, top_y) puts the rotated origin near the top-right corner.
+    right_x = img_w - margin - wm_font
+    top_y = max(trunc(img_h * 0.16), 20)
+
+    wm_svg =
+      %Victor{
+        width: img_w,
+        height: img_h,
+        items: [
+          {:text,
+           %{
+             "font-family" => "Sans",
+             "font-size" => wm_font,
+             "font-weight" => "300",
+             "letter-spacing" => "3",
+             "fill" => "#FFFFFF",
+             "fill-opacity" => "0.35",
+             "transform" => "translate(#{right_x + wm_font}, #{top_y}) rotate(-90)",
+             x: 0,
+             y: wm_font
+           }, "scientia cognita"}
+        ]
+      }
+      |> Victor.get_svg()
+
+    with {:ok, wm} <- Image.from_svg(wm_svg) do
+      Image.compose(img, wm, x: 0, y: 0)
     end
   end
 
