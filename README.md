@@ -1,4 +1,4 @@
-![Scientia Cognita logo](priv/static/images/logo-full.png)
+![Scientia Cognita logo](priv/static/images/logo.png)
 
 > [!NOTE]
 > This project is vibecoded from sctrath. Its a testbed to experiment with obra/superpowers and agentic development.
