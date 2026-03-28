@@ -104,7 +104,11 @@ defmodule ScientiaCognita.MixProject do
       {:victor, "~> 0.1.1"},
 
       # Passkeys — WebAuthn server-side verification
-      {:wax_, "~> 0.6"}
+      {:wax_, "~> 0.6"},
+
+      # Email templates — MJML (Rust NIF, no Node.js) + EEx integration + CSS inlining
+      {:mjml_eex, "~> 0.13"},
+      {:premailex, "~> 0.3"}
     ]
   end
 

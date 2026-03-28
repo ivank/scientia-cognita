@@ -1,0 +1,64 @@
+<div class="max-w-7xl mx-auto px-4 py-8">
+  <%!-- Header row --%>
+  <div class="flex items-center gap-4 mb-6">
+    <a href="/dev/emails" class="btn btn-ghost btn-sm gap-1">
+      <.icon name="hero-arrow-left" class="size-4" /> All templates
+    </a>
+    <div class="flex-1">
+      <h1 class="text-xl font-bold">{@template.name}</h1>
+      <div class="text-sm text-base-content/60 font-mono mt-0.5">
+        Subject: {@template.subject}
+      </div>
+    </div>
+    <a
+      href={"/dev/emails/#{@template.id}/raw"}
+      class="btn btn-sm btn-ghost"
+      target="_blank"
+      rel="noopener"
+    >
+      Open raw HTML ↗
+    </a>
+  </div>
+
+  <%!-- Two-panel layout: iframe preview + plain text --%>
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <%!-- Email preview iframe --%>
+    <div>
+      <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2">
+        Rendered email
+      </div>
+      <div class="rounded-xl border border-base-300 overflow-hidden shadow-sm bg-white">
+        <iframe
+          src={"/dev/emails/#{@template.id}/raw"}
+          class="w-full border-none"
+          style="height: 700px;"
+          title={"Email preview: #{@template.name}"}
+        >
+        </iframe>
+      </div>
+    </div>
+
+    <%!-- Plain text preview --%>
+    <div>
+      <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2">
+        Plain text (auto-generated)
+      </div>
+      <div class="rounded-xl border border-base-300 overflow-hidden shadow-sm">
+        <pre class="p-4 text-xs font-mono text-base-content/80 overflow-auto bg-base-100 whitespace-pre-wrap" style="height: 700px;"><%= @text %></pre>
+      </div>
+    </div>
+  </div>
+
+  <%!-- Template info --%>
+  <div class="mt-6 p-4 rounded-lg bg-base-200/60 text-sm text-base-content/60">
+    <span class="font-medium text-base-content">Tip:</span>
+    Edit
+    <code class="bg-base-300 px-1.5 py-0.5 rounded text-xs">
+      lib/scientia_cognita_web/emails/{@template.id}.mjml.eex
+    </code>
+    then run
+    <code class="bg-base-300 px-1.5 py-0.5 rounded text-xs">mix compile</code>
+    and refresh to see changes.
+    MJML is compiled to HTML at Elixir build time via a Rust NIF (no Node.js required).
+  </div>
+</div>

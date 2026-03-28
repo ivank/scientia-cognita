@@ -1,0 +1,42 @@
+<div class="max-w-3xl mx-auto px-4 py-8">
+  <h1 class="text-2xl font-bold mb-2">Email Templates</h1>
+  <p class="text-base-content/60 mb-8">
+    Development preview of all transactional email templates.
+    Templates are compiled from MJML at Elixir build time —
+    run <code class="bg-base-200 px-1.5 py-0.5 rounded text-sm">mix compile</code>
+    after editing <code class="bg-base-200 px-1.5 py-0.5 rounded text-sm">.mjml.eex</code> files.
+  </p>
+
+  <div class="space-y-3">
+    <div
+      :for={template <- @templates}
+      class="card bg-base-100 border border-base-200 hover:border-primary/40 transition-colors"
+    >
+      <div class="card-body p-4 flex-row items-center justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold">{template.name}</div>
+          <div class="text-sm text-base-content/60 mt-0.5">{template.description}</div>
+          <div class="text-xs text-base-content/40 mt-1 font-mono">
+            Subject: {template.subject}
+          </div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <a
+            href={"/dev/emails/#{template.id}"}
+            class="btn btn-sm btn-primary"
+          >
+            Preview
+          </a>
+          <a
+            href={"/dev/emails/#{template.id}/raw"}
+            class="btn btn-sm btn-ghost"
+            target="_blank"
+            rel="noopener"
+          >
+            Raw HTML
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

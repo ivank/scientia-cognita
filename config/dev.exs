@@ -56,7 +56,10 @@ config :scientia_cognita, ScientiaCognitaWeb.Endpoint,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/scientia_cognita_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ~r"lib/scientia_cognita_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$",
+      # MJML email templates — changing a .mjml.eex file triggers a recompile via
+      # @external_resource, and adding it here also triggers a browser refresh.
+      ~r"lib/scientia_cognita_web/emails/.*\.mjml\.eex$"
     ]
   ]
 

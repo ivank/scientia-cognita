@@ -1,0 +1,35 @@
+<mj-section background-color="#ffffff" padding="40px 32px 8px">
+  <mj-column>
+    <mj-text font-size="24px" font-weight="700" color="#0f172a" line-height="1.3" padding="0 0 12px 0" letter-spacing="-0.02em">
+      Confirm your email address
+    </mj-text>
+    <mj-text color="#475569" padding="0 0 24px 0">
+      Hi <%= @email %>,
+    </mj-text>
+    <mj-text color="#1e293b" padding="0 0 12px 0">
+      Welcome to <strong>Scientia Cognita</strong>! To get started, confirm your email address
+      by clicking the button below.
+    </mj-text>
+    <mj-text color="#1e293b" padding="0 0 32px 0">
+      This confirmation link is valid for <strong>7 days</strong>.
+    </mj-text>
+    <mj-button href="<%= @url %>" align="left">
+      Confirm email address
+    </mj-button>
+  </mj-column>
+</mj-section>
+
+<mj-section background-color="#ffffff" padding="0 32px 40px">
+  <mj-column>
+    <mj-divider />
+    <mj-text color="#94a3b8" font-size="13px" padding="0">
+      If the button doesn't work, copy and paste this link into your browser:
+    </mj-text>
+    <mj-text font-size="13px" padding="4px 0 0 0">
+      <a href="<%= @url %>" style="color: #1d7eb3; word-break: break-all;"><%= @url %></a>
+    </mj-text>
+    <mj-text color="#94a3b8" font-size="13px" padding="16px 0 0 0">
+      If you didn't create a Scientia Cognita account, you can safely ignore this email.
+    </mj-text>
+  </mj-column>
+</mj-section>

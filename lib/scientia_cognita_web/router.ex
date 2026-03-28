@@ -74,6 +74,11 @@ defmodule ScientiaCognitaWeb.Router do
 
       live_dashboard "/dashboard", metrics: ScientiaCognitaWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
+
+      # Email template previews
+      get "/emails", ScientiaCognitaWeb.Dev.EmailPreviewController, :index
+      get "/emails/:template", ScientiaCognitaWeb.Dev.EmailPreviewController, :show
+      get "/emails/:template/raw", ScientiaCognitaWeb.Dev.EmailPreviewController, :raw
     end
   end
 

@@ -1,0 +1,62 @@
+<mjml>
+  <mj-head>
+    <mj-font
+      name="Inter"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    />
+    <mj-attributes>
+      <mj-all font-family="Inter, ui-sans-serif, system-ui, -apple-system, sans-serif" />
+      <mj-body background-color="#f1f5f9" />
+      <mj-text font-size="15px" line-height="1.7" color="#1e293b" padding="0 0 16px 0" />
+      <mj-button
+        background-color="#1d7eb3"
+        color="#ffffff"
+        font-size="15px"
+        font-weight="600"
+        border-radius="8px"
+        inner-padding="14px 32px"
+        text-transform="none"
+      />
+      <mj-divider border-color="#e2e8f0" border-width="1px" padding="8px 0" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body>
+    <%!-- Header --%>
+    <mj-section background-color="#0f172a" padding="22px 40px">
+      <mj-column>
+        <mj-table>
+          <tr>
+            <td style="width:36px; vertical-align:middle; padding-right:11px;">
+              <img
+                src="https://sc.ikerin.com/images/logo.png"
+                width="36"
+                alt="Scientia Cognita"
+                style="display:block; border:0; width:36px; height:auto;"
+              />
+            </td>
+            <td style="vertical-align:middle;">
+              <span style="font-family:Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; font-size:17px; font-weight:700; color:#f8fafc; letter-spacing:-0.025em; line-height:1;">Scientia Cognita</span>
+            </td>
+          </tr>
+        </mj-table>
+      </mj-column>
+    </mj-section>
+
+    <%!-- Content area: injected from child template at compile time --%>
+    <%= @inner_content %>
+
+    <%!-- Footer --%>
+    <mj-section background-color="#1e293b" padding="24px 32px">
+      <mj-column>
+        <mj-text color="#64748b" font-size="12px" align="center" line-height="1.8" padding="0">
+          <span style="color: #cbd5e1; font-weight: 600;">Scientia Cognita</span>
+          &mdash; curated image catalogs
+          <br />
+          You received this email because you have an account at sc.ikerin.com.
+          <br />
+          <span style="color: #475569;">&copy; <%= Date.utc_today().year %> Scientia Cognita</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>
