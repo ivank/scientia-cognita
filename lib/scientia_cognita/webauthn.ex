@@ -1,4 +1,6 @@
 defmodule ScientiaCognita.WebAuthnBehaviour do
+  @moduledoc "Callback spec for WebAuthn operations — used for Mox injection in tests."
+
   @callback new_registration_challenge(opts :: keyword()) :: Wax.Challenge.t()
   @callback new_authentication_challenge(opts :: keyword()) :: Wax.Challenge.t()
   @callback register(binary(), binary(), Wax.Challenge.t()) ::
@@ -8,6 +10,8 @@ defmodule ScientiaCognita.WebAuthnBehaviour do
 end
 
 defmodule ScientiaCognita.WebAuthn do
+  @moduledoc "Production WebAuthn implementation — delegates all calls to the `Wax` library."
+
   @behaviour ScientiaCognita.WebAuthnBehaviour
 
   @impl true

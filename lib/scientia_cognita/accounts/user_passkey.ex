@@ -15,6 +15,7 @@ defmodule ScientiaCognita.Accounts.UserPasskey do
     timestamps(type: :utc_datetime)
   end
 
+  @doc "Changeset for registering a new passkey. Requires credential_id, public_key, and user_id."
   def creation_changeset(passkey, attrs) do
     passkey
     |> cast(attrs, [:credential_id, :public_key, :sign_count, :authenticator_attachment, :label, :user_id])
@@ -22,6 +23,7 @@ defmodule ScientiaCognita.Accounts.UserPasskey do
     |> unique_constraint(:credential_id)
   end
 
+  @doc "Changeset for renaming a passkey. Label is optional — nil clears the label."
   def label_changeset(passkey, attrs) do
     cast(passkey, attrs, [:label])
   end
