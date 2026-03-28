@@ -10,6 +10,8 @@ Serendipitous access to scientific knowledge — curate catalogs of images and s
 
 Browse and scrape sources with the help of Gemini AI, organise items into catalogs, and push them straight to Google Photos so your television always has something worth looking at.
 
+![Explanations](priv/static/images/explanation.svg)
+
 ## Development
 
 ### Prerequisites

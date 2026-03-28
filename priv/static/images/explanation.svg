@@ -1,0 +1,570 @@
+<svg
+    viewBox="0 0 870 258"
+    xmlns="http://www.w3.org/2000/svg"
+    class="w-full min-w-[640px]"
+    style="font-family: 'Caveat', cursive;"
+>
+    <defs>
+        <marker id="ah" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <path
+                d="M 0 0 L 7 3 L 0 6"
+                stroke="#222"
+                stroke-width="1.5"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+        </marker>
+    </defs>
+
+    <!-- ═══════════════════════════ PANEL 1 ═══════════════════════════ -->
+    <path
+        d="M 6 6 L 278 5 L 280 248 L 4 250 Z"
+        fill="#fffef8"
+        stroke="#222"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    />
+
+    <text x="142" y="28" text-anchor="middle" font-size="18" fill="#222" font-weight="700">
+        You, last month:
+    </text>
+
+    <!-- TV (boring: all static) -->
+    <rect
+        x="16"
+        y="38"
+        width="82"
+        height="58"
+        rx="3"
+        fill="white"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="21"
+        y="43"
+        width="72"
+        height="46"
+        fill="#e0e0e0"
+        stroke="#666"
+        stroke-width="1"
+    />
+    <path
+        d="M 24 53 Q 34 50 44 53 Q 54 56 64 53 Q 74 50 88 53"
+        stroke="#aaa"
+        stroke-width="1.5"
+        fill="none"
+    />
+    <path
+        d="M 24 60 Q 37 57 50 60 Q 63 63 76 60 Q 83 57 88 60"
+        stroke="#aaa"
+        stroke-width="1.5"
+        fill="none"
+    />
+    <path
+        d="M 24 67 Q 40 64 56 67 Q 72 70 88 67"
+        stroke="#aaa"
+        stroke-width="1.5"
+        fill="none"
+    />
+    <path
+        d="M 24 74 Q 38 71 52 74 Q 66 77 80 74 Q 86 72 88 74"
+        stroke="#aaa"
+        stroke-width="1.5"
+        fill="none"
+    />
+    <path
+        d="M 24 81 Q 41 78 58 81 Q 75 84 88 81"
+        stroke="#aaa"
+        stroke-width="1.5"
+        fill="none"
+    />
+    <!-- TV stand -->
+    <path
+        d="M 52 96 L 50 106 M 64 96 L 66 106"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <path
+        d="M 38 106 L 78 106"
+        stroke="#222"
+        stroke-width="2.5"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <text x="57" y="120" text-anchor="middle" font-size="11" fill="#999">
+        screensaver: off
+    </text>
+
+    <!-- Sofa -->
+    <rect
+        x="78"
+        y="162"
+        width="12"
+        height="38"
+        rx="3"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="230"
+        y="162"
+        width="12"
+        height="38"
+        rx="3"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="84"
+        y="162"
+        width="160"
+        height="13"
+        rx="2"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="84"
+        y="175"
+        width="160"
+        height="22"
+        rx="2"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+
+    <!-- Slouched stick figure -->
+    <circle cx="162" cy="148" r="13" fill="white" stroke="#222" stroke-width="2" />
+    <!-- flat mouth, droopy eyes -->
+    <path
+        d="M 156 152 L 168 152"
+        stroke="#222"
+        stroke-width="1.5"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <path
+        d="M 156 145 L 159 145 M 165 145 L 168 145"
+        stroke="#222"
+        stroke-width="1.5"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <!-- Body (slouched forward) -->
+    <path
+        d="M 162 161 Q 158 170 157 175"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <!-- Arms (limp) -->
+    <path
+        d="M 160 166 Q 148 172 140 176"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <path
+        d="M 164 166 Q 174 172 180 176"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <!-- Seated legs -->
+    <path
+        d="M 157 175 Q 145 176 133 175"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <path
+        d="M 157 175 Q 172 176 188 175"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <!-- ZZZs -->
+    <text x="181" y="142" font-size="13" fill="#bbb">z</text>
+    <text x="193" y="131" font-size="11" fill="#ccc">z</text>
+    <text x="202" y="122" font-size="9" fill="#ddd">z</text>
+
+    <text x="142" y="212" text-anchor="middle" font-size="15" fill="#555">
+        TV on. Brain off.
+    </text>
+    <text x="142" y="232" text-anchor="middle" font-size="14" fill="#888">
+        not learning anything
+    </text>
+
+    <!-- ═══════════════════════════ PANEL 2 ═══════════════════════════ -->
+    <path
+        d="M 294 6 L 578 5 L 580 248 L 292 250 Z"
+        fill="#fffef8"
+        stroke="#222"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    />
+
+    <text x="436" y="28" text-anchor="middle" font-size="18" fill="#222" font-weight="700">
+        The 3-minute fix:
+    </text>
+
+    <!-- Step 1: browse catalog (laptop icon) -->
+    <rect
+        x="305"
+        y="46"
+        width="50"
+        height="34"
+        rx="2"
+        fill="white"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="309"
+        y="50"
+        width="42"
+        height="26"
+        fill="#dbeafe"
+        stroke="#555"
+        stroke-width="1"
+    />
+    <path
+        d="M 313 57 Q 322 55 331 57 Q 340 59 349 57"
+        stroke="#2563eb"
+        stroke-width="1.5"
+        fill="none"
+    />
+    <path d="M 313 63 L 347 63" stroke="#2563eb" stroke-width="1.5" fill="none" />
+    <path
+        d="M 313 69 Q 322 67 331 69 Q 338 71 347 69"
+        stroke="#2563eb"
+        stroke-width="1.5"
+        fill="none"
+    />
+    <path
+        d="M 299 80 L 362 80"
+        stroke="#222"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        fill="none"
+    />
+    <text x="373" y="70" font-size="16" fill="#333">browse a catalog</text>
+
+    <!-- down arrow -->
+    <path
+        d="M 436 86 L 436 98"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+        marker-end="url(#ah)"
+    />
+
+    <!-- Step 2: save to Google Photos (cloud/upload icon) -->
+    <path
+        d="M 308 110 Q 308 100 317 100 Q 319 92 328 92 Q 337 92 339 100 Q 348 100 348 110 Z"
+        fill="white"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <path d="M 312 110 L 344 110" stroke="#222" stroke-width="1.5" fill="none" />
+    <path
+        d="M 328 110 L 328 122 M 324 116 L 328 110 L 332 116"
+        stroke="#222"
+        stroke-width="1.5"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    />
+    <text x="360" y="104" font-size="16" fill="#333">save to</text>
+    <text x="360" y="121" font-size="16" fill="#333">Google Photos</text>
+
+    <!-- down arrow -->
+    <path
+        d="M 436 132 L 436 144"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+        marker-end="url(#ah)"
+    />
+
+    <!-- Step 3: TV screensaver (small TV + globe) -->
+    <rect
+        x="305"
+        y="150"
+        width="44"
+        height="32"
+        rx="2"
+        fill="white"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="309"
+        y="154"
+        width="36"
+        height="24"
+        fill="#d1fae5"
+        stroke="#555"
+        stroke-width="1"
+    />
+    <circle cx="327" cy="166" r="9" fill="#6ee7b7" stroke="#333" stroke-width="1.2" />
+    <path d="M 320 166 L 334 166" stroke="#333" stroke-width="0.9" fill="none" />
+    <path d="M 327 157 L 327 175" stroke="#333" stroke-width="0.9" fill="none" />
+    <path
+        d="M 321 160 Q 327 158 333 160"
+        stroke="#333"
+        stroke-width="0.9"
+        fill="none"
+    />
+    <path
+        d="M 321 172 Q 327 174 333 172"
+        stroke="#333"
+        stroke-width="0.9"
+        fill="none"
+    />
+    <text x="360" y="163" font-size="16" fill="#333">TV screensaver on</text>
+
+    <!-- ✓ Done box -->
+    <path
+        d="M 306 194 Q 440 192 568 194 Q 570 210 568 217 Q 440 219 306 217 Q 304 210 306 194 Z"
+        fill="#ecfdf5"
+        stroke="#059669"
+        stroke-width="1.5"
+    />
+    <path
+        d="M 540 206 L 548 213 L 564 198"
+        stroke="#059669"
+        stroke-width="2.5"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    />
+    <text x="420" y="209" text-anchor="middle" font-size="15" fill="#065f46">
+        total setup time: ~3 minutes
+    </text>
+
+    <text x="436" y="240" text-anchor="middle" font-size="12" fill="#aaa">
+        (I timed it. it was 3 minutes.)
+    </text>
+
+    <!-- ═══════════════════════════ PANEL 3 ═══════════════════════════ -->
+    <path
+        d="M 594 6 L 864 5 L 866 248 L 592 250 Z"
+        fill="#fffef8"
+        stroke="#222"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    />
+
+    <text x="729" y="28" text-anchor="middle" font-size="18" fill="#222" font-weight="700">
+        You, now:
+    </text>
+
+    <!-- TV with globe (interesting!) -->
+    <rect
+        x="597"
+        y="38"
+        width="100"
+        height="70"
+        rx="3"
+        fill="white"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="602"
+        y="43"
+        width="90"
+        height="59"
+        fill="#dbeafe"
+        stroke="#555"
+        stroke-width="1.5"
+    />
+    <!-- Globe with continents -->
+    <circle cx="647" cy="72" r="24" fill="#93c5fd" stroke="#333" stroke-width="1.5" />
+    <path
+        d="M 634 59 Q 641 56 650 61 Q 657 66 656 73 Q 650 77 643 73 Q 635 69 634 59 Z"
+        fill="#6ee7b7"
+        stroke="#333"
+        stroke-width="1"
+    />
+    <path
+        d="M 654 79 Q 661 76 664 83 Q 662 89 656 91 Q 650 89 651 82 Z"
+        fill="#6ee7b7"
+        stroke="#333"
+        stroke-width="1"
+    />
+    <path d="M 623 72 L 671 72" stroke="#555" stroke-width="0.8" fill="none" />
+    <path d="M 647 48 L 647 96" stroke="#555" stroke-width="0.8" fill="none" />
+    <!-- TV stand -->
+    <path
+        d="M 639 108 L 637 118 M 655 108 L 657 118"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <path
+        d="M 625 118 L 669 118"
+        stroke="#222"
+        stroke-width="2.5"
+        fill="none"
+        stroke-linecap="round"
+    />
+
+    <!-- Sofa (right side) -->
+    <rect
+        x="682"
+        y="162"
+        width="12"
+        height="38"
+        rx="3"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="848"
+        y="162"
+        width="12"
+        height="38"
+        rx="3"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="688"
+        y="162"
+        width="166"
+        height="13"
+        rx="2"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <rect
+        x="688"
+        y="175"
+        width="166"
+        height="22"
+        rx="2"
+        fill="#c8a97a"
+        stroke="#222"
+        stroke-width="2"
+    />
+
+    <!-- Alert stick figure (upright, pointing at TV) -->
+    <circle cx="764" cy="148" r="13" fill="white" stroke="#222" stroke-width="2" />
+    <!-- Wide eyes -->
+    <circle cx="759" cy="145" r="2.5" fill="#222" />
+    <circle cx="769" cy="145" r="2.5" fill="#222" />
+    <!-- Grin -->
+    <path
+        d="M 757 151 Q 764 157 771 151"
+        stroke="#222"
+        stroke-width="1.5"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <!-- Upright body -->
+    <path
+        d="M 764 161 L 764 175"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <!-- Arm pointing at TV -->
+    <path
+        d="M 764 165 Q 738 156 710 147"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+        marker-end="url(#ah)"
+    />
+    <!-- Other arm (raised excitedly) -->
+    <path
+        d="M 764 165 Q 776 156 784 149"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <!-- Seated legs -->
+    <path
+        d="M 764 175 Q 750 175 736 173"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+    <path
+        d="M 764 175 Q 778 175 794 173"
+        stroke="#222"
+        stroke-width="2"
+        fill="none"
+        stroke-linecap="round"
+    />
+
+    <!-- Lightbulb above head -->
+    <circle cx="764" cy="126" r="11" fill="#fef08a" stroke="#f59e0b" stroke-width="2" />
+    <path
+        d="M 759 134 L 759 139 L 769 139 L 769 134"
+        stroke="#f59e0b"
+        stroke-width="2"
+        fill="#fef08a"
+    />
+    <path d="M 761 139 L 767 139" stroke="#f59e0b" stroke-width="2" />
+    <!-- Rays -->
+    <path
+        d="M 764 113 L 764 109 M 776 117 L 780 114 M 752 117 L 748 114 M 778 126 L 783 126 M 750 126 L 745 126"
+        stroke="#f59e0b"
+        stroke-width="1.8"
+        fill="none"
+        stroke-linecap="round"
+    />
+
+    <!-- Speech bubble -->
+    <path
+        d="M 784 102 Q 804 94 847 97 Q 863 101 863 117 Q 863 133 847 137 Q 822 141 803 135 Q 790 143 784 143 Q 791 133 789 125 Q 781 115 784 102 Z"
+        fill="white"
+        stroke="#222"
+        stroke-width="2"
+    />
+    <text x="826" y="114" text-anchor="middle" font-size="12" fill="#222">
+        wait, WHY is
+    </text>
+    <text x="826" y="127" text-anchor="middle" font-size="12" fill="#222">
+        the sky blue??
+    </text>
+
+    <text x="729" y="210" text-anchor="middle" font-size="15" fill="#555">
+        now you just know things
+    </text>
+    <text x="729" y="229" text-anchor="middle" font-size="14" fill="#888">
+        for no apparent reason
+    </text>
+    <text x="729" y="246" text-anchor="middle" font-size="13" fill="#aaa">
+        (brain: definitely getting bigger)
+    </text>
+</svg>
