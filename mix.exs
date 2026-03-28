@@ -101,7 +101,10 @@ defmodule ScientiaCognita.MixProject do
       {:fsmx, "~> 0.4"},
 
       # T11 — SVG generation for image overlay
-      {:victor, "~> 0.1.1"}
+      {:victor, "~> 0.1.1"},
+
+      # Passkeys — WebAuthn server-side verification
+      {:wax_, "~> 0.6"}
     ]
   end
 
