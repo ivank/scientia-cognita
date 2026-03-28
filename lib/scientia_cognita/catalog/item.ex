@@ -151,9 +151,8 @@ defmodule ScientiaCognita.Catalog.Item do
   end
 
   def transition_changeset(changeset, "analyze", "resize", params) do
-    # image_analysis is required; original_image is optional (replaced when rotation was applied).
     changeset
-    |> cast(params, [:image_analysis, :original_image])
+    |> cast(params, [:image_analysis])
     |> validate_required([:image_analysis])
   end
 

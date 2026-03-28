@@ -1,16 +1,19 @@
 defmodule ScientiaCognita.Workers.AnalyzeWorker do
   @moduledoc """
   Downloads the original image, sends it to Gemini for combined visual analysis
-  and (for portrait images) rotation detection, applies any needed rotation,
-  and enqueues ResizeWorker.
+  and (for portrait images) rotation detection, stores the result in
+  image_analysis, and enqueues ResizeWorker.
+
+  This worker only DECIDES the rotation — it does NOT apply it. ResizeWorker
+  reads image_analysis["rotation"] and rotates before resizing. This avoids
+  overwriting the original file in place (same URL/key), which would be
+  invisible to any HTTP caching layer.
 
   For landscape images (width ≥ height): one Gemini call for analysis only;
   rotation is set to "none" without consulting Gemini.
 
   For portrait images (height > width): one Gemini call with a combined schema
-  that returns both the analysis fields and the rotation decision. The image is
-  rotated and re-uploaded as original_image when Gemini returns "clockwise" or
-  "counterclockwise".
+  that returns both the analysis fields and the rotation decision.
 
   The analysis stored in image_analysis includes:
     - text_color: optimal overlay text color (#FFFFFF or #1A1A1A)
@@ -36,6 +39,7 @@ defmodule ScientiaCognita.Workers.AnalyzeWorker do
               :uploader_module,
               ScientiaCognita.Uploaders.ItemImageUploader
             )
+  # @uploader is used only to build the download URL for the original image.
 
   @default_analysis %{
     "text_color" => "#FFFFFF",
@@ -227,8 +231,8 @@ defmodule ScientiaCognita.Workers.AnalyzeWorker do
 
     with {:ok, original_binary} <- download_original(item),
          {:ok, img} <- Image.from_binary(original_binary),
-         {:ok, {analysis, output_binary}} <- analyze_and_rotate(img, original_binary, item.manual_rotation),
-         {:ok, item} <- persist(item, analysis, output_binary, original_binary) do
+         {:ok, analysis} <- decide_analysis(img, original_binary, item.manual_rotation),
+         {:ok, item} <- fsm_transition(item, "resize", %{image_analysis: analysis}) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> ResizeWorker.new() |> Oban.insert()
       :ok
@@ -277,127 +281,73 @@ defmodule ScientiaCognita.Workers.AnalyzeWorker do
   end
 
   # ---------------------------------------------------------------------------
-  # Combined analyze + rotate
+  # Analysis (rotation decision only — application happens in ResizeWorker)
   # ---------------------------------------------------------------------------
 
-  # Returns {:ok, {analysis_map, output_binary}} where output_binary may be the
-  # original (no rotation) or a freshly rotated binary.
-  defp analyze_and_rotate(img, original_binary, manual_rotation) do
+  # Returns {:ok, analysis_map} with all five fields including "rotation".
+  defp decide_analysis(img, _original_binary, manual_rotation) do
     width = Image.width(img)
     height = Image.height(img)
     portrait? = height > width
 
     Logger.debug("[AnalyzeWorker] dimensions #{width}×#{height}, portrait=#{portrait?}, manual_rotation=#{inspect(manual_rotation)}")
 
-    with {:ok, preview} <- build_preview(img),
+    with {:ok, preview} <- Image.thumbnail(img, 800),
          {:ok, preview_binary} <- Image.write(preview, :memory, suffix: ".jpg", quality: 80) do
-      if manual_rotation do
-        # Manual override: use analysis-only Gemini call, apply the specified rotation.
-        Logger.info("[AnalyzeWorker] using manual rotation: #{manual_rotation}")
-        analyze_with_manual_rotation(img, original_binary, preview_binary, manual_rotation)
-      else
-        if portrait? do
-          analyze_portrait(img, original_binary, preview_binary)
-        else
-          analyze_landscape(original_binary, preview_binary)
-        end
+      cond do
+        manual_rotation ->
+          Logger.info("[AnalyzeWorker] manual rotation override: #{manual_rotation}")
+          {:ok, analyze_with_prompt(preview_binary, @analysis_prompt, @analysis_schema, manual_rotation)}
+
+        portrait? ->
+          {:ok, analyze_portrait(preview_binary)}
+
+        true ->
+          {:ok, analyze_landscape(preview_binary)}
       end
     end
   end
 
-  defp build_preview(img) do
-    Image.thumbnail(img, 800)
-  end
-
-  defp analyze_with_manual_rotation(img, original_binary, preview_binary, rotation) do
-    analysis =
-      case @gemini.generate_structured_with_image(@analysis_prompt, preview_binary, @analysis_schema, []) do
-        {:ok, %{"text_color" => _, "bg_color" => _, "bg_opacity" => _, "subject" => _} = result} ->
-          Map.put(result, "rotation", rotation)
-
-        _ ->
-          Logger.warning("[AnalyzeWorker] Gemini analysis failed, using defaults")
-          Map.put(@default_analysis, "rotation", rotation)
-      end
-
-    {analysis, output_binary} = apply_rotation(img, original_binary, analysis, rotation)
-    {:ok, {analysis, output_binary}}
-  end
-
-  defp analyze_landscape(original_binary, preview_binary) do
-    analysis =
-      case @gemini.generate_structured_with_image(@analysis_prompt, preview_binary, @analysis_schema, []) do
-        {:ok, %{"text_color" => _, "bg_color" => _, "bg_opacity" => _, "subject" => _} = result} ->
-          Map.put(result, "rotation", "none")
-
-        _ ->
-          Logger.warning("[AnalyzeWorker] Gemini analysis failed, using defaults")
-          @default_analysis
-      end
-
-    {:ok, {analysis, original_binary}}
-  end
-
-  defp analyze_portrait(img, original_binary, preview_binary) do
-    {analysis, output_binary} =
-      case @gemini.generate_structured_with_image(@combined_prompt, preview_binary, @combined_schema, []) do
-        {:ok,
-         %{
-           "text_color" => _,
-           "bg_color" => _,
-           "bg_opacity" => _,
-           "subject" => _,
-           "rotation" => rotation
-         } = result}
-        when rotation in ["none", "clockwise", "counterclockwise"] ->
-          Logger.info("[AnalyzeWorker] Gemini rotation decision: #{rotation}")
-          apply_rotation(img, original_binary, result, rotation)
-
-        _ ->
-          Logger.warning("[AnalyzeWorker] Gemini combined call failed, using defaults")
-          {@default_analysis, original_binary}
-      end
-
-    {:ok, {analysis, output_binary}}
-  end
-
-  defp apply_rotation(_img, original_binary, analysis, "none"), do: {analysis, original_binary}
-
-  defp apply_rotation(img, original_binary, analysis, direction) do
-    degrees = if direction == "clockwise", do: 90, else: -90
-
-    case Image.rotate(img, degrees) do
-      {:ok, rotated} ->
-        case Image.write(rotated, :memory, suffix: ".jpg", quality: 95) do
-          {:ok, rotated_binary} -> {analysis, rotated_binary}
-          _ -> {analysis, original_binary}
-        end
+  defp analyze_with_prompt(preview_binary, prompt, schema, rotation) do
+    case @gemini.generate_structured_with_image(prompt, preview_binary, schema, []) do
+      {:ok, %{"text_color" => _, "bg_color" => _, "bg_opacity" => _, "subject" => _} = result} ->
+        Map.put(result, "rotation", rotation)
 
       _ ->
-        {analysis, original_binary}
+        Logger.warning("[AnalyzeWorker] Gemini analysis failed, using defaults")
+        Map.put(@default_analysis, "rotation", rotation)
     end
   end
 
-  # ---------------------------------------------------------------------------
-  # Persistence
-  # ---------------------------------------------------------------------------
+  defp analyze_landscape(preview_binary) do
+    case @gemini.generate_structured_with_image(@analysis_prompt, preview_binary, @analysis_schema, []) do
+      {:ok, %{"text_color" => _, "bg_color" => _, "bg_opacity" => _, "subject" => _} = result} ->
+        Map.put(result, "rotation", "none")
 
-  defp persist(item, analysis, output_binary, original_binary) do
-    params =
-      if output_binary != original_binary do
-        case @uploader.store({%{filename: "original.jpg", binary: output_binary}, item}) do
-          {:ok, file} ->
-            %{image_analysis: analysis, original_image: %{file_name: file, updated_at: nil}}
+      _ ->
+        Logger.warning("[AnalyzeWorker] Gemini analysis failed, using defaults")
+        @default_analysis
+    end
+  end
 
-          {:error, reason} ->
-            Logger.warning("[AnalyzeWorker] rotation upload failed, keeping original: #{inspect(reason)}")
-            %{image_analysis: analysis}
-        end
-      else
-        %{image_analysis: analysis}
-      end
+  defp analyze_portrait(preview_binary) do
+    case @gemini.generate_structured_with_image(@combined_prompt, preview_binary, @combined_schema, []) do
+      {:ok,
+       %{
+         "text_color" => _,
+         "bg_color" => _,
+         "bg_opacity" => _,
+         "subject" => _,
+         "rotation" => rotation
+       } = result}
+      when rotation in ["none", "clockwise", "counterclockwise"] ->
+        Logger.info("[AnalyzeWorker] Gemini rotation decision: #{rotation}")
+        result
 
-    fsm_transition(item, "resize", params)
+      _ ->
+        Logger.warning("[AnalyzeWorker] Gemini combined call failed, using defaults")
+        @default_analysis
+    end
   end
 
   # ---------------------------------------------------------------------------

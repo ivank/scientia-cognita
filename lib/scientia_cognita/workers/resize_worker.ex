@@ -29,8 +29,11 @@ defmodule ScientiaCognita.Workers.ResizeWorker do
     item = Catalog.get_item!(item_id)
     Logger.info("[ResizeWorker] item=#{item_id}")
 
+    rotation = get_in(item.image_analysis, ["rotation"]) || "none"
+
     with {:ok, original_binary} <- download_original(item),
          {:ok, img} <- Image.from_binary(original_binary),
+         {:ok, img} <- apply_rotation(img, rotation),
          {:ok, resized} <-
            Image.thumbnail(img, @target_width, height: @target_height, crop: :attention),
          {:ok, output_binary} <- Image.write(resized, :memory, suffix: ".jpg", quality: 85),
@@ -68,6 +71,14 @@ defmodule ScientiaCognita.Workers.ResizeWorker do
       end
 
       :ok
+  end
+
+  defp apply_rotation(img, "none"), do: {:ok, img}
+
+  defp apply_rotation(img, direction) when direction in ["clockwise", "counterclockwise"] do
+    degrees = if direction == "clockwise", do: 90, else: -90
+    Logger.info("[ResizeWorker] rotating #{direction} (#{degrees}°)")
+    Image.rotate(img, degrees)
   end
 
   defp download_original(%{original_image: nil}), do: {:error, "item has no original_image"}

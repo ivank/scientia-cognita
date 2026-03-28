@@ -30,7 +30,7 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
   # ---------------------------------------------------------------------------
 
   describe "perform/1 — landscape image" do
-    test "calls analysis-only Gemini, sets rotation: none, transitions to resize" do
+    test "calls analysis-only Gemini, stores rotation: none, transitions to resize" do
       source = source_fixture()
       item = item_fixture(source, %{status: "analyze", original_image: "original.jpg"})
 
@@ -56,17 +56,20 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
       assert item.image_analysis["bg_color"] == "#1A1A2E"
       assert item.image_analysis["subject"] == "A spiral galaxy with bright core"
       assert item.image_analysis["rotation"] == "none"
+      # original_image untouched — rotation applied later in ResizeWorker
+      assert item.original_image.file_name == "original.jpg"
 
       assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
     end
   end
 
   # ---------------------------------------------------------------------------
-  # Portrait image — combined Gemini call, rotation: none
+  # Portrait image — combined Gemini call
+  # AnalyzeWorker only STORES the rotation decision; ResizeWorker applies it.
   # ---------------------------------------------------------------------------
 
   describe "perform/1 — portrait image, Gemini says none" do
-    test "keeps original, stores rotation: none, transitions to resize" do
+    test "stores rotation: none, original_image untouched, transitions to resize" do
       source = source_fixture()
       item = item_fixture(source, %{status: "analyze", original_image: "original.jpg"})
 
@@ -74,7 +77,6 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
         "http://localhost:9000/images/items/#{item.id}/original.jpg"
       end)
 
-      # Portrait JPEG (56×100)
       expect(MockHttp, :get, fn _url, _opts ->
         jpeg = File.read!("test/fixtures/test_image_portrait.jpg")
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
@@ -89,19 +91,14 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
       item = Catalog.get_item!(item.id)
       assert item.status == "resize"
       assert item.image_analysis["rotation"] == "none"
-      # no re-upload — original_image filename unchanged
       assert item.original_image.file_name == "original.jpg"
 
       assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
     end
   end
 
-  # ---------------------------------------------------------------------------
-  # Portrait image — combined Gemini call, rotation: clockwise
-  # ---------------------------------------------------------------------------
-
   describe "perform/1 — portrait image, Gemini says clockwise" do
-    test "rotates, re-uploads original, stores rotation: clockwise, transitions to resize" do
+    test "stores rotation: clockwise, original_image untouched, transitions to resize" do
       source = source_fixture()
       item = item_fixture(source, %{status: "analyze", original_image: "original.jpg"})
 
@@ -118,26 +115,20 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
         {:ok, Map.put(@combined_result, "rotation", "clockwise")}
       end)
 
-      expect(MockUploader, :store, fn {%{filename: "original.jpg"}, _item} ->
-        {:ok, "original.jpg"}
-      end)
-
+      # No MockUploader.store — rotation is applied by ResizeWorker, not here
       assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
       assert item.status == "resize"
       assert item.image_analysis["rotation"] == "clockwise"
+      assert item.original_image.file_name == "original.jpg"
 
       assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
     end
   end
 
-  # ---------------------------------------------------------------------------
-  # Portrait image — combined Gemini call, rotation: counterclockwise
-  # ---------------------------------------------------------------------------
-
   describe "perform/1 — portrait image, Gemini says counterclockwise" do
-    test "rotates counterclockwise, re-uploads, stores rotation: counterclockwise" do
+    test "stores rotation: counterclockwise, original_image untouched, transitions to resize" do
       source = source_fixture()
       item = item_fixture(source, %{status: "analyze", original_image: "original.jpg"})
 
@@ -154,15 +145,12 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
         {:ok, Map.put(@combined_result, "rotation", "counterclockwise")}
       end)
 
-      expect(MockUploader, :store, fn {%{filename: "original.jpg"}, _item} ->
-        {:ok, "original.jpg"}
-      end)
-
       assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
       assert item.status == "resize"
       assert item.image_analysis["rotation"] == "counterclockwise"
+      assert item.original_image.file_name == "original.jpg"
 
       assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
     end
@@ -204,11 +192,11 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Manual rotation override
+  # Manual rotation override — stores the override, no upload
   # ---------------------------------------------------------------------------
 
   describe "perform/1 — manual_rotation set" do
-    test "uses analysis-only Gemini call and applies manual rotation (clockwise)" do
+    test "stores manual rotation (clockwise), analysis-only Gemini call, no upload" do
       source = source_fixture()
 
       item =
@@ -222,32 +210,28 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
         "http://localhost:9000/images/items/#{item.id}/original.jpg"
       end)
 
-      # Portrait image so we can verify rotation is applied
       expect(MockHttp, :get, fn _url, _opts ->
         jpeg = File.read!("test/fixtures/test_image_portrait.jpg")
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
       end)
 
-      # Must call analysis-only schema (no rotation field in response)
       expect(MockGemini, :generate_structured_with_image, fn _prompt, _binary, _schema, _opts ->
         {:ok, @analysis_result}
       end)
 
-      expect(MockUploader, :store, fn {%{filename: "original.jpg"}, _item} ->
-        {:ok, "original.jpg"}
-      end)
-
+      # No MockUploader.store — rotation is applied by ResizeWorker
       assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
       assert item.status == "resize"
       assert item.image_analysis["rotation"] == "clockwise"
       assert item.image_analysis["text_color"] == "#FFFFFF"
+      assert item.original_image.file_name == "original.jpg"
 
       assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
     end
 
-    test "uses manual rotation none without rotating, even for portrait image" do
+    test "stores manual rotation none, even for portrait image" do
       source = source_fixture()
 
       item =
@@ -270,7 +254,6 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
         {:ok, @analysis_result}
       end)
 
-      # No uploader store call — original is kept as-is
       assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
@@ -281,7 +264,7 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
       assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
     end
 
-    test "uses manual rotation even when Gemini fails" do
+    test "stores manual rotation even when Gemini fails" do
       source = source_fixture()
 
       item =
@@ -304,17 +287,11 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
         {:error, "API quota exceeded"}
       end)
 
-      expect(MockUploader, :store, fn {%{filename: "original.jpg"}, _item} ->
-        {:ok, "original.jpg"}
-      end)
-
       assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
 
       item = Catalog.get_item!(item.id)
       assert item.status == "resize"
-      # rotation still applied from manual_rotation despite Gemini failure
       assert item.image_analysis["rotation"] == "counterclockwise"
-      # analysis falls back to defaults
       assert item.image_analysis["text_color"] == "#FFFFFF"
       assert item.image_analysis["bg_color"] == "#000000"
 
