@@ -101,4 +101,24 @@ defmodule ScientiaCognitaWeb.Router do
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
   end
+
+  # Passkey management (authenticated)
+  scope "/", ScientiaCognitaWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    get    "/users/passkeys/challenge/register",  UserPasskeyController, :registration_challenge
+    post   "/users/passkeys",                     UserPasskeyController, :register
+    # banner-dismiss MUST come before /:id to avoid route capture
+    delete "/users/passkeys/banner-dismiss",      UserPasskeyController, :dismiss_banner
+    patch  "/users/passkeys/:id",                 UserPasskeyController, :update_label
+    delete "/users/passkeys/:id",                 UserPasskeyController, :delete
+  end
+
+  # Passkey authentication (unauthenticated)
+  scope "/", ScientiaCognitaWeb do
+    pipe_through [:browser]
+
+    get  "/users/passkeys/challenge/authenticate", UserPasskeyController, :authentication_challenge
+    post "/users/passkeys/authenticate",            UserPasskeyController, :authenticate
+  end
 end
