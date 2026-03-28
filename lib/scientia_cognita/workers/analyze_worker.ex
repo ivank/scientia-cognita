@@ -104,26 +104,29 @@ defmodule ScientiaCognita.Workers.AnalyzeWorker do
         enum: ["none", "clockwise", "counterclockwise"],
         description: """
         This is a portrait image that will be displayed in a 1920×1080 landscape format.
-        Decide whether it was photographed vertically only because of camera angle, or because
-        the subject genuinely requires a vertical orientation.
+        Decide whether it was photographed/composed vertically because the subject genuinely
+        requires a vertical orientation, or merely because of camera angle or page layout.
 
-        none — ONLY when the subject has an inherent, meaningful vertical axis in the real
-               world: a standing or upright person/animal, a rocket mid-launch, a tall tree
-               or building, a waterfall, a cliff face, or a clear horizon line.
+        none — ONLY when the subject has an inherent, meaningful vertical axis: a standing
+               or upright person/animal, a rocket mid-launch, a tall tree or building, a
+               waterfall, a cliff face, or a scene with a clear horizon line.
+               Do NOT return "none" for printed plates, specimen sheets, or illustration
+               pages — these are visual content, not documents; text labels, captions,
+               plate numbers, and titles do not make an image "intentionally vertical".
 
-        clockwise — rotate 90° clockwise. Use this when the subject has no natural vertical
-                    requirement and rotating clockwise makes it read naturally: e.g. the main
-                    mass or head of the subject is on the left side of the image.
+        clockwise — the subject has no natural vertical requirement AND rotating 90° clockwise
+                    makes it read naturally. Typically: the main mass or focal point is on the
+                    LEFT side of the image. Use for biological close-ups, spread anatomical
+                    details (wings, fins, claws, tentacles, roots), macro shots, scientific
+                    illustration plates, overhead views, and galaxies/nebulae lying on their side.
 
-        counterclockwise — rotate 90° counterclockwise. Use this when the subject has no
-                           natural vertical requirement and rotating counterclockwise makes it
-                           read naturally: e.g. the main mass or head of the subject is on
-                           the right side of the image.
+        counterclockwise — same as clockwise but the main mass or focal point is on the RIGHT
+                           side of the image.
 
-        Key test: ask "does this subject NEED to be tall to make sense?" Biological close-ups
-        (wings, fins, tentacles, claws, leaves), abstract structures, and overhead/macro views
-        almost always benefit from rotation. Prefer rotation over "none" unless the subject
-        is clearly and intentionally vertical.
+        For symmetric images with no clear left/right bias (e.g. a centred plate with specimens
+        arranged in a grid), default to "clockwise".
+
+        Prefer rotation over "none" unless the subject is clearly and inherently vertical.
         """
       }
     },
@@ -199,19 +202,22 @@ defmodule ScientiaCognita.Workers.AnalyzeWorker do
     "none" — ONLY when the subject has a genuine, inherent vertical axis: a standing
     or upright person/animal, a rocket mid-launch, a tall tree or building, a waterfall,
     a cliff face, or a scene with a clear horizon line. Do NOT return "none" merely
-    because the subject happens to fill a portrait frame.
+    because the subject fills a portrait frame, and do NOT treat printed illustration
+    plates, specimen sheets, or labelled scientific plates as "intentionally vertical" —
+    text labels, captions, and plate titles are not a reason to keep portrait orientation.
 
     "clockwise" — the subject has no natural vertical requirement (e.g. a biological
-    close-up, a spread wing/fin/claw/leaf, a macro detail, an overhead view, or a
-    galaxy/nebula lying on its side) AND rotating 90° clockwise makes it read naturally.
-    Typically: the main mass or head/tip of the subject is on the LEFT side of the image.
+    close-up, spread anatomical detail, macro shot, scientific illustration plate,
+    overhead view, or galaxy/nebula lying on its side) AND rotating 90° clockwise makes
+    it read naturally. Typically: the main mass or focal point is on the LEFT side.
+    For symmetric images with no clear bias (e.g. a centred specimen plate), use clockwise.
 
-    "counterclockwise" — same as clockwise but the main mass or head/tip is on the RIGHT
-    side of the image.
+    "counterclockwise" — same as clockwise but the main mass or focal point is on the
+    RIGHT side of the image.
 
-    Biological close-ups, macro shots, abstract structures, and spread anatomical details
-    almost always benefit from rotation. Prefer rotation unless the subject is clearly and
-    intentionally vertical.
+    Biological content, macro shots, illustration plates, and abstract structures almost
+    always benefit from rotation. Prefer rotation unless the subject is clearly and
+    inherently vertical.
   """
 
   @impl Oban.Worker
