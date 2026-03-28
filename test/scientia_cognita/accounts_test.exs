@@ -484,6 +484,38 @@ defmodule ScientiaCognita.AccountsTest do
     end
   end
 
+  describe "get_passkey_for_user/2" do
+    test "returns passkey when owned by the user" do
+      user = user_fixture()
+      passkey = passkey_fixture(user)
+      result = Accounts.get_passkey_for_user(user, passkey.id)
+      assert result.id == passkey.id
+    end
+
+    test "returns nil when passkey belongs to another user" do
+      user = user_fixture()
+      other = user_fixture()
+      passkey = passkey_fixture(other)
+      assert Accounts.get_passkey_for_user(user, passkey.id) == nil
+    end
+
+    test "returns nil for unknown passkey id" do
+      user = user_fixture()
+      assert Accounts.get_passkey_for_user(user, -1) == nil
+    end
+  end
+
+  describe "update_passkey_after_auth/3" do
+    test "persists sign_count and last_used_at" do
+      user = user_fixture()
+      passkey = passkey_fixture(user)
+      now = DateTime.utc_now(:second)
+      updated = Accounts.update_passkey_after_auth(passkey, 42, now)
+      assert updated.sign_count == 42
+      assert updated.last_used_at == now
+    end
+  end
+
   describe "delete_passkey/2" do
     test "deletes an owned passkey" do
       user = user_fixture()
