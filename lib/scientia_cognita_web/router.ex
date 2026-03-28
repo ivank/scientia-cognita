@@ -11,6 +11,7 @@ defmodule ScientiaCognitaWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_scope_for_user
+    plug :fetch_passkey_banner
   end
 
   pipeline :api do

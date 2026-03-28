@@ -87,6 +87,25 @@ defmodule ScientiaCognitaWeb.UserAuth do
     end
   end
 
+  @doc """
+  Assigns :show_passkey_banner to the conn.
+
+  The banner is shown when all three conditions hold:
+    1. A user is logged in (current_scope.user is set)
+    2. The user has no registered passkeys
+    3. The user has not dismissed the banner this session
+  """
+  def fetch_passkey_banner(conn, _opts) do
+    user = conn.assigns[:current_scope] && conn.assigns.current_scope.user
+
+    show =
+      not is_nil(user) and
+        not get_session(conn, :passkey_banner_dismissed) and
+        not ScientiaCognita.Accounts.user_has_passkeys?(user)
+
+    assign(conn, :show_passkey_banner, show)
+  end
+
   defp ensure_user_token(conn) do
     if token = get_session(conn, :user_token) do
       {token, conn}
