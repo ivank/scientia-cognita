@@ -37,7 +37,7 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
          {:ok, client_data_json} <- decode_b64(params["response"]["clientDataJSON"]),
          {:ok, {auth_data, _}} <- webauthn().register(attestation_object, client_data_json, challenge) do
       cred = auth_data.attested_credential_data
-      label = build_label(params["authenticatorAttachment"])
+      label = build_label(auth_data)
 
       case Accounts.register_passkey(user, %{
              credential_id: cred.credential_id,
@@ -162,7 +162,13 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
   defp decode_b64(nil), do: {:error, :missing}
   defp decode_b64(str), do: Base.url_decode64(str, padding: false)
 
-  defp build_label("platform"), do: "Device passkey (added #{Date.utc_today()})"
-  defp build_label("cross-platform"), do: "Security key (added #{Date.utc_today()})"
-  defp build_label(_), do: "Passkey (added #{Date.utc_today()})"
+  defp build_label(authenticator_data) do
+    with aaguid when not is_nil(aaguid) <- Wax.AuthenticatorData.get_aaguid(authenticator_data),
+         {:ok, %{"description" => description}} when is_binary(description) <-
+           Wax.Metadata.get_by_aaguid(aaguid) do
+      description
+    else
+      _ -> "Passkey (added #{Date.utc_today()})"
+    end
+  end
 end
