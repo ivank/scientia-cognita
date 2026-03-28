@@ -107,6 +107,7 @@ async function updatePasskeyLabel(passkeyId, label) {
 }
 
 window.passkeyDelete = async function(passkeyId, rowEl) {
+  if (!confirm('Remove this passkey?')) return;
   const csrfTok = document.querySelector('meta[name=csrf-token]')?.content ?? '';
   const res = await fetch(`/users/passkeys/${passkeyId}`, {
     method: 'DELETE',
