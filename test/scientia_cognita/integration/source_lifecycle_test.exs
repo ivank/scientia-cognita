@@ -69,7 +69,8 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
            "text_color" => "#FFFFFF",
            "bg_color" => "#000000",
            "bg_opacity" => 0.75,
-           "subject" => "A stunning space image"
+           "subject" => "A stunning space image",
+           "rotation" => "none"
          }}
       end)
 
@@ -131,7 +132,7 @@ defmodule ScientiaCognita.Integration.SourceLifecycleTest do
         assert :ok = perform_job(ThumbnailWorker, %{item_id: item.id})
         assert Catalog.get_item!(item.id).status == "analyze"
 
-        # AnalyzeWorker: HTTP get from MinIO thumbnail URL + Gemini image call
+        # AnalyzeWorker: HTTP get from MinIO original URL + Gemini image call (analysis + rotation)
         expect(MockHttp, :get, fn _url, _opts ->
           {:ok, %{status: 200, body: @test_jpeg, headers: %{}}}
         end)

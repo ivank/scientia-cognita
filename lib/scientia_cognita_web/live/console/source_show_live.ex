@@ -52,6 +52,15 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
               <.icon name="hero-arrow-path" class="size-4" /> Retry {@retryable_count} items
             </button>
             <button
+              :if={@reprocessable_count > 0}
+              class="btn btn-info btn-sm gap-2"
+              phx-click="reprocess_all"
+              phx-disable-with="Queuing…"
+              title="Re-run analyze → rotate → resize → render for all ready items"
+            >
+              <.icon name="hero-cpu-chip" class="size-4" /> Re-process {@reprocessable_count}
+            </button>
+            <button
               class="btn btn-error btn-sm gap-2"
               phx-click="confirm_delete"
             >
@@ -259,6 +268,18 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                 </label>
                 <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
               </div>
+
+              <%!-- Analysis data panel --%>
+              <details
+                :if={@selected_item.image_analysis}
+                class="border border-base-300 rounded-lg overflow-hidden"
+              >
+                <summary class="flex items-center gap-2 px-4 py-2 cursor-pointer text-xs bg-base-200 hover:bg-base-300 select-none font-medium text-base-content/70 uppercase tracking-wide">
+                  <.icon name="hero-cpu-chip" class="size-3.5" />
+                  Analysis data
+                </summary>
+                <pre class="text-xs overflow-auto max-h-64 bg-base-200 p-4 m-0">{Jason.encode!(@selected_item.image_analysis, pretty: true)}</pre>
+              </details>
             </div>
           </div>
 
@@ -281,20 +302,20 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                 <.icon name="hero-arrow-down-tray" class="size-4" /> Re-download
               </button>
 
-              <%!-- Re-render: terminal states or errored item, with original_image present --%>
+              <%!-- Re-process: terminal states or errored item, with thumbnail present --%>
               <button
                 :if={
                   (@selected_item.status in ~w(ready failed discarded) or
-                     not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)
+                     not is_nil(@selected_item.error)) and not is_nil(@selected_item.thumbnail_image)
                 }
                 type="button"
                 class="btn btn-ghost btn-sm gap-1"
-                phx-click="rerender_item"
+                phx-click="reprocess_item"
                 phx-value-id={@selected_item.id}
                 phx-disable-with="…"
-                title="Re-run from original downloaded image through the full processing chain"
+                title="Re-run analyze → rotate → resize → render without re-downloading"
               >
-                <.icon name="hero-paint-brush" class="size-4" /> Re-render
+                <.icon name="hero-cpu-chip" class="size-4" /> Re-process
               </button>
             </div>
 
@@ -483,28 +504,22 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      |> put_flash(:info, "Re-downloading item")}
   end
 
-  def handle_event("rerender_item", %{"id" => id}, socket) do
+  def handle_event("reprocess_item", %{"id" => id}, socket) do
     item = Catalog.get_item!(id)
 
-    # Clear all derived images and analysis so the full pipeline runs from scratch.
     {:ok, item} =
       item
-      |> Ecto.Changeset.change(%{
-        thumbnail_image: nil,
-        processed_image: nil,
-        final_image: nil,
-        image_analysis: nil
-      })
+      |> Ecto.Changeset.change(%{image_analysis: nil, processed_image: nil, final_image: nil})
       |> ScientiaCognita.Repo.update()
 
-    {:ok, item} = Catalog.update_item_status(item, "thumbnail", error: nil)
-    %{item_id: item.id} |> ThumbnailWorker.new() |> Oban.insert()
+    {:ok, item} = Catalog.update_item_status(item, "analyze", error: nil)
+    %{item_id: item.id} |> AnalyzeWorker.new() |> Oban.insert()
 
     {:noreply,
      socket
      |> assign_source_stats(Catalog.get_source!(socket.assigns.source.id))
      |> assign(:selected_item, item)
-     |> put_flash(:info, "Re-rendering item")}
+     |> put_flash(:info, "Re-processing item")}
   end
 
   def handle_event("start_edit_name", _, socket) do
@@ -588,6 +603,29 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      |> put_flash(:info, "Retrying #{length(items_to_retry)} items")}
   end
 
+  def handle_event("reprocess_all", _, socket) do
+    source = socket.assigns.source
+
+    items =
+      Catalog.list_items_by_source(source)
+      |> Enum.filter(&(&1.status == "ready" and not is_nil(&1.thumbnail_image)))
+
+    Enum.each(items, fn item ->
+      {:ok, item} =
+        item
+        |> Ecto.Changeset.change(%{image_analysis: nil, processed_image: nil, final_image: nil})
+        |> ScientiaCognita.Repo.update()
+
+      {:ok, _} = Catalog.update_item_status(item, "analyze", error: nil)
+      %{item_id: item.id} |> AnalyzeWorker.new() |> Oban.insert()
+    end)
+
+    {:noreply,
+     socket
+     |> assign_source_stats(Catalog.get_source!(source.id))
+     |> put_flash(:info, "Re-processing #{length(items)} items")}
+  end
+
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
@@ -601,10 +639,13 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         (status_counts["discarded"] || 0) +
         MapSet.size(stuck_ids)
 
+    reprocessable_count = status_counts["ready"] || 0
+
     socket
     |> assign(:source, source)
     |> assign(:status_counts, status_counts)
     |> assign(:retryable_count, retryable_count)
+    |> assign(:reprocessable_count, reprocessable_count)
     |> assign(:stuck_ids, stuck_ids)
   end
 
