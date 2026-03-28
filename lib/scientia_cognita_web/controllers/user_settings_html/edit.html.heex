@@ -1,5 +1,12 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
   <div class="text-center">
+    <div class="flex justify-center mb-4">
+      <.avatar
+        initials={user_initials(@current_scope.user.email)}
+        src={@current_scope.user.google_avatar_url}
+        size="xl"
+      />
+    </div>
     <.header>
       Account Settings
       <:subtitle>Manage your account email address and password settings</:subtitle>

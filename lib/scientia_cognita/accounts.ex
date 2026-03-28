@@ -95,11 +95,20 @@ defmodule ScientiaCognita.Accounts do
   end
 
   @doc """
-  Links a Google ID to an existing user account.
+  Links a Google ID (and optional avatar URL) to an existing user account.
   """
-  def link_google_account(user, google_id) do
+  def link_google_account(user, google_id, avatar_url \\ nil) do
     user
-    |> User.google_id_changeset(%{google_id: google_id})
+    |> User.google_id_changeset(%{google_id: google_id, google_avatar_url: avatar_url})
+    |> Repo.update()
+  end
+
+  @doc """
+  Updates the stored Google avatar URL for a user.
+  """
+  def update_google_avatar(%User{} = user, avatar_url) do
+    user
+    |> Ecto.Changeset.change(google_avatar_url: avatar_url)
     |> Repo.update()
   end
 

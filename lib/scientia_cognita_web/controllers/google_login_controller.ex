@@ -18,9 +18,13 @@ defmodule ScientiaCognitaWeb.GoogleLoginController do
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
     google_id = auth.uid
     email = auth.info.email
+    avatar_url = auth.info.image
 
-    case find_or_create_user(google_id, email) do
+    case find_or_create_user(google_id, email, avatar_url) do
       {:ok, user} ->
+        # Refresh avatar on every login in case it changed on Google's side
+        {:ok, user} = Accounts.update_google_avatar(user, avatar_url)
+
         conn
         |> put_flash(:info, "Welcome!")
         |> UserAuth.log_in_user(user)
@@ -39,24 +43,28 @@ defmodule ScientiaCognitaWeb.GoogleLoginController do
   end
 
   # Found by google_id — direct login; otherwise fall through to email lookup
-  defp find_or_create_user(google_id, email) do
+  defp find_or_create_user(google_id, email, avatar_url) do
     case Accounts.get_user_by_google_id(google_id) do
       %Accounts.User{} = user ->
         {:ok, user}
 
       nil ->
-        find_or_register_by_email(google_id, email)
+        find_or_register_by_email(google_id, email, avatar_url)
     end
   end
 
   # Try to find existing account by email and link google_id, or register new user
-  defp find_or_register_by_email(google_id, email) do
+  defp find_or_register_by_email(google_id, email, avatar_url) do
     case Accounts.get_user_by_email(email) do
       %Accounts.User{} = user ->
-        Accounts.link_google_account(user, google_id)
+        Accounts.link_google_account(user, google_id, avatar_url)
 
       nil ->
-        Accounts.register_user_from_google(%{email: email, google_id: google_id})
+        Accounts.register_user_from_google(%{
+          email: email,
+          google_id: google_id,
+          google_avatar_url: avatar_url
+        })
     end
   end
 end

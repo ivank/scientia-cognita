@@ -455,32 +455,49 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   def user_initials(_), do: "??"
 
   @doc """
-  Renders a circular initials avatar.
+  Renders a circular avatar — photo when `src` is set, initials otherwise.
 
   ## Attributes
 
-    * `initials` - two-character string (use `user_initials/1`)
+    * `initials` - two-character fallback string (use `user_initials/1`)
+    * `src` - optional photo URL (e.g. Google profile picture)
     * `size` - "sm" (28px), "md" (32px, default), "lg" (40px)
 
   ## Examples
 
       <.avatar initials={user_initials(@current_scope.user.email)} />
-      <.avatar initials={user_initials(@current_scope.user.email)} size="lg" />
+      <.avatar initials={user_initials(u.email)} src={u.google_avatar_url} size="lg" />
   """
   attr :initials, :string, required: true
-  attr :size, :string, default: "md", values: ~w(sm md lg)
+  attr :src, :string, default: nil
+  attr :size, :string, default: "md", values: ~w(sm md lg xl)
 
   def avatar(assigns) do
     ~H"""
-    <div class={[
-      "rounded-full bg-primary text-primary-content font-bold font-sans",
-      "flex items-center justify-center shrink-0 select-none",
-      @size == "sm" && "w-7 h-7 text-xs",
-      @size == "md" && "w-8 h-8 text-sm",
-      @size == "lg" && "w-10 h-10 text-base"
-    ]}>
-      {@initials}
-    </div>
+    <%= if @src do %>
+      <img
+        src={@src}
+        alt={@initials}
+        class={[
+          "rounded-full shrink-0 object-cover",
+          @size == "sm" && "w-7 h-7",
+          @size == "md" && "w-8 h-8",
+          @size == "lg" && "w-10 h-10",
+          @size == "xl" && "w-20 h-20"
+        ]}
+      />
+    <% else %>
+      <div class={[
+        "rounded-full bg-primary text-primary-content font-bold font-sans",
+        "flex items-center justify-center shrink-0 select-none",
+        @size == "sm" && "w-7 h-7 text-xs",
+        @size == "md" && "w-8 h-8 text-sm",
+        @size == "lg" && "w-10 h-10 text-base",
+        @size == "xl" && "w-20 h-20 text-2xl"
+      ]}>
+        {@initials}
+      </div>
+    <% end %>
     """
   end
 
