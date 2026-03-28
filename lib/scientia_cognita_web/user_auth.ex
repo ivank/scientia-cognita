@@ -96,14 +96,13 @@ defmodule ScientiaCognitaWeb.UserAuth do
     3. The user has not dismissed the banner this session
   """
   def fetch_passkey_banner(conn, _opts) do
-    user = conn.assigns[:current_scope] && conn.assigns.current_scope.user
-
-    show =
-      not is_nil(user) and
-        not get_session(conn, :passkey_banner_dismissed) and
-        not ScientiaCognita.Accounts.user_has_passkeys?(user)
-
-    assign(conn, :show_passkey_banner, show)
+    if scope = conn.assigns[:current_scope] do
+      dismissed = get_session(conn, :passkey_banner_dismissed)
+      has_passkeys = Accounts.user_has_passkeys?(scope.user)
+      assign(conn, :show_passkey_banner, !dismissed && !has_passkeys)
+    else
+      assign(conn, :show_passkey_banner, false)
+    end
   end
 
   defp ensure_user_token(conn) do

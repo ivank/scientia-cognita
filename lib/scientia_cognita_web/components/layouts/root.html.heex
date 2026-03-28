@@ -78,13 +78,13 @@
         <.icon name="hero-fingerprint" class="h-5 w-5 shrink-0" />
         <span class="flex-1 text-sm">
           Sign in faster with a passkey.
-          <a href="/users/settings" class="font-semibold underline">Add one in Settings →</a>
+          <a href="/users/settings#passkeys" class="font-semibold underline">Add one in Settings →</a>
         </span>
         <button
+          id="passkey-banner-dismiss"
           type="button"
           class="btn btn-ghost btn-xs"
           aria-label="Dismiss passkey banner"
-          onclick="fetch('/users/passkeys/banner-dismiss', {method:'DELETE',headers:{'x-csrf-token':document.querySelector('meta[name=csrf-token]').content}}).then(()=>document.getElementById('passkey-banner').remove())"
         >
           <.icon name="hero-x-mark" class="h-4 w-4" />
         </button>
