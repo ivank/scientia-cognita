@@ -17,6 +17,25 @@
       </.header>
     </div>
 
+    <%!-- Passkey login — shown at top, before magic link and password forms --%>
+    <div>
+      <button
+        id="passkey-login-btn"
+        class="btn btn-primary w-full"
+        type="button"
+      >
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="4"/>
+          <path d="M15 8h6M15 12h2M15 16h4"/>
+          <path d="M8 12v8"/>
+        </svg>
+        Sign in with passkey
+      </button>
+      <p id="passkey-login-error" class="text-error text-xs mt-2 text-center" role="alert"></p>
+    </div>
+
+    <div class="divider">or</div>
+
     <div :if={local_mail_adapter?()} class="alert alert-info">
       <.icon name="hero-information-circle" class="size-6 shrink-0" />
       <div>

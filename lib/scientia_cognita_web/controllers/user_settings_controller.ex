@@ -7,7 +7,7 @@ defmodule ScientiaCognitaWeb.UserSettingsController do
   import ScientiaCognitaWeb.UserAuth, only: [require_sudo_mode: 2]
 
   plug :require_sudo_mode
-  plug :assign_email_and_password_changesets
+  plug :assign_settings_data
 
   def edit(conn, _params) do
     render(conn, :edit)
@@ -67,11 +67,12 @@ defmodule ScientiaCognitaWeb.UserSettingsController do
     end
   end
 
-  defp assign_email_and_password_changesets(conn, _opts) do
+  defp assign_settings_data(conn, _opts) do
     user = conn.assigns.current_scope.user
 
     conn
     |> assign(:email_changeset, Accounts.change_user_email(user))
     |> assign(:password_changeset, Accounts.change_user_password(user))
+    |> assign(:passkeys, Accounts.list_passkeys(user))
   end
 end
