@@ -5,6 +5,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
 
   alias ScientiaCognita.{Catalog, Photos}
   alias ScientiaCognita.Uploaders.ItemImageUploader
+  alias ScientiaCognita.Workers.ExportAlbumWorker
 
   @impl true
   def render(assigns) do
@@ -28,6 +29,8 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
         export_item_statuses={@export_item_statuses}
         export_progress={@export_progress}
         export_total={@export_total}
+        export_failed_items={@export_failed_items}
+        export_new_count={@export_new_count}
         catalog_items={@catalog_items}
       />
 
@@ -159,6 +162,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </.link>
           </div>
         </div>
+
       <% !has_google_token?(@current_scope) -> %>
         <div class="rounded-xl p-5 bg-slate-800 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -186,6 +190,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </.link>
           </div>
         </div>
+
       <% is_nil(@export) or @export.status == "deleted" -> %>
         <div class="rounded-xl p-5 bg-slate-900 border border-slate-700 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -209,6 +214,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </button>
           </div>
         </div>
+
       <% @export.status == "running" -> %>
         <div class="rounded-xl p-5 bg-slate-900 border border-blue-900 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
@@ -219,7 +225,11 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               <div>
                 <div class="font-bold text-base">Uploading to Google Photos…</div>
                 <div class="text-sm text-slate-400 mt-0.5">
-                  {@export_progress} of {@export_total} photos uploaded
+                  {@export_progress} uploaded
+                  <span :if={length(@export_failed_items) > 0} class="text-red-400 ml-2">
+                    · {length(@export_failed_items)} failed
+                  </span>
+                  <span class="ml-2">of {@export_total}</span>
                 </div>
               </div>
             </div>
@@ -227,11 +237,18 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               <span class="loading loading-spinner loading-xs"></span> In progress…
             </button>
           </div>
-          <.progress_bar value={@export_progress} max={@export_total} />
+          <.progress_bar
+            value={@export_progress + length(@export_failed_items)}
+            max={@export_total}
+          />
           <div class="flex justify-between mt-1.5 text-xs text-slate-500">
-            <span>0</span><span>{@export_progress} / {@export_total}</span><span>{@export_total}</span>
+            <span>0</span>
+            <span>{@export_progress} / {@export_total}</span>
+            <span>{@export_total}</span>
           </div>
+          <.failed_items_list :if={@export_failed_items != []} items={@export_failed_items} />
         </div>
+
       <% @export.status == "done" -> %>
         <div class="rounded-xl p-5 bg-emerald-950 border border-emerald-800 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -242,7 +259,13 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               <div>
                 <div class="font-bold text-base">In your Google Photos library</div>
                 <div class="text-sm text-emerald-400 mt-0.5">
-                  {length(@catalog_items)} photos
+                  {uploaded_item_count(@export_item_statuses)} uploaded
+                  <span :if={length(@export_failed_items) > 0} class="text-red-400 ml-2">
+                    · {length(@export_failed_items)} failed
+                  </span>
+                  <span :if={@export_new_count > 0} class="text-slate-400 ml-2">
+                    · {@export_new_count} new
+                  </span>
                   <a
                     :if={@export.album_url}
                     href={@export.album_url}
@@ -256,6 +279,25 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </div>
             <div class="flex gap-2 flex-wrap shrink-0">
               <button
+                :if={length(@export_failed_items) > 0}
+                class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
+                phx-click="retry_failed_items"
+                phx-disable-with="Retrying…"
+              >
+                <.icon name="hero-arrow-path" class="size-4" />
+                Retry failed ({length(@export_failed_items)})
+              </button>
+              <button
+                :if={@export_new_count > 0}
+                class="btn btn-sm gap-2 bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
+                phx-click="sync_new_items"
+                phx-disable-with="Syncing…"
+              >
+                <.icon name="hero-arrow-up-tray" class="size-4" />
+                Upload {@export_new_count} new
+              </button>
+              <button
+                :if={length(@export_failed_items) == 0 and @export_new_count == 0}
                 class="btn btn-sm gap-2 bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
                 phx-click="export_to_google_photos"
                 phx-disable-with="Syncing…"
@@ -270,7 +312,9 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               </button>
             </div>
           </div>
+          <.failed_items_list :if={@export_failed_items != []} items={@export_failed_items} />
         </div>
+
       <% @export.status == "failed" -> %>
         <div class="rounded-xl p-5 bg-red-950 border border-red-800 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -281,18 +325,29 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               <div>
                 <div class="font-bold text-base">Upload failed</div>
                 <div class="text-sm text-red-400 mt-0.5">
-                  {failed_item_count(@export_item_statuses)} items failed
+                  <span :if={length(@export_failed_items) > 0}>
+                    {length(@export_failed_items)} items failed
+                  </span>
                   <span :if={@export.error} class="ml-1 opacity-70">· {@export.error}</span>
                 </div>
               </div>
             </div>
             <div class="flex gap-2 flex-wrap shrink-0">
               <button
+                :if={length(@export_failed_items) > 0}
+                class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
+                phx-click="retry_failed_items"
+                phx-disable-with="Retrying…"
+              >
+                <.icon name="hero-arrow-path" class="size-4" />
+                Retry failed ({length(@export_failed_items)})
+              </button>
+              <button
                 class="btn btn-sm gap-2 bg-red-900 border-red-700 text-red-300 hover:bg-red-800"
                 phx-click="export_to_google_photos"
                 phx-disable-with="Retrying…"
               >
-                <.icon name="hero-arrow-path" class="size-4" /> Retry
+                <.icon name="hero-arrow-path" class="size-4" /> Retry all
               </button>
               <.link
                 href={~p"/auth/google"}
@@ -302,10 +357,42 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
               </.link>
             </div>
           </div>
+          <.failed_items_list :if={@export_failed_items != []} items={@export_failed_items} />
         </div>
+
       <% true -> %>
         <%!-- Fallback: shouldn't occur in practice --%>
     <% end %>
+    """
+  end
+
+  # Renders a list of failed items (max 10 shown) with per-item retry buttons.
+  defp failed_items_list(assigns) do
+    ~H"""
+    <div class="mt-3 border-t border-white/10 pt-3 space-y-1.5">
+      <div class="text-xs font-medium text-slate-400 mb-2">Failed items:</div>
+      <div
+        :for={item <- Enum.take(@items, 10)}
+        class="flex items-center gap-2 rounded px-2 py-1.5 bg-red-900/30 text-xs"
+      >
+        <.icon name="hero-exclamation-circle" class="size-3.5 text-red-400 shrink-0" />
+        <span class="flex-1 min-w-0">
+          <span class="font-medium text-red-200 truncate block">{item.title || "Untitled"}</span>
+          <span class="text-red-400/80 truncate block">{item.error}</span>
+        </span>
+        <button
+          class="btn btn-ghost btn-xs text-red-300 hover:text-white shrink-0"
+          phx-click="retry_item"
+          phx-value-item-id={item.id}
+          title="Retry this item"
+        >
+          <.icon name="hero-arrow-path" class="size-3.5" />
+        </button>
+      </div>
+      <div :if={length(@items) > 10} class="text-xs text-slate-500 pl-2">
+        and {length(@items) - 10} more…
+      </div>
+    </div>
     """
   end
 
@@ -341,6 +428,8 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
      |> assign(:lightbox_item, nil)
      |> assign(:export, export)
      |> assign(:export_item_statuses, export_item_statuses)
+     |> assign(:export_failed_items, compute_failed_items(export_item_statuses, items))
+     |> assign(:export_new_count, compute_new_item_count(export_item_statuses, items))
      |> assign(:export_progress, 0)
      |> assign(:export_total, length(items))
      |> assign(:show_delete_confirm, false)}
@@ -370,19 +459,33 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     if is_nil(socket.assigns.current_scope) do
       {:noreply, socket}
     else
-      user = socket.assigns.current_scope.user
-      catalog = socket.assigns.catalog
-
-      {:ok, _job} =
-        %{catalog_id: catalog.id, user_id: user.id}
-        |> ScientiaCognita.Workers.ExportAlbumWorker.new()
-        |> Oban.insert()
-
-      {:noreply,
-       socket
-       |> assign(:export_progress, 0)
-       |> assign(:export_total, length(socket.assigns.catalog_items))}
+      do_start_export(socket)
     end
+  end
+
+  def handle_event("retry_failed_items", _params, socket) do
+    ids = Enum.map(socket.assigns.export_failed_items, & &1.id)
+    do_start_export(socket, item_ids: ids)
+  end
+
+  def handle_event("retry_item", %{"item-id" => item_id_str}, socket) do
+    case Integer.parse(item_id_str) do
+      {id, ""} ->
+        # Remove from list immediately — it'll be re-added via PubSub if it fails again
+        updated_failed = Enum.reject(socket.assigns.export_failed_items, &(&1.id == id))
+
+        socket
+        |> assign(:export_failed_items, updated_failed)
+        |> do_start_export(item_ids: [id])
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("sync_new_items", _params, socket) do
+    ids = new_item_ids(socket.assigns.export_item_statuses, socket.assigns.catalog_items)
+    do_start_export(socket, item_ids: ids)
   end
 
   def handle_event("delete_album", _params, socket) do
@@ -416,8 +519,25 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   # ---------------------------------------------------------------------------
 
   @impl true
+  def handle_info({:export_progress, %{uploaded: n, failed: _f, total: t}}, socket) do
+    {:noreply, socket |> assign(:export_progress, n) |> assign(:export_total, t)}
+  end
+
+  # Backwards-compatible clause for any broadcasts without a `failed` key
   def handle_info({:export_progress, %{uploaded: n, total: t}}, socket) do
     {:noreply, socket |> assign(:export_progress, n) |> assign(:export_total, t)}
+  end
+
+  def handle_info({:export_item_failed, %{item_id: id, title: title, error: error}}, socket) do
+    item_detail = %{id: id, title: title, error: error}
+    existing = socket.assigns.export_failed_items
+
+    updated =
+      if Enum.any?(existing, &(&1.id == id)),
+        do: existing,
+        else: existing ++ [item_detail]
+
+    {:noreply, assign(socket, :export_failed_items, updated)}
   end
 
   def handle_info({:export_done, _}, socket) do
@@ -438,18 +558,45 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
   end
 
   # ---------------------------------------------------------------------------
-  # Helpers
+  # Private helpers
   # ---------------------------------------------------------------------------
+
+  defp do_start_export(socket, opts \\ []) do
+    user = socket.assigns.current_scope.user
+    catalog = socket.assigns.catalog
+
+    args =
+      case Keyword.get(opts, :item_ids) do
+        nil -> %{catalog_id: catalog.id, user_id: user.id}
+        ids -> %{catalog_id: catalog.id, user_id: user.id, item_ids: ids}
+      end
+
+    total =
+      case Keyword.get(opts, :item_ids) do
+        nil -> length(socket.assigns.catalog_items)
+        ids -> length(ids)
+      end
+
+    {:ok, _job} = args |> ExportAlbumWorker.new() |> Oban.insert()
+
+    {:noreply,
+     socket
+     |> assign(:export_progress, 0)
+     |> assign(:export_total, total)}
+  end
 
   defp reload_export(socket) do
     user = socket.assigns.current_scope.user
     catalog = socket.assigns.catalog
+    items = socket.assigns.catalog_items
     export = Photos.get_export_for_user(user, catalog)
     statuses = if export, do: Photos.list_export_item_statuses(export), else: %{}
 
     socket
     |> assign(:export, export)
     |> assign(:export_item_statuses, statuses)
+    |> assign(:export_failed_items, compute_failed_items(statuses, items))
+    |> assign(:export_new_count, compute_new_item_count(statuses, items))
   end
 
   defp has_google_token?(nil), do: false
@@ -476,7 +623,32 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
     end
   end
 
-  defp failed_item_count(statuses) do
-    Enum.count(statuses, fn {_id, v} -> Map.get(v, :status) == "failed" end)
+  # Returns a list of %{id, title, error} for all failed items, for display in the banner.
+  defp compute_failed_items(statuses, catalog_items) do
+    statuses
+    |> Enum.filter(fn {_id, v} -> v.status == "failed" end)
+    |> Enum.map(fn {id, v} ->
+      item = Enum.find(catalog_items, &(&1.id == id))
+      %{id: id, title: item && item.title, error: v.error}
+    end)
+  end
+
+  # Returns a count of catalog items that have a final_image but no PhotoExportItem record yet.
+  defp compute_new_item_count(statuses, catalog_items) do
+    known_ids = Map.keys(statuses)
+    Enum.count(catalog_items, &(&1.final_image && &1.id not in known_ids))
+  end
+
+  # Returns item IDs for items that have never been attempted (no PhotoExportItem record).
+  defp new_item_ids(statuses, catalog_items) do
+    known_ids = Map.keys(statuses)
+
+    catalog_items
+    |> Enum.filter(&(&1.final_image && &1.id not in known_ids))
+    |> Enum.map(& &1.id)
+  end
+
+  defp uploaded_item_count(statuses) do
+    Enum.count(statuses, fn {_id, v} -> v.status == "uploaded" end)
   end
 end
