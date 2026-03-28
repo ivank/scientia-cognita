@@ -107,11 +107,11 @@
       <.flash_group flash={@flash} />
       {@inner_content}
     </main>
-    <footer class="footer footer-center p-4 bg-base-200 text-base-content/40 text-xs border-t border-base-300 gap-1">
+    <footer class="p-4 bg-base-200 text-base-content/40 text-xs border-t border-base-300 flex flex-col sm:flex-row items-center justify-between gap-2 px-6">
       <p>Scientia Cognita — curated image catalogs</p>
-      <p>
+      <p class="flex items-center gap-3">
         <a href="/privacy" class="hover:text-base-content underline">Privacy Policy</a>
-        ·
+        <span aria-hidden="true">·</span>
         <a href="/terms" class="hover:text-base-content underline">Terms of Service</a>
       </p>
     </footer>

@@ -43,6 +43,7 @@ config :scientia_cognita, :gemini_module, ScientiaCognita.MockGemini
 config :waffle, storage: Waffle.Storage.Local
 config :waffle, storage_dir_prefix: "priv/waffle_test"
 config :scientia_cognita, :uploader_module, ScientiaCognita.MockUploader
+config :scientia_cognita, :avatar_uploader_module, ScientiaCognita.MockUploader
 
 # Oban testing mode — jobs do not run automatically
 config :scientia_cognita, Oban, testing: :manual

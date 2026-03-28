@@ -22,8 +22,8 @@ defmodule ScientiaCognitaWeb.GoogleLoginController do
 
     case find_or_create_user(google_id, email, avatar_url) do
       {:ok, user} ->
-        # Refresh avatar on every login in case it changed on Google's side
-        {:ok, user} = Accounts.update_google_avatar(user, avatar_url)
+        # Re-download and store avatar on every login in case it changed on Google's side
+        {:ok, user} = Accounts.download_and_store_avatar(user, avatar_url)
 
         conn
         |> put_flash(:info, "Welcome!")
@@ -54,17 +54,13 @@ defmodule ScientiaCognitaWeb.GoogleLoginController do
   end
 
   # Try to find existing account by email and link google_id, or register new user
-  defp find_or_register_by_email(google_id, email, avatar_url) do
+  defp find_or_register_by_email(google_id, email, _avatar_url) do
     case Accounts.get_user_by_email(email) do
       %Accounts.User{} = user ->
-        Accounts.link_google_account(user, google_id, avatar_url)
+        Accounts.link_google_account(user, google_id)
 
       nil ->
-        Accounts.register_user_from_google(%{
-          email: email,
-          google_id: google_id,
-          google_avatar_url: avatar_url
-        })
+        Accounts.register_user_from_google(%{email: email, google_id: google_id})
     end
   end
 end

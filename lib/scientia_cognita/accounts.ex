@@ -104,30 +104,36 @@ defmodule ScientiaCognita.Accounts do
   end
 
   @doc """
-  Updates the stored Google avatar URL for a user.
+  Downloads the avatar image from `google_url`, stores it in S3, and saves the
+  resulting storage URL on the user. Returns `{:ok, user}` on success.
+
+  If the URL is nil or the download/upload fails, the user record is left
+  unchanged and `{:ok, user}` is still returned so login is never blocked.
   """
-  def update_google_avatar(%User{} = user, avatar_url) do
-    user
-    |> Ecto.Changeset.change(google_avatar_url: avatar_url)
-    |> Repo.update()
-  end
+  def download_and_store_avatar(%User{} = user, nil), do: {:ok, user}
 
-  @doc """
-  Gets a user by email and password.
+  def download_and_store_avatar(%User{} = user, google_url) do
+    http = Application.get_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
 
-  ## Examples
+    avatar_uploader =
+      Application.get_env(
+        :scientia_cognita,
+        :avatar_uploader_module,
+        ScientiaCognita.Uploaders.UserAvatarUploader
+      )
 
-      iex> get_user_by_email_and_password("foo@example.com", "correct_password")
-      %User{}
+    with {:ok, %{status: 200, body: bytes}} <-
+           http.get(google_url, receive_timeout: 10_000),
+         {:ok, _filename} <-
+           avatar_uploader.store({%{filename: "avatar.jpg", binary: bytes}, user}) do
+      stored_url = avatar_uploader.url({"avatar.jpg", user})
 
-      iex> get_user_by_email_and_password("foo@example.com", "invalid_password")
-      nil
-
-  """
-  def get_user_by_email_and_password(email, password)
-      when is_binary(email) and is_binary(password) do
-    user = Repo.get_by(User, email: email)
-    if User.valid_password?(user, password), do: user
+      user
+      |> Ecto.Changeset.change(google_avatar_url: stored_url)
+      |> Repo.update()
+    else
+      _ -> {:ok, user}
+    end
   end
 
   @doc """
@@ -216,41 +222,6 @@ defmodule ScientiaCognita.Accounts do
         _ -> {:error, :transaction_aborted}
       end
     end)
-  end
-
-  @doc """
-  Returns an `%Ecto.Changeset{}` for changing the user password.
-
-  See `ScientiaCognita.Accounts.User.password_changeset/3` for a list of supported options.
-
-  ## Examples
-
-      iex> change_user_password(user)
-      %Ecto.Changeset{data: %User{}}
-
-  """
-  def change_user_password(user, attrs \\ %{}, opts \\ []) do
-    User.password_changeset(user, attrs, opts)
-  end
-
-  @doc """
-  Updates the user password.
-
-  Returns a tuple with the updated user, as well as a list of expired tokens.
-
-  ## Examples
-
-      iex> update_user_password(user, %{password: ...})
-      {:ok, {%User{}, [...]}}
-
-      iex> update_user_password(user, %{password: "too short"})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def update_user_password(user, attrs) do
-    user
-    |> User.password_changeset(attrs)
-    |> update_user_and_delete_all_tokens()
   end
 
   ## Session
