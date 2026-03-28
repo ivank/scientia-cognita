@@ -352,7 +352,12 @@ defmodule ScientiaCognita.AccountsTest do
 
     test "raises when unconfirmed user has password set" do
       user = unconfirmed_user_fixture()
-      {1, nil} = Repo.update_all(from(u in User, where: u.id == ^user.id), set: [hashed_password: "hashed"])
+
+      {1, nil} =
+        Repo.update_all(from(u in User, where: u.id == ^user.id),
+          set: [hashed_password: "hashed"]
+        )
+
       {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
 
       assert_raise RuntimeError, ~r/magic link log in is not allowed/, fn ->
@@ -392,6 +397,152 @@ defmodule ScientiaCognita.AccountsTest do
   describe "inspect/2 for the User module" do
     test "does not include password" do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
+    end
+  end
+
+  describe "list_passkeys/1" do
+    test "returns empty list when user has no passkeys" do
+      user = user_fixture()
+      assert Accounts.list_passkeys(user) == []
+    end
+
+    test "returns passkeys for the user, newest first" do
+      user = user_fixture()
+      p1 = passkey_fixture(user, label: "First")
+      p2 = passkey_fixture(user, label: "Second")
+      [latest, oldest] = Accounts.list_passkeys(user)
+      assert latest.id == p2.id
+      assert oldest.id == p1.id
+    end
+
+    test "does not return passkeys from other users" do
+      user = user_fixture()
+      other = user_fixture()
+      passkey_fixture(other)
+      assert Accounts.list_passkeys(user) == []
+    end
+  end
+
+  describe "user_has_passkeys?/1" do
+    test "returns false when user has no passkeys" do
+      user = user_fixture()
+      refute Accounts.user_has_passkeys?(user)
+    end
+
+    test "returns true when user has at least one passkey" do
+      user = user_fixture()
+      passkey_fixture(user)
+      assert Accounts.user_has_passkeys?(user)
+    end
+  end
+
+  describe "get_passkey_by_credential_id/1" do
+    test "returns nil for unknown credential_id" do
+      assert Accounts.get_passkey_by_credential_id("no_such_id") == nil
+    end
+
+    test "returns passkey with preloaded user" do
+      user = user_fixture()
+      passkey = passkey_fixture(user)
+      result = Accounts.get_passkey_by_credential_id(passkey.credential_id)
+      assert result.id == passkey.id
+      assert result.user.id == user.id
+    end
+  end
+
+  describe "register_passkey/2" do
+    test "creates a passkey with valid attrs" do
+      user = user_fixture()
+
+      attrs = %{
+        credential_id: :crypto.strong_rand_bytes(32),
+        public_key: :crypto.strong_rand_bytes(77),
+        sign_count: 0,
+        authenticator_attachment: "platform",
+        label: "Touch ID"
+      }
+
+      assert {:ok, passkey} = Accounts.register_passkey(user, attrs)
+      assert passkey.user_id == user.id
+      assert passkey.label == "Touch ID"
+    end
+
+    test "rejects duplicate credential_id" do
+      user = user_fixture()
+      existing = passkey_fixture(user)
+      attrs = %{credential_id: existing.credential_id, public_key: :crypto.strong_rand_bytes(77)}
+      assert {:error, changeset} = Accounts.register_passkey(user, attrs)
+      assert %{credential_id: ["has already been taken"]} = errors_on(changeset)
+    end
+
+    test "requires credential_id and public_key" do
+      user = user_fixture()
+      assert {:error, changeset} = Accounts.register_passkey(user, %{})
+
+      assert %{credential_id: ["can't be blank"], public_key: ["can't be blank"]} =
+               errors_on(changeset)
+    end
+  end
+
+  describe "update_passkey_label/2" do
+    test "updates the label" do
+      user = user_fixture()
+      passkey = passkey_fixture(user)
+      assert {:ok, updated} = Accounts.update_passkey_label(passkey, "My MacBook")
+      assert updated.label == "My MacBook"
+    end
+  end
+
+  describe "get_passkey_for_user/2" do
+    test "returns passkey when owned by the user" do
+      user = user_fixture()
+      passkey = passkey_fixture(user)
+      result = Accounts.get_passkey_for_user(user, passkey.id)
+      assert result.id == passkey.id
+    end
+
+    test "returns nil when passkey belongs to another user" do
+      user = user_fixture()
+      other = user_fixture()
+      passkey = passkey_fixture(other)
+      assert Accounts.get_passkey_for_user(user, passkey.id) == nil
+    end
+
+    test "returns nil for unknown passkey id" do
+      user = user_fixture()
+      assert Accounts.get_passkey_for_user(user, -1) == nil
+    end
+  end
+
+  describe "update_passkey_after_auth/3" do
+    test "persists sign_count and last_used_at" do
+      user = user_fixture()
+      passkey = passkey_fixture(user)
+      now = DateTime.utc_now(:second)
+      updated = Accounts.update_passkey_after_auth(passkey, 42, now)
+      assert updated.sign_count == 42
+      assert updated.last_used_at == now
+    end
+  end
+
+  describe "delete_passkey/2" do
+    test "deletes an owned passkey" do
+      user = user_fixture()
+      passkey = passkey_fixture(user)
+      assert {:ok, _} = Accounts.delete_passkey(user, passkey.id)
+      assert Accounts.list_passkeys(user) == []
+    end
+
+    test "returns :not_found for unknown passkey" do
+      user = user_fixture()
+      assert {:error, :not_found} = Accounts.delete_passkey(user, -1)
+    end
+
+    test "returns :unauthorized when passkey belongs to another user" do
+      user = user_fixture()
+      other = user_fixture()
+      passkey = passkey_fixture(other)
+      assert {:error, :unauthorized} = Accounts.delete_passkey(user, passkey.id)
     end
   end
 end

@@ -46,4 +46,124 @@
       Save Password
     </.button>
   </.form>
+
+  <div class="divider" />
+
+  <div id="passkeys">
+    <h2 class="font-serif-display text-lg text-base-content">Passkeys</h2>
+    <p class="text-neutral text-sm mt-1 mb-4">
+      Sign in without a password using your device biometrics or PIN.
+    </p>
+
+    <%= if @passkeys == [] do %>
+      <p class="text-neutral text-xs mb-4">No passkeys registered yet.</p>
+    <% else %>
+      <div class="border border-base-300 rounded-box overflow-hidden mb-4">
+        <%= for passkey <- @passkeys do %>
+          <div
+            id={"passkey-row-#{passkey.id}"}
+            class="flex items-center gap-3 px-4 py-3 border-b border-base-300 last:border-0"
+          >
+            <%!-- Icon --%>
+            <%= if passkey.authenticator_attachment == "platform" do %>
+              <svg
+                class="size-5 text-primary shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <path d="M8 21h8M12 17v4" />
+              </svg>
+            <% else %>
+              <svg
+                class="size-5 text-primary shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="8" cy="8" r="4" />
+                <path d="M15 8h6M15 12h2M15 16h4" />
+                <path d="M8 12v8" />
+              </svg>
+            <% end %>
+
+            <%!-- Label (inline-editable) --%>
+            <div class="flex-1 min-w-0">
+              <span
+                id={"passkey-label-#{passkey.id}"}
+                class="text-sm font-medium block truncate"
+              >
+                {passkey.label || "Passkey"}
+              </span>
+              <span class="text-xs text-neutral">
+                <%= if passkey.last_used_at do %>
+                  Last used {Calendar.strftime(passkey.last_used_at, "%d %b %Y")} ·
+                <% end %>
+                Added {Calendar.strftime(passkey.inserted_at, "%d %b %Y")}
+              </span>
+            </div>
+
+            <%!-- Actions --%>
+            <div class="flex gap-1 shrink-0">
+              <button
+                class="btn btn-ghost btn-xs"
+                title="Rename"
+                onclick={"window.passkeyStartRename(#{passkey.id})"}
+              >
+                <svg
+                  class="size-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+              <button
+                class="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                title="Remove"
+                onclick={"window.passkeyDelete(#{passkey.id}, document.getElementById('passkey-row-#{passkey.id}'))"}
+              >
+                <svg
+                  class="size-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+    <button id="passkey-register-btn" class="btn btn-outline btn-primary btn-sm">
+      <svg
+        class="size-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Add a passkey
+    </button>
+    <p id="passkey-register-error" class="text-error text-xs mt-2" role="alert"></p>
+  </div>
 </Layouts.app>

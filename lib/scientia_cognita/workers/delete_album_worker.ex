@@ -72,7 +72,10 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
 
       s when s in [404, 405] ->
         # API doesn't support album deletion — clear all items instead
-        Logger.warning("Google Photos album DELETE not supported (HTTP #{s}), falling back to clearing items")
+        Logger.warning(
+          "Google Photos album DELETE not supported (HTTP #{s}), falling back to clearing items"
+        )
+
         clear_album_items(token, album_id)
 
       _ ->
@@ -98,8 +101,12 @@ defmodule ScientiaCognita.Workers.DeleteAlbumWorker do
             )
 
           case response.status do
-            200 -> {:cont, :ok}
-            status -> {:halt, {:error, "batchRemoveMediaItems failed HTTP #{status}: #{inspect(response.body)}"}}
+            200 ->
+              {:cont, :ok}
+
+            status ->
+              {:halt,
+               {:error, "batchRemoveMediaItems failed HTTP #{status}: #{inspect(response.body)}"}}
           end
         end)
 

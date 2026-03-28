@@ -26,14 +26,18 @@ defmodule ScientiaCognita.Workers.ResizeWorkerTest do
           }
         })
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/original.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/original.jpg"
+      end)
 
       expect(MockHttp, :get, fn _url, _opts ->
         jpeg = File.read!("test/fixtures/test_image.jpg")
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
       end)
 
-      expect(MockUploader, :store, fn {%{filename: "processed.jpg"}, _item} -> {:ok, "processed.jpg"} end)
+      expect(MockUploader, :store, fn {%{filename: "processed.jpg"}, _item} ->
+        {:ok, "processed.jpg"}
+      end)
 
       assert :ok = perform_job(ResizeWorker, %{item_id: item.id})
 
@@ -55,7 +59,10 @@ defmodule ScientiaCognita.Workers.ResizeWorkerTest do
           original_image: "original.jpg"
         })
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/original.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/original.jpg"
+      end)
+
       expect(MockHttp, :get, fn _url, _opts -> {:error, :timeout} end)
 
       assert :ok = perform_job(ResizeWorker, %{item_id: item.id})

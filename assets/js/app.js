@@ -46,6 +46,112 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// Passkey support
+import { registerPasskey, authenticateWithPasskey, dismissBanner } from "./passkeys";
+
+// Banner dismiss
+const bannerDismissBtn = document.getElementById("passkey-banner-dismiss");
+const banner = document.getElementById("passkey-banner");
+if (bannerDismissBtn && banner) {
+  bannerDismissBtn.addEventListener("click", () => dismissBanner(banner));
+}
+
+// Expose to inline handlers in templates
+window.PasskeyAuth = { registerPasskey, authenticateWithPasskey };
+
+// Login page: Sign in with passkey button
+const passkeyLoginBtn = document.getElementById('passkey-login-btn');
+const passkeyLoginError = document.getElementById('passkey-login-error');
+if (passkeyLoginBtn && passkeyLoginError) {
+  passkeyLoginBtn.addEventListener('click', async () => {
+    passkeyLoginBtn.disabled = true;
+    passkeyLoginError.textContent = '';
+    try {
+      const data = await authenticateWithPasskey();
+      window.location = data.redirect || '/';
+    } catch (err) {
+      if (err && err.name !== 'NotAllowedError') {
+        passkeyLoginError.textContent = err.message || 'Passkey sign-in failed.';
+      }
+      passkeyLoginBtn.disabled = false;
+    }
+  });
+}
+
+// Settings page: Add a passkey button
+const passkeyRegisterBtn = document.getElementById('passkey-register-btn');
+const passkeyRegisterError = document.getElementById('passkey-register-error');
+if (passkeyRegisterBtn && passkeyRegisterError) {
+  passkeyRegisterBtn.addEventListener('click', async () => {
+    passkeyRegisterBtn.disabled = true;
+    passkeyRegisterError.textContent = '';
+    try {
+      await registerPasskey();
+      window.location = '/users/settings';
+    } catch (err) {
+      passkeyRegisterError.textContent = err.message || 'Could not register passkey.';
+      passkeyRegisterBtn.disabled = false;
+    }
+  });
+}
+
+// Passkey management helpers
+async function updatePasskeyLabel(passkeyId, label) {
+  const csrfTok = document.querySelector('meta[name=csrf-token]')?.content ?? '';
+  const res = await fetch(`/users/passkeys/${passkeyId}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json', 'x-csrf-token': csrfTok },
+    body: JSON.stringify({ label }),
+  });
+  return res.json();
+}
+
+window.passkeyDelete = async function(passkeyId, rowEl) {
+  if (!confirm('Remove this passkey?')) return;
+  const csrfTok = document.querySelector('meta[name=csrf-token]')?.content ?? '';
+  const res = await fetch(`/users/passkeys/${passkeyId}`, {
+    method: 'DELETE',
+    headers: { 'x-csrf-token': csrfTok },
+  });
+  if (res.ok) rowEl?.remove();
+};
+
+window.passkeyStartRename = function(passkeyId) {
+  const labelEl = document.getElementById(`passkey-label-${passkeyId}`);
+  if (!labelEl) return;
+  const current = labelEl.textContent.trim();
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'input input-xs input-bordered w-40';
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save';
+  saveBtn.className = 'btn btn-xs btn-primary ml-1';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.className = 'btn btn-xs btn-ghost ml-1';
+
+  cancelBtn.onclick = () => {
+    labelEl.textContent = current;
+    labelEl.style.display = '';
+    [input, saveBtn, cancelBtn].forEach(el => el.remove());
+  };
+
+  saveBtn.onclick = async () => {
+    const result = await updatePasskeyLabel(passkeyId, input.value.trim());
+    if (result.ok) {
+      labelEl.textContent = result.label;
+    }
+    labelEl.style.display = '';
+    [input, saveBtn, cancelBtn].forEach(el => el.remove());
+  };
+
+  labelEl.style.display = 'none';
+  labelEl.after(input, saveBtn, cancelBtn);
+  input.focus();
+  input.select();
+};
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //

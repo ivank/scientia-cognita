@@ -15,8 +15,11 @@ defmodule ScientiaCognita.Workers.ResizeWorker do
   alias ScientiaCognita.Workers.RenderWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
-  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
-              ScientiaCognita.Uploaders.ItemImageUploader)
+  @uploader Application.compile_env(
+              :scientia_cognita,
+              :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader
+            )
 
   @target_width 1920
   @target_height 1080

@@ -43,6 +43,16 @@ defmodule ScientiaCognitaWeb.UserAuth do
   end
 
   @doc """
+  Creates or extends the user session without redirecting.
+  Used by JSON endpoints (e.g., passkey authentication) that need to
+  establish a session and return JSON instead of performing a redirect.
+  Returns the updated conn with session token written.
+  """
+  def create_user_session(conn, user) do
+    create_or_extend_session(conn, user, %{})
+  end
+
+  @doc """
   Logs the user out.
 
   It clears all session data for safety. See renew_session.
@@ -74,6 +84,24 @@ defmodule ScientiaCognitaWeb.UserAuth do
       |> maybe_reissue_user_session_token(user, token_inserted_at)
     else
       nil -> assign(conn, :current_scope, Scope.for_user(nil))
+    end
+  end
+
+  @doc """
+  Assigns :show_passkey_banner to the conn.
+
+  The banner is shown when all three conditions hold:
+    1. A user is logged in (current_scope.user is set)
+    2. The user has no registered passkeys
+    3. The user has not dismissed the banner this session
+  """
+  def fetch_passkey_banner(conn, _opts) do
+    if scope = conn.assigns[:current_scope] do
+      dismissed = get_session(conn, :passkey_banner_dismissed)
+      has_passkeys = Accounts.user_has_passkeys?(scope.user)
+      assign(conn, :show_passkey_banner, !dismissed && !has_passkeys)
+    else
+      assign(conn, :show_passkey_banner, false)
     end
   end
 

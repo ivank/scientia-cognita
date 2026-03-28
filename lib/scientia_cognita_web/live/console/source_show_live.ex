@@ -79,9 +79,11 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       </div>
 
       <%!-- Loading banner --%>
-      <div :if={@source.status == "items_loading"} class="flex items-center gap-2 text-sm text-base-content/60">
-        <span class="loading loading-spinner loading-sm"></span>
-        Items are being loaded…
+      <div
+        :if={@source.status == "items_loading"}
+        class="flex items-center gap-2 text-sm text-base-content/60"
+      >
+        <span class="loading loading-spinner loading-sm"></span> Items are being loaded…
       </div>
 
       <%!-- Items table --%>
@@ -178,7 +180,6 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
               <%= cond do %>
                 <% @selected_item.status in ~w(pending downloading) -> %>
                   <div class="skeleton absolute inset-0 rounded-none"></div>
-
                 <% @selected_item.final_image -> %>
                   <img
                     src={ItemImageUploader.url({@selected_item.final_image, @selected_item})}
@@ -187,8 +188,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   <div
                     :if={@selected_item.status == "render"}
                     class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
-                  ></div>
-
+                  >
+                  </div>
                 <% @selected_item.processed_image -> %>
                   <img
                     src={ItemImageUploader.url({@selected_item.processed_image, @selected_item})}
@@ -197,14 +198,13 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   <div
                     :if={@selected_item.status in ~w(analyze resize render)}
                     class="absolute inset-0 ring-4 ring-inset ring-primary animate-pulse pointer-events-none"
-                  ></div>
-
+                  >
+                  </div>
                 <% @selected_item.original_image -> %>
                   <img
                     src={ItemImageUploader.url({@selected_item.original_image, @selected_item})}
                     class="w-full h-full object-contain"
                   />
-
                 <% true -> %>
                   <div class="absolute inset-0 flex items-center justify-center">
                     <.icon name="hero-photo" class="size-16 text-base-content/20" />
@@ -233,13 +233,22 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
               </div>
               <div class="form-control">
                 <label class="label pb-1">
-                  <span class="label-text text-xs font-medium uppercase tracking-wide">Description</span>
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">
+                    Description
+                  </span>
                 </label>
-                <.input field={@item_form[:description]} type="textarea" rows="4" placeholder="Caption or description" />
+                <.input
+                  field={@item_form[:description]}
+                  type="textarea"
+                  rows="4"
+                  placeholder="Caption or description"
+                />
               </div>
               <div class="form-control">
                 <label class="label pb-1">
-                  <span class="label-text text-xs font-medium uppercase tracking-wide">Image URL</span>
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">
+                    Image URL
+                  </span>
                 </label>
                 <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
               </div>
@@ -251,7 +260,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
             <div class="flex gap-2 flex-1">
               <%!-- Re-download: terminal states or any item with an error --%>
               <button
-                :if={@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)}
+                :if={
+                  @selected_item.status in ~w(ready failed discarded) or
+                    not is_nil(@selected_item.error)
+                }
                 type="button"
                 class="btn btn-ghost btn-sm gap-1"
                 phx-click="redownload_item"
@@ -264,7 +276,10 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
               <%!-- Re-render: terminal states or errored item, with original_image present --%>
               <button
-                :if={(@selected_item.status in ~w(ready failed discarded) or not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)}
+                :if={
+                  (@selected_item.status in ~w(ready failed discarded) or
+                     not is_nil(@selected_item.error)) and not is_nil(@selected_item.original_image)
+                }
                 type="button"
                 class="btn btn-ghost btn-sm gap-1"
                 phx-click="rerender_item"
@@ -413,7 +428,13 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     item = Catalog.get_item!(id)
     # Clear stored images so DownloadImageWorker fetches fresh copies,
     # then let the worker chain run to ready automatically.
-    {:ok, item} = Catalog.update_item_storage(item, %{original_image: nil, processed_image: nil, final_image: nil})
+    {:ok, item} =
+      Catalog.update_item_storage(item, %{
+        original_image: nil,
+        processed_image: nil,
+        final_image: nil
+      })
+
     {:ok, item} = Catalog.update_item_status(item, "pending", error: nil)
     %{item_id: item.id} |> DownloadImageWorker.new() |> Oban.insert()
     source = Catalog.get_source!(socket.assigns.source.id)
@@ -503,6 +524,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   defp assign_source_stats(socket, source) do
     status_counts = Catalog.count_items_by_status(source)
     stuck_ids = Catalog.list_stuck_item_ids(source) |> MapSet.new()
+
     retryable_count =
       (status_counts["failed"] || 0) +
         (status_counts["discarded"] || 0) +
@@ -535,18 +557,28 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
   # Prefers thumbnail_image (534×300) when available; falls back to processed/original.
   defp thumb_url(%{thumbnail_image: ti} = item) when not is_nil(ti),
     do: ItemImageUploader.url({ti, item})
-  defp thumb_url(%{status: s, final_image: fi} = item) when s in ~w(failed discarded) and not is_nil(fi),
-    do: ItemImageUploader.url({fi, item})
-  defp thumb_url(%{status: s, processed_image: pi} = item) when s in ~w(failed discarded) and not is_nil(pi),
-    do: ItemImageUploader.url({pi, item})
-  defp thumb_url(%{status: s, original_image: oi} = item) when s in ~w(failed discarded) and not is_nil(oi),
-    do: ItemImageUploader.url({oi, item})
+
+  defp thumb_url(%{status: s, final_image: fi} = item)
+       when s in ~w(failed discarded) and not is_nil(fi),
+       do: ItemImageUploader.url({fi, item})
+
+  defp thumb_url(%{status: s, processed_image: pi} = item)
+       when s in ~w(failed discarded) and not is_nil(pi),
+       do: ItemImageUploader.url({pi, item})
+
+  defp thumb_url(%{status: s, original_image: oi} = item)
+       when s in ~w(failed discarded) and not is_nil(oi),
+       do: ItemImageUploader.url({oi, item})
+
   defp thumb_url(%{final_image: fi} = item) when not is_nil(fi),
     do: ItemImageUploader.url({fi, item})
+
   defp thumb_url(%{processed_image: pi} = item) when not is_nil(pi),
     do: ItemImageUploader.url({pi, item})
+
   defp thumb_url(%{original_image: oi} = item) when not is_nil(oi),
     do: ItemImageUploader.url({oi, item})
+
   defp thumb_url(_), do: nil
 
   defp row_class("pending"), do: "bg-base-200"
@@ -576,36 +608,35 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
     ~H"""
     <%= case @thumb_type do %>
-    <% :shimmer -> %>
-      <div class="skeleton rounded" style="width: 76px; height: 48px;"></div>
-    <% :icon -> %>
-      <div
-        class="flex items-center justify-center bg-base-300 rounded"
-        style="width: 76px; height: 48px;"
-      >
-        <.icon name="hero-photo" class="size-5 text-base-content/30" />
-      </div>
-    <% :render -> %>
-      <div
-        class="rounded overflow-hidden ring-2 ring-primary animate-pulse"
-        style="width: 76px; height: 48px;"
-      >
-        <img
-          src={thumb_url(@item)}
-          class="w-full h-full object-cover"
-          loading="lazy"
-        />
-      </div>
-    <% :image -> %>
-      <div class="rounded overflow-hidden" style="width: 76px; height: 48px;">
-        <img
-          src={thumb_url(@item)}
-          class="w-full h-full object-cover"
-          loading="lazy"
-        />
-      </div>
+      <% :shimmer -> %>
+        <div class="skeleton rounded" style="width: 76px; height: 48px;"></div>
+      <% :icon -> %>
+        <div
+          class="flex items-center justify-center bg-base-300 rounded"
+          style="width: 76px; height: 48px;"
+        >
+          <.icon name="hero-photo" class="size-5 text-base-content/30" />
+        </div>
+      <% :render -> %>
+        <div
+          class="rounded overflow-hidden ring-2 ring-primary animate-pulse"
+          style="width: 76px; height: 48px;"
+        >
+          <img
+            src={thumb_url(@item)}
+            class="w-full h-full object-cover"
+            loading="lazy"
+          />
+        </div>
+      <% :image -> %>
+        <div class="rounded overflow-hidden" style="width: 76px; height: 48px;">
+          <img
+            src={thumb_url(@item)}
+            class="w-full h-full object-cover"
+            loading="lazy"
+          />
+        </div>
     <% end %>
     """
   end
-
 end

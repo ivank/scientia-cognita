@@ -100,7 +100,8 @@ config :ueberauth, Ueberauth,
     google: {
       Ueberauth.Strategy.Google,
       [
-        default_scope: "email profile https://www.googleapis.com/auth/photoslibrary.appendonly https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata",
+        default_scope:
+          "email profile https://www.googleapis.com/auth/photoslibrary.appendonly https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata",
         access_type: "offline",
         prompt: "consent"
       ]
@@ -109,6 +110,13 @@ config :ueberauth, Ueberauth,
 
 # T09 — Suppress Tesla deprecated builder warning (used by ueberauth_google)
 config :tesla, disable_deprecated_builder_warning: true
+
+# WebAuthn / Passkeys
+config :scientia_cognita, :webauthn,
+  origin: "http://localhost:4000",
+  rp_id: "localhost",
+  rp_name: "Scientia Cognita",
+  module: ScientiaCognita.WebAuthn
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

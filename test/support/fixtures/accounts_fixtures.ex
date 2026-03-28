@@ -86,4 +86,18 @@ defmodule ScientiaCognita.AccountsFixtures do
       set: [inserted_at: dt, authenticated_at: dt]
     )
   end
+
+  def passkey_fixture(%ScientiaCognita.Accounts.User{} = user, attrs \\ %{}) do
+    attrs =
+      Enum.into(attrs, %{
+        credential_id: :crypto.strong_rand_bytes(32),
+        public_key: :crypto.strong_rand_bytes(77),
+        sign_count: 0,
+        authenticator_attachment: "platform",
+        label: "Test Passkey"
+      })
+
+    {:ok, passkey} = ScientiaCognita.Accounts.register_passkey(user, attrs)
+    passkey
+  end
 end

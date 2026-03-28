@@ -14,8 +14,11 @@ defmodule ScientiaCognita.Workers.ThumbnailWorker do
   alias ScientiaCognita.Workers.AnalyzeWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
-  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
-              ScientiaCognita.Uploaders.ItemImageUploader)
+  @uploader Application.compile_env(
+              :scientia_cognita,
+              :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader
+            )
 
   @thumb_width 534
   @thumb_height 300

@@ -42,15 +42,15 @@ defmodule ScientiaCognita.CatalogFixtures do
   end
 
   def item_fixture(source, attrs \\ %{}) do
-    {status, attrs}          = Map.pop(attrs, :status, "pending")
-    {original_image, attrs}  = Map.pop(attrs, :original_image)
+    {status, attrs} = Map.pop(attrs, :status, "pending")
+    {original_image, attrs} = Map.pop(attrs, :original_image)
     {thumbnail_image, attrs} = Map.pop(attrs, :thumbnail_image)
     {processed_image, attrs} = Map.pop(attrs, :processed_image)
-    {final_image, attrs}     = Map.pop(attrs, :final_image)
-    {image_analysis, attrs}  = Map.pop(attrs, :image_analysis)
-    {text_color, attrs}      = Map.pop(attrs, :text_color)
-    {bg_color, attrs}        = Map.pop(attrs, :bg_color)
-    {bg_opacity, attrs}      = Map.pop(attrs, :bg_opacity)
+    {final_image, attrs} = Map.pop(attrs, :final_image)
+    {image_analysis, attrs} = Map.pop(attrs, :image_analysis)
+    {text_color, attrs} = Map.pop(attrs, :text_color)
+    {bg_color, attrs} = Map.pop(attrs, :bg_color)
+    {bg_opacity, attrs} = Map.pop(attrs, :bg_opacity)
 
     {:ok, item} =
       attrs
@@ -75,11 +75,27 @@ defmodule ScientiaCognita.CatalogFixtures do
       if original_image || thumbnail_image || processed_image || final_image || image_analysis do
         changes =
           %{}
-          |> then(fn a -> if original_image,  do: Map.put(a, :original_image,  wrap_image.(original_image)),  else: a end)
-          |> then(fn a -> if thumbnail_image, do: Map.put(a, :thumbnail_image, wrap_image.(thumbnail_image)), else: a end)
-          |> then(fn a -> if processed_image, do: Map.put(a, :processed_image, wrap_image.(processed_image)), else: a end)
-          |> then(fn a -> if final_image,     do: Map.put(a, :final_image,     wrap_image.(final_image)),     else: a end)
-          |> then(fn a -> if image_analysis,  do: Map.put(a, :image_analysis,  image_analysis),               else: a end)
+          |> then(fn a ->
+            if original_image,
+              do: Map.put(a, :original_image, wrap_image.(original_image)),
+              else: a
+          end)
+          |> then(fn a ->
+            if thumbnail_image,
+              do: Map.put(a, :thumbnail_image, wrap_image.(thumbnail_image)),
+              else: a
+          end)
+          |> then(fn a ->
+            if processed_image,
+              do: Map.put(a, :processed_image, wrap_image.(processed_image)),
+              else: a
+          end)
+          |> then(fn a ->
+            if final_image, do: Map.put(a, :final_image, wrap_image.(final_image)), else: a
+          end)
+          |> then(fn a ->
+            if image_analysis, do: Map.put(a, :image_analysis, image_analysis), else: a
+          end)
 
         {:ok, item} =
           item
@@ -99,6 +115,7 @@ defmodule ScientiaCognita.CatalogFixtures do
             bg_color: bg_color,
             bg_opacity: bg_opacity
           })
+
         item
       else
         item

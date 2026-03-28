@@ -38,6 +38,7 @@ defmodule ScientiaCognita.Integration.ExtractionLiveTest do
     test "extracts all 40 items" do
       result = extract!(@nasa_html, @nasa_url)
       items = result["items"] || []
+
       assert length(items) == 40,
              "Expected 40 items, got #{length(items)}"
     end
@@ -45,9 +46,10 @@ defmodule ScientiaCognita.Integration.ExtractionLiveTest do
     test "all items have absolute image URLs" do
       items = extract!(@nasa_html, @nasa_url) |> Map.get("items", [])
 
-      bad = Enum.reject(items, fn i ->
-        is_binary(i["image_url"]) and String.starts_with?(i["image_url"], "http")
-      end)
+      bad =
+        Enum.reject(items, fn i ->
+          is_binary(i["image_url"]) and String.starts_with?(i["image_url"], "http")
+        end)
 
       assert bad == [],
              "Items with missing/relative URLs: #{inspect(Enum.map(bad, & &1["title"]))}"
@@ -56,9 +58,10 @@ defmodule ScientiaCognita.Integration.ExtractionLiveTest do
     test "all items have non-empty descriptions" do
       items = extract!(@nasa_html, @nasa_url) |> Map.get("items", [])
 
-      no_desc = Enum.filter(items, fn i ->
-        is_nil(i["description"]) or String.trim(i["description"]) == ""
-      end)
+      no_desc =
+        Enum.filter(items, fn i ->
+          is_nil(i["description"]) or String.trim(i["description"]) == ""
+        end)
 
       assert no_desc == [],
              "#{length(no_desc)} items missing descriptions: #{inspect(Enum.map(no_desc, & &1["title"]))}"
@@ -67,9 +70,10 @@ defmodule ScientiaCognita.Integration.ExtractionLiveTest do
     test "all descriptions within 500 character limit" do
       items = extract!(@nasa_html, @nasa_url) |> Map.get("items", [])
 
-      too_long = Enum.filter(items, fn i ->
-        is_binary(i["description"]) and String.length(i["description"]) > 500
-      end)
+      too_long =
+        Enum.filter(items, fn i ->
+          is_binary(i["description"]) and String.length(i["description"]) > 500
+        end)
 
       assert too_long == [],
              "#{length(too_long)} descriptions exceed 500 chars"
@@ -97,6 +101,7 @@ defmodule ScientiaCognita.Integration.ExtractionLiveTest do
 
     test "extracts at least 95 items (100-item article)" do
       items = extract!(@livescience_html, @livescience_url) |> Map.get("items", [])
+
       assert length(items) >= 95,
              "Expected ≥95 items, got #{length(items)}"
     end
@@ -104,9 +109,10 @@ defmodule ScientiaCognita.Integration.ExtractionLiveTest do
     test "all items have absolute image URLs" do
       items = extract!(@livescience_html, @livescience_url) |> Map.get("items", [])
 
-      bad = Enum.reject(items, fn i ->
-        is_binary(i["image_url"]) and String.starts_with?(i["image_url"], "http")
-      end)
+      bad =
+        Enum.reject(items, fn i ->
+          is_binary(i["image_url"]) and String.starts_with?(i["image_url"], "http")
+        end)
 
       assert bad == [],
              "Items with missing/relative URLs: #{inspect(Enum.take(Enum.map(bad, & &1["title"]), 5))}"
@@ -116,9 +122,10 @@ defmodule ScientiaCognita.Integration.ExtractionLiveTest do
       items = extract!(@livescience_html, @livescience_url) |> Map.get("items", [])
       total = length(items)
 
-      with_desc = Enum.count(items, fn i ->
-        is_binary(i["description"]) and String.trim(i["description"]) != ""
-      end)
+      with_desc =
+        Enum.count(items, fn i ->
+          is_binary(i["description"]) and String.trim(i["description"]) != ""
+        end)
 
       pct = if total > 0, do: Float.round(with_desc / total * 100, 1), else: 0.0
 

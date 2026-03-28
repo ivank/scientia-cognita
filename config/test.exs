@@ -52,4 +52,11 @@ config :ex_aws,
   access_key_id: "test",
   secret_access_key: "test"
 
+# WebAuthn — mock module for controller tests
+config :scientia_cognita, :webauthn,
+  origin: "http://localhost",
+  rp_id: "localhost",
+  rp_name: "Scientia Cognita",
+  module: ScientiaCognita.MockWebAuthn
+
 if File.exists?("config/dev.secret.exs"), do: import_config("dev.secret.exs")

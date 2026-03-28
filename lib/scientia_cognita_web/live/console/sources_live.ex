@@ -16,7 +16,10 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
         %{label: "Console", href: ~p"/console"},
         %{label: "Sources"}
       ]} />
-      <.page_header title="Sources" subtitle="URLs crawled and extracted by Gemini into individual items">
+      <.page_header
+        title="Sources"
+        subtitle="URLs crawled and extracted by Gemini into individual items"
+      >
         <:action>
           <button class="btn btn-primary btn-sm gap-2" phx-click="open_new_modal">
             <.icon name="hero-plus" class="size-4" /> Add Source
@@ -222,5 +225,4 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
 
     List.duplicate(nil, max(count, 0))
   end
-
 end

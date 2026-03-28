@@ -14,8 +14,11 @@ defmodule ScientiaCognita.Workers.DownloadImageWorker do
   alias ScientiaCognita.Workers.ThumbnailWorker
 
   @http Application.compile_env(:scientia_cognita, :http_module, ScientiaCognita.Http)
-  @uploader Application.compile_env(:scientia_cognita, :uploader_module,
-              ScientiaCognita.Uploaders.ItemImageUploader)
+  @uploader Application.compile_env(
+              :scientia_cognita,
+              :uploader_module,
+              ScientiaCognita.Uploaders.ItemImageUploader
+            )
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"item_id" => item_id}}) do
