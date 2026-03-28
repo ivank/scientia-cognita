@@ -55,6 +55,8 @@ if config_env() == :prod do
   #   GOOGLE_CLIENT_ID      — OAuth client ID (Photos Library API)
   #   GOOGLE_CLIENT_SECRET  — OAuth client secret
   #   OWNER_EMAIL           — email address for the first owner account (seeds.exs)
+  #   WEBAUTHN_ORIGIN       — origin URI for WebAuthn, e.g. https://<app>.fly.dev
+  #   WEBAUTHN_RP_ID        — relying party ID for WebAuthn, e.g. <app>.fly.dev
 
   database_path =
     System.get_env("DATABASE_PATH") ||
@@ -164,4 +166,11 @@ if config_env() == :prod do
     api_key: System.get_env("MAILGUN_API_KEY"),
     domain: "sc.ikerin.com",
     base_url: "https://api.eu.mailgun.net/v3"
+
+  # WebAuthn — runtime configuration for passkey authentication
+  config :scientia_cognita, :webauthn,
+    origin: System.get_env("WEBAUTHN_ORIGIN") || raise("WEBAUTHN_ORIGIN not set"),
+    rp_id: System.get_env("WEBAUTHN_RP_ID") || raise("WEBAUTHN_RP_ID not set"),
+    rp_name: "Scientia Cognita",
+    module: ScientiaCognita.WebAuthn
 end

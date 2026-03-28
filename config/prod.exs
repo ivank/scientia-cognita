@@ -19,10 +19,3 @@ config :logger, level: :info
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
-
-# WebAuthn — override with real domain in production
-config :scientia_cognita, :webauthn,
-  origin: System.get_env("WEBAUTHN_ORIGIN") || raise("WEBAUTHN_ORIGIN not set"),
-  rp_id: System.get_env("WEBAUTHN_RP_ID") || raise("WEBAUTHN_RP_ID not set"),
-  rp_name: "Scientia Cognita",
-  module: ScientiaCognita.WebAuthn
