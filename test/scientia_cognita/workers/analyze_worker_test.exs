@@ -204,6 +204,125 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Manual rotation override
+  # ---------------------------------------------------------------------------
+
+  describe "perform/1 — manual_rotation set" do
+    test "uses analysis-only Gemini call and applies manual rotation (clockwise)" do
+      source = source_fixture()
+
+      item =
+        item_fixture(source, %{
+          status: "analyze",
+          original_image: "original.jpg",
+          manual_rotation: "clockwise"
+        })
+
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/original.jpg"
+      end)
+
+      # Portrait image so we can verify rotation is applied
+      expect(MockHttp, :get, fn _url, _opts ->
+        jpeg = File.read!("test/fixtures/test_image_portrait.jpg")
+        {:ok, %{status: 200, body: jpeg, headers: %{}}}
+      end)
+
+      # Must call analysis-only schema (no rotation field in response)
+      expect(MockGemini, :generate_structured_with_image, fn _prompt, _binary, _schema, _opts ->
+        {:ok, @analysis_result}
+      end)
+
+      expect(MockUploader, :store, fn {%{filename: "original.jpg"}, _item} ->
+        {:ok, "original.jpg"}
+      end)
+
+      assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
+
+      item = Catalog.get_item!(item.id)
+      assert item.status == "resize"
+      assert item.image_analysis["rotation"] == "clockwise"
+      assert item.image_analysis["text_color"] == "#FFFFFF"
+
+      assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
+    end
+
+    test "uses manual rotation none without rotating, even for portrait image" do
+      source = source_fixture()
+
+      item =
+        item_fixture(source, %{
+          status: "analyze",
+          original_image: "original.jpg",
+          manual_rotation: "none"
+        })
+
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/original.jpg"
+      end)
+
+      expect(MockHttp, :get, fn _url, _opts ->
+        jpeg = File.read!("test/fixtures/test_image_portrait.jpg")
+        {:ok, %{status: 200, body: jpeg, headers: %{}}}
+      end)
+
+      expect(MockGemini, :generate_structured_with_image, fn _prompt, _binary, _schema, _opts ->
+        {:ok, @analysis_result}
+      end)
+
+      # No uploader store call — original is kept as-is
+      assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
+
+      item = Catalog.get_item!(item.id)
+      assert item.status == "resize"
+      assert item.image_analysis["rotation"] == "none"
+      assert item.original_image.file_name == "original.jpg"
+
+      assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
+    end
+
+    test "uses manual rotation even when Gemini fails" do
+      source = source_fixture()
+
+      item =
+        item_fixture(source, %{
+          status: "analyze",
+          original_image: "original.jpg",
+          manual_rotation: "counterclockwise"
+        })
+
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/original.jpg"
+      end)
+
+      expect(MockHttp, :get, fn _url, _opts ->
+        jpeg = File.read!("test/fixtures/test_image_portrait.jpg")
+        {:ok, %{status: 200, body: jpeg, headers: %{}}}
+      end)
+
+      expect(MockGemini, :generate_structured_with_image, fn _prompt, _binary, _schema, _opts ->
+        {:error, "API quota exceeded"}
+      end)
+
+      expect(MockUploader, :store, fn {%{filename: "original.jpg"}, _item} ->
+        {:ok, "original.jpg"}
+      end)
+
+      assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})
+
+      item = Catalog.get_item!(item.id)
+      assert item.status == "resize"
+      # rotation still applied from manual_rotation despite Gemini failure
+      assert item.image_analysis["rotation"] == "counterclockwise"
+      # analysis falls back to defaults
+      assert item.image_analysis["text_color"] == "#FFFFFF"
+      assert item.image_analysis["bg_color"] == "#000000"
+
+      assert_enqueued(worker: ResizeWorker, args: %{"item_id" => item.id})
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # HTTP error
   # ---------------------------------------------------------------------------
 

@@ -221,7 +221,7 @@ defmodule ScientiaCognita.Workers.AnalyzeWorker do
 
     with {:ok, original_binary} <- download_original(item),
          {:ok, img} <- Image.from_binary(original_binary),
-         {:ok, {analysis, output_binary}} <- analyze_and_rotate(img, original_binary),
+         {:ok, {analysis, output_binary}} <- analyze_and_rotate(img, original_binary, item.manual_rotation),
          {:ok, item} <- persist(item, analysis, output_binary, original_binary) do
       broadcast(item.source_id, {:item_updated, item})
       %{item_id: item_id} |> ResizeWorker.new() |> Oban.insert()
@@ -276,25 +276,46 @@ defmodule ScientiaCognita.Workers.AnalyzeWorker do
 
   # Returns {:ok, {analysis_map, output_binary}} where output_binary may be the
   # original (no rotation) or a freshly rotated binary.
-  defp analyze_and_rotate(img, original_binary) do
+  defp analyze_and_rotate(img, original_binary, manual_rotation) do
     width = Image.width(img)
     height = Image.height(img)
     portrait? = height > width
 
-    Logger.debug("[AnalyzeWorker] dimensions #{width}×#{height}, portrait=#{portrait?}")
+    Logger.debug("[AnalyzeWorker] dimensions #{width}×#{height}, portrait=#{portrait?}, manual_rotation=#{inspect(manual_rotation)}")
 
     with {:ok, preview} <- build_preview(img),
          {:ok, preview_binary} <- Image.write(preview, :memory, suffix: ".jpg", quality: 80) do
-      if portrait? do
-        analyze_portrait(img, original_binary, preview_binary)
+      if manual_rotation do
+        # Manual override: use analysis-only Gemini call, apply the specified rotation.
+        Logger.info("[AnalyzeWorker] using manual rotation: #{manual_rotation}")
+        analyze_with_manual_rotation(img, original_binary, preview_binary, manual_rotation)
       else
-        analyze_landscape(original_binary, preview_binary)
+        if portrait? do
+          analyze_portrait(img, original_binary, preview_binary)
+        else
+          analyze_landscape(original_binary, preview_binary)
+        end
       end
     end
   end
 
   defp build_preview(img) do
     Image.thumbnail(img, 800)
+  end
+
+  defp analyze_with_manual_rotation(img, original_binary, preview_binary, rotation) do
+    analysis =
+      case @gemini.generate_structured_with_image(@analysis_prompt, preview_binary, @analysis_schema, []) do
+        {:ok, %{"text_color" => _, "bg_color" => _, "bg_opacity" => _, "subject" => _} = result} ->
+          Map.put(result, "rotation", rotation)
+
+        _ ->
+          Logger.warning("[AnalyzeWorker] Gemini analysis failed, using defaults")
+          Map.put(@default_analysis, "rotation", rotation)
+      end
+
+    {analysis, output_binary} = apply_rotation(img, original_binary, analysis, rotation)
+    {:ok, {analysis, output_binary}}
   end
 
   defp analyze_landscape(original_binary, preview_binary) do

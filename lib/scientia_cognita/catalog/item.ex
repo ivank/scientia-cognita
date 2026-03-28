@@ -67,6 +67,7 @@ defmodule ScientiaCognita.Catalog.Item do
     field :thumbnail_image, ItemImageUploader.Type
     field :final_image, ItemImageUploader.Type
     field :image_analysis, :map
+    field :manual_rotation, :string
     field :status, :string, default: "pending"
     field :error, :string
 
@@ -84,12 +85,25 @@ defmodule ScientiaCognita.Catalog.Item do
 
   def statuses, do: @statuses
 
+  @rotations ~w(none clockwise counterclockwise)
+
+  def rotations, do: @rotations
+
   def changeset(item, attrs) do
     item
-    |> cast(attrs, [:title, :description, :author, :copyright, :original_url, :source_id])
+    |> cast(attrs, [:title, :description, :author, :copyright, :original_url, :manual_rotation, :source_id])
     |> validate_required([:title, :source_id])
     |> validate_inclusion(:status, @statuses)
+    |> validate_inclusion(:manual_rotation, @rotations, allow_nil: true)
     |> assoc_constraint(:source)
+    |> normalise_manual_rotation()
+  end
+
+  defp normalise_manual_rotation(changeset) do
+    case get_change(changeset, :manual_rotation) do
+      "" -> put_change(changeset, :manual_rotation, nil)
+      _ -> changeset
+    end
   end
 
   @doc "Used by Catalog.update_item_status/3 for fixture/test setup only."

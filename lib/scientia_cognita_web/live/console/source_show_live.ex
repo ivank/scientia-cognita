@@ -269,6 +269,28 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                 <.input field={@item_form[:original_url]} type="url" placeholder="https://…" />
               </div>
 
+              <%!-- Manual rotation override --%>
+              <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium uppercase tracking-wide">
+                    Rotation override
+                  </span>
+                  <span class="label-text-alt text-base-content/40">
+                    Leave blank to use AI detection
+                  </span>
+                </label>
+                <.input
+                  field={@item_form[:manual_rotation]}
+                  type="select"
+                  options={[
+                    {"Auto (AI detection)", ""},
+                    {"None — keep portrait as-is", "none"},
+                    {"Clockwise 90°", "clockwise"},
+                    {"Counterclockwise 90°", "counterclockwise"}
+                  ]}
+                />
+              </div>
+
               <%!-- Analysis data panel --%>
               <details
                 :if={@selected_item.image_analysis}
