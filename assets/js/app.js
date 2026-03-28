@@ -46,6 +46,19 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// Passkey support
+import { registerPasskey, authenticateWithPasskey, dismissBanner } from "./passkeys";
+
+// Banner dismiss
+const bannerDismissBtn = document.getElementById("passkey-banner-dismiss");
+const banner = document.getElementById("passkey-banner");
+if (bannerDismissBtn && banner) {
+  bannerDismissBtn.addEventListener("click", () => dismissBanner(banner));
+}
+
+// Expose to inline handlers in templates
+window.PasskeyAuth = { registerPasskey, authenticateWithPasskey };
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //
