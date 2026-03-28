@@ -29,6 +29,13 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
         <:action>
           <div class="flex gap-2 shrink-0">
             <button
+              class="btn btn-ghost btn-sm"
+              phx-click="start_edit_name"
+              title="Rename source"
+            >
+              <.icon name="hero-pencil" class="size-4" />
+            </button>
+            <button
               :if={@source.status == "failed"}
               class="btn btn-warning btn-sm gap-2"
               phx-click="restart_source"
@@ -303,6 +310,34 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
       <div class="modal-backdrop" phx-click="close_item"></div>
     </div>
 
+    <%!-- Rename modal --%>
+    <div
+      :if={@editing_name}
+      class="modal modal-open"
+      phx-key="Escape"
+      phx-window-keydown="cancel_edit_name"
+    >
+      <.form
+        for={@name_form}
+        phx-submit="save_name"
+        phx-change="validate_name"
+        class="modal-box"
+      >
+        <h3 class="font-serif-display text-lg mb-4">Rename source</h3>
+        <.input
+          field={@name_form[:name]}
+          label="Name"
+          placeholder={Source.display_name(@source)}
+          phx-mounted={JS.focus()}
+        />
+        <div class="modal-action">
+          <button type="button" class="btn btn-ghost" phx-click="cancel_edit_name">Cancel</button>
+          <button type="submit" class="btn btn-primary" phx-disable-with="Saving…">Save</button>
+        </div>
+      </.form>
+      <div class="modal-backdrop" phx-click="cancel_edit_name"></div>
+    </div>
+
     <%!-- Delete confirmation modal --%>
     <div
       :if={@show_delete_modal}
@@ -347,6 +382,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
     {:ok,
      socket
      |> assign(:show_delete_modal, false)
+     |> assign(:editing_name, false)
+     |> assign(:name_form, nil)
      |> assign(:selected_item, nil)
      |> assign(:item_form, nil)
      |> assign_source_stats(source)
@@ -468,6 +505,40 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
      |> assign_source_stats(Catalog.get_source!(socket.assigns.source.id))
      |> assign(:selected_item, item)
      |> put_flash(:info, "Re-rendering item")}
+  end
+
+  def handle_event("start_edit_name", _, socket) do
+    form = Catalog.change_source(socket.assigns.source) |> to_form()
+    {:noreply, socket |> assign(:editing_name, true) |> assign(:name_form, form)}
+  end
+
+  def handle_event("cancel_edit_name", _, socket) do
+    {:noreply, socket |> assign(:editing_name, false) |> assign(:name_form, nil)}
+  end
+
+  def handle_event("validate_name", %{"source" => params}, socket) do
+    form =
+      socket.assigns.source
+      |> Catalog.change_source(params)
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, :name_form, form)}
+  end
+
+  def handle_event("save_name", %{"source" => params}, socket) do
+    case Catalog.update_source(socket.assigns.source, params) do
+      {:ok, source} ->
+        {:noreply,
+         socket
+         |> assign_source_stats(source)
+         |> assign(:editing_name, false)
+         |> assign(:name_form, nil)
+         |> put_flash(:info, "Source renamed.")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :name_form, to_form(changeset))}
+    end
   end
 
   def handle_event("confirm_delete", _, socket) do
