@@ -1,5 +1,9 @@
 ![Scientia Cognita logo](priv/static/images/logo-full.png)
 
+> [!NOTE]
+> This project is vibecoded from sctrath. Its a testbed to experiment with obra/superpowers and agentic development.
+> Use with caution.
+
 # scientia cognita
 
 Serendipitous access to scientific knowledge — curate catalogs of images and serve them as a TV screensaver via Google Photos albums.
