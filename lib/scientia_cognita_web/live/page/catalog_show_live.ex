@@ -84,7 +84,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
           />
           <img
             :if={@lightbox_item.final_image}
-            src={ItemImageUploader.url({@lightbox_item.final_image, @lightbox_item})}
+            src={ItemImageUploader.url_busted({@lightbox_item.final_image, @lightbox_item})}
             class="absolute inset-0 w-full h-full object-contain opacity-0 transition-opacity duration-700"
             onload={"this.classList.add('opacity-100'); var s=document.getElementById('lb-spinner-#{@lightbox_item.id}'); if(s) s.remove();"}
           />

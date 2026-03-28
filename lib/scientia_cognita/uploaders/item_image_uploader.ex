@@ -13,6 +13,17 @@ defmodule ScientiaCognita.Uploaders.ItemImageUploader do
   def storage_dir(_version, {_file, item}), do: "items/#{item.id}"
   def acl(_version, _), do: :public_read
 
+  @doc """
+  Returns the URL for a file with a cache-busting `?v=` query param derived
+  from the item's `updated_at` timestamp. Use this for `final_image`, which
+  is overwritten in-place on every re-render.
+  """
+  def url_busted({file, item}) do
+    base = url({file, item})
+    ts = item.updated_at && DateTime.to_unix(item.updated_at)
+    if ts, do: "#{base}?v=#{ts}", else: base
+  end
+
   def bucket do
     Application.get_env(:scientia_cognita, :storage)[:bucket] || "scientia-cognita"
   end

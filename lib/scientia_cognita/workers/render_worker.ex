@@ -134,16 +134,16 @@ defmodule ScientiaCognita.Workers.RenderWorker do
 
     img_width = Image.width(img)
     img_height = Image.height(img)
-    padding_x = max(trunc(img_width * 0.015), 6)
-    padding_y = max(trunc(img_height * 0.02), 8)
+    padding_x = max(trunc(img_width * 0.017), 6)
+    padding_y = max(trunc(img_height * 0.022), 8)
     body_font = max(trunc(img_height * 0.02), 8)
     title_font = max(trunc(body_font * 1), 10)
     radius = max(trunc(img_height * 0.02), 8)
     # Align with Google Photos album title on Android TV:
     # left margin matches the system UI (~3% width), bottom gap leaves room
-    # for the album title bar that appears below our box (~15% height).
+    # for the album title bar that appears below our box (~18% height).
     offset_x = max(trunc(img_width * 0.03), 16)
-    offset_y = max(trunc(img_height * 0.15), 40)
+    offset_y = max(trunc(img_height * 0.18), 40)
     inner_width = max(trunc(img_width * 0.94) - padding_x * 2, 20)
 
     title = truncate(item.title, @max_title_chars)

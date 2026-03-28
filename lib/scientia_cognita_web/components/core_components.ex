@@ -779,7 +779,7 @@ defmodule ScientiaCognitaWeb.CoreComponents do
         ScientiaCognita.Uploaders.ItemImageUploader.url({item.thumbnail_image, item})
 
       item.final_image ->
-        ScientiaCognita.Uploaders.ItemImageUploader.url({item.final_image, item})
+        ScientiaCognita.Uploaders.ItemImageUploader.url_busted({item.final_image, item})
 
       true ->
         nil

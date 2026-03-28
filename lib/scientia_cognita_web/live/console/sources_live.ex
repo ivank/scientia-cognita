@@ -76,7 +76,7 @@ defmodule ScientiaCognitaWeb.Console.SourcesLive do
                   src={
                     if item.thumbnail_image,
                       do: ItemImageUploader.url({item.thumbnail_image, item}),
-                      else: ItemImageUploader.url({item.final_image, item})
+                      else: ItemImageUploader.url_busted({item.final_image, item})
                   }
                   class="w-full h-full object-cover"
                   loading="lazy"

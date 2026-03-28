@@ -182,7 +182,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
                   <div class="skeleton absolute inset-0 rounded-none"></div>
                 <% @selected_item.final_image -> %>
                   <img
-                    src={ItemImageUploader.url({@selected_item.final_image, @selected_item})}
+                    src={ItemImageUploader.url_busted({@selected_item.final_image, @selected_item})}
                     class="w-full h-full object-contain"
                   />
                   <div
@@ -560,7 +560,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
 
   defp thumb_url(%{status: s, final_image: fi} = item)
        when s in ~w(failed discarded) and not is_nil(fi),
-       do: ItemImageUploader.url({fi, item})
+       do: ItemImageUploader.url_busted({fi, item})
 
   defp thumb_url(%{status: s, processed_image: pi} = item)
        when s in ~w(failed discarded) and not is_nil(pi),
@@ -571,7 +571,7 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLive do
        do: ItemImageUploader.url({oi, item})
 
   defp thumb_url(%{final_image: fi} = item) when not is_nil(fi),
-    do: ItemImageUploader.url({fi, item})
+    do: ItemImageUploader.url_busted({fi, item})
 
   defp thumb_url(%{processed_image: pi} = item) when not is_nil(pi),
     do: ItemImageUploader.url({pi, item})
