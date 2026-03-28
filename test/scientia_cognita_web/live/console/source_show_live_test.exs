@@ -174,46 +174,54 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
       assert render(view) =~ "Re-download"
     end
 
-    test "re-render hidden when no original_image", %{conn: conn} do
+    test "re-process hidden when no thumbnail_image", %{conn: conn} do
       source = source_fixture(%{status: "done"})
       item = item_fixture(source, %{status: "failed"})
-      # No original_image set
+      # No thumbnail_image set
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
 
-      refute render(view) =~ "Re-render"
+      refute render(view) =~ "Re-process"
     end
 
-    test "re-render visible for non-terminal item with error and original_image", %{conn: conn} do
+    test "re-process visible for non-terminal item with error and thumbnail_image", %{conn: conn} do
       source = source_fixture(%{status: "items_loading"})
-      item = item_fixture(source, %{status: "thumbnail", original_image: "original.jpg"})
+
+      item =
+        item_fixture(source, %{
+          status: "analyze",
+          original_image: "original.jpg",
+          thumbnail_image: "thumbnail.jpg"
+        })
+
       # Simulate partial-failure state: error set but status not failed
       {:ok, _item} =
         item
-        |> Ecto.Changeset.change(%{error: "thumbnail generation failed"})
+        |> Ecto.Changeset.change(%{error: "analyze failed"})
         |> ScientiaCognita.Repo.update()
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
 
-      assert render(view) =~ "Re-render"
+      assert render(view) =~ "Re-process"
     end
 
-    test "re-render visible for terminal items with original_image", %{conn: conn} do
+    test "re-process visible for terminal items with thumbnail_image", %{conn: conn} do
       source = source_fixture(%{status: "done"})
 
       item =
         item_fixture(source, %{
           status: "ready",
           original_image: "original.jpg",
+          thumbnail_image: "thumbnail.jpg",
           final_image: "final.jpg"
         })
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
 
-      assert render(view) =~ "Re-render"
+      assert render(view) =~ "Re-process"
     end
 
     test "saving updates the row in the stream", %{conn: conn} do
@@ -344,8 +352,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
     end
   end
 
-  describe "re-render action" do
-    test "enqueues ThumbnailWorker (not RenderWorker) and resets to thumbnail", %{conn: conn} do
+  describe "re-process action" do
+    test "enqueues AnalyzeWorker and resets to analyze, clears derived data", %{conn: conn} do
       source = source_fixture(%{status: "done"})
 
       item =
@@ -359,7 +367,8 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
             "text_color" => "#FFFFFF",
             "bg_color" => "#000000",
             "bg_opacity" => 0.75,
-            "subject" => "test"
+            "subject" => "test",
+            "rotation" => "none"
           }
         })
 
@@ -367,12 +376,12 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
 
       # Open modal
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
-      # Click re-render
-      view |> element("button[phx-click='rerender_item']") |> render_click()
+      # Click re-process
+      view |> element("button[phx-click='reprocess_item']") |> render_click()
 
-      # ThumbnailWorker should be in the Oban queue
+      # AnalyzeWorker should be in the Oban queue
       assert_enqueued(
-        worker: ScientiaCognita.Workers.ThumbnailWorker,
+        worker: ScientiaCognita.Workers.AnalyzeWorker,
         args: %{"item_id" => item.id}
       )
 
@@ -382,36 +391,37 @@ defmodule ScientiaCognitaWeb.Console.SourceShowLiveTest do
         args: %{"item_id" => item.id}
       )
 
-      # derived images and analysis cleared, original preserved
+      # derived data cleared, thumbnail and original preserved
       reloaded = ScientiaCognita.Catalog.get_item!(item.id)
-      assert reloaded.status == "thumbnail"
-      assert is_nil(reloaded.thumbnail_image)
+      assert reloaded.status == "analyze"
+      assert is_nil(reloaded.image_analysis)
       assert is_nil(reloaded.processed_image)
       assert is_nil(reloaded.final_image)
-      assert is_nil(reloaded.image_analysis)
       # preserved
       assert not is_nil(reloaded.original_image)
+      assert not is_nil(reloaded.thumbnail_image)
     end
 
-    test "keeps modal open and shows thumbnail status after triggering", %{conn: conn} do
+    test "keeps modal open and shows analyze status after triggering", %{conn: conn} do
       source = source_fixture(%{status: "done"})
 
       item =
         item_fixture(source, %{
           status: "ready",
           original_image: "original.jpg",
+          thumbnail_image: "thumbnail.jpg",
           final_image: "final.jpg"
         })
 
       {:ok, view, _html} = live(conn, ~p"/console/sources/#{source.id}")
       view |> element("tr[phx-value-id='#{item.id}']") |> render_click()
-      view |> element("button[phx-click='rerender_item']") |> render_click()
+      view |> element("button[phx-click='reprocess_item']") |> render_click()
 
       html = render(view)
       # Modal stays open
       assert html =~ "modal modal-open"
-      # Status badge updated to thumbnail
-      assert html =~ "thumbnail"
+      # Status badge updated to analyze
+      assert html =~ "analyze"
     end
   end
 
