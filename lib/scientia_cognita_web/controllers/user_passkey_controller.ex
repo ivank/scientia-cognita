@@ -14,7 +14,8 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
     challenge =
       webauthn().new_registration_challenge(
         attestation: "none",
-        origin: origin()
+        origin: origin(),
+        rp_id: rp_id()
       )
 
     conn
@@ -74,7 +75,7 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
   # ------------------------------------------------------------------
 
   def authentication_challenge(conn, _params) do
-    challenge = webauthn().new_authentication_challenge(origin: origin())
+    challenge = webauthn().new_authentication_challenge(origin: origin(), rp_id: rp_id())
 
     conn
     |> put_session(:wax_authentication_challenge, challenge)
