@@ -22,7 +22,9 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
       source = source_fixture()
       item = item_fixture(source, %{status: "analyze", thumbnail_image: "thumbnail.jpg"})
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/thumbnail.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/thumbnail.jpg"
+      end)
 
       expect(MockHttp, :get, fn _url, _opts ->
         jpeg = File.read!("test/fixtures/test_image.jpg")
@@ -50,7 +52,9 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
       source = source_fixture()
       item = item_fixture(source, %{status: "analyze", thumbnail_image: "thumbnail.jpg"})
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/thumbnail.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/thumbnail.jpg"
+      end)
 
       expect(MockHttp, :get, fn _url, _opts ->
         jpeg = File.read!("test/fixtures/test_image.jpg")
@@ -79,7 +83,10 @@ defmodule ScientiaCognita.Workers.AnalyzeWorkerTest do
       source = source_fixture()
       item = item_fixture(source, %{status: "analyze", thumbnail_image: "thumbnail.jpg"})
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/thumbnail.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/thumbnail.jpg"
+      end)
+
       expect(MockHttp, :get, fn _url, _opts -> {:error, :timeout} end)
 
       assert :ok = perform_job(AnalyzeWorker, %{item_id: item.id})

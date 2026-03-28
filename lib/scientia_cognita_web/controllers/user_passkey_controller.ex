@@ -35,7 +35,8 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
 
     with {:ok, attestation_object} <- decode_b64(params["response"]["attestationObject"]),
          {:ok, client_data_json} <- decode_b64(params["response"]["clientDataJSON"]),
-         {:ok, {auth_data, _}} <- webauthn().register(attestation_object, client_data_json, challenge) do
+         {:ok, {auth_data, _}} <-
+           webauthn().register(attestation_object, client_data_json, challenge) do
       cred = auth_data.attested_credential_data
       label = build_label(auth_data)
 
@@ -129,8 +130,11 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
     with {int_id, ""} <- Integer.parse(id),
          passkey when not is_nil(passkey) <- Accounts.get_passkey_for_user(user, int_id) do
       case Accounts.update_passkey_label(passkey, label) do
-        {:ok, updated} -> json(conn, %{ok: true, label: updated.label})
-        {:error, _} -> conn |> put_status(:unprocessable_entity) |> json(%{error: "Could not update label."})
+        {:ok, updated} ->
+          json(conn, %{ok: true, label: updated.label})
+
+        {:error, _} ->
+          conn |> put_status(:unprocessable_entity) |> json(%{error: "Could not update label."})
       end
     else
       :error -> conn |> put_status(:bad_request) |> json(%{error: "Invalid ID."})
@@ -144,9 +148,14 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
     case Integer.parse(id) do
       {int_id, ""} ->
         case Accounts.delete_passkey(user, int_id) do
-          {:ok, _} -> json(conn, %{ok: true})
-          {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: "Passkey not found."})
-          {:error, :unauthorized} -> conn |> put_status(:forbidden) |> json(%{error: "Not your passkey."})
+          {:ok, _} ->
+            json(conn, %{ok: true})
+
+          {:error, :not_found} ->
+            conn |> put_status(:not_found) |> json(%{error: "Passkey not found."})
+
+          {:error, :unauthorized} ->
+            conn |> put_status(:forbidden) |> json(%{error: "Not your passkey."})
         end
 
       _ ->

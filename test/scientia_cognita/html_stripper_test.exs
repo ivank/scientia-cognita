@@ -20,7 +20,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "removes style attributes" do
-      result = HTMLStripper.strip("<div style=\"display:none\"><p style=\"color:red\">Content</p></div>")
+      result =
+        HTMLStripper.strip("<div style=\"display:none\"><p style=\"color:red\">Content</p></div>")
+
       refute result =~ " style="
     end
 
@@ -37,7 +39,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "preserves src, alt, srcset on images" do
-      html = "<body><img src=\"https://example.com/img.jpg\" alt=\"Test\" srcset=\"img 2x\" id=\"hero\"></body>"
+      html =
+        "<body><img src=\"https://example.com/img.jpg\" alt=\"Test\" srcset=\"img 2x\" id=\"hero\"></body>"
+
       result = HTMLStripper.strip(html)
       assert result =~ "src=\"https://example.com/img.jpg\""
       assert result =~ "alt=\"Test\""
@@ -46,7 +50,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "preserves data-src and data-srcset on images (lazy loading)" do
-      html = "<body><img data-src=\"https://example.com/lazy.jpg\" data-srcset=\"https://example.com/lazy@2x.jpg 2x\"></body>"
+      html =
+        "<body><img data-src=\"https://example.com/lazy.jpg\" data-srcset=\"https://example.com/lazy@2x.jpg 2x\"></body>"
+
       result = HTMLStripper.strip(html)
       assert result =~ "data-src="
       assert result =~ "data-srcset="
@@ -104,7 +110,9 @@ defmodule ScientiaCognita.HTMLStripperTest do
     end
 
     test "removes head content, keeps body" do
-      html = "<html><head><title>Page</title><meta charset=\"utf-8\"></head><body><p>Body</p></body></html>"
+      html =
+        "<html><head><title>Page</title><meta charset=\"utf-8\"></head><body><p>Body</p></body></html>"
+
       result = HTMLStripper.strip(html)
       refute result =~ "<title>"
       refute result =~ "<meta"
@@ -205,12 +213,14 @@ defmodule ScientiaCognita.HTMLStripperTest do
 
     test "preserves scrapbook-item-content class for LLM association" do
       result = HTMLStripper.strip(@nasa_html)
+
       assert result =~ "hds-scrapbook-item-content",
              "Class name must survive stripping so Gemini can associate descriptions with images"
     end
 
     test "preserves description text adjacent to images" do
       result = HTMLStripper.strip(@nasa_html)
+
       assert result =~ "school-bus-sized",
              "Description paragraph text must survive stripping"
     end
@@ -235,12 +245,14 @@ defmodule ScientiaCognita.HTMLStripperTest do
 
     test "preserves description text in alt attributes" do
       result = HTMLStripper.strip(@livescience_html)
+
       assert result =~ "crabeater seals",
              "Alt attribute description text must survive stripping"
     end
 
     test "preserves post-figure paragraph descriptions" do
       result = HTMLStripper.strip(@livescience_html)
+
       assert result =~ "Underwater Photographer of the Year",
              "Post-figure paragraph descriptions must survive stripping"
     end

@@ -352,7 +352,12 @@ defmodule ScientiaCognita.AccountsTest do
 
     test "raises when unconfirmed user has password set" do
       user = unconfirmed_user_fixture()
-      {1, nil} = Repo.update_all(from(u in User, where: u.id == ^user.id), set: [hashed_password: "hashed"])
+
+      {1, nil} =
+        Repo.update_all(from(u in User, where: u.id == ^user.id),
+          set: [hashed_password: "hashed"]
+        )
+
       {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
 
       assert_raise RuntimeError, ~r/magic link log in is not allowed/, fn ->
@@ -448,6 +453,7 @@ defmodule ScientiaCognita.AccountsTest do
   describe "register_passkey/2" do
     test "creates a passkey with valid attrs" do
       user = user_fixture()
+
       attrs = %{
         credential_id: :crypto.strong_rand_bytes(32),
         public_key: :crypto.strong_rand_bytes(77),
@@ -455,6 +461,7 @@ defmodule ScientiaCognita.AccountsTest do
         authenticator_attachment: "platform",
         label: "Touch ID"
       }
+
       assert {:ok, passkey} = Accounts.register_passkey(user, attrs)
       assert passkey.user_id == user.id
       assert passkey.label == "Touch ID"
@@ -471,7 +478,9 @@ defmodule ScientiaCognita.AccountsTest do
     test "requires credential_id and public_key" do
       user = user_fixture()
       assert {:error, changeset} = Accounts.register_passkey(user, %{})
-      assert %{credential_id: ["can't be blank"], public_key: ["can't be blank"]} = errors_on(changeset)
+
+      assert %{credential_id: ["can't be blank"], public_key: ["can't be blank"]} =
+               errors_on(changeset)
     end
   end
 

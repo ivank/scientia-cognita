@@ -18,7 +18,14 @@ defmodule ScientiaCognita.Accounts.UserPasskey do
   @doc "Changeset for registering a new passkey. Requires credential_id, public_key, and user_id."
   def creation_changeset(passkey, attrs) do
     passkey
-    |> cast(attrs, [:credential_id, :public_key, :sign_count, :authenticator_attachment, :label, :user_id])
+    |> cast(attrs, [
+      :credential_id,
+      :public_key,
+      :sign_count,
+      :authenticator_attachment,
+      :label,
+      :user_id
+    ])
     |> validate_required([:credential_id, :public_key, :user_id])
     |> unique_constraint(:credential_id)
   end

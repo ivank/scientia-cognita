@@ -66,9 +66,7 @@ defmodule ScientiaCognita.ObanTelemetry do
           :ok
 
         {:error, _, reason, _} ->
-          Logger.error(
-            "[ObanTelemetry] Failed to discard item=#{item_id}: #{inspect(reason)}"
-          )
+          Logger.error("[ObanTelemetry] Failed to discard item=#{item_id}: #{inspect(reason)}")
       end
     rescue
       e ->

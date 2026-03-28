@@ -3,7 +3,8 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
   use ExUnit.Case, async: true
   import Phoenix.LiveViewTest
 
-  import ScientiaCognitaWeb.CoreComponents, only: [user_initials: 1, page_header: 1, empty_state: 1, status_badge: 1, item_card: 1]
+  import ScientiaCognitaWeb.CoreComponents,
+    only: [user_initials: 1, page_header: 1, empty_state: 1, status_badge: 1, item_card: 1]
 
   describe "user_initials/1" do
     test "splits on dot — ivan.kerin@example.com → IK" do
@@ -39,7 +40,9 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
     end
 
     test "renders subtitle when provided" do
-      html = render_component(&page_header/1, %{title: "Dashboard", subtitle: "Welcome", action: []})
+      html =
+        render_component(&page_header/1, %{title: "Dashboard", subtitle: "Welcome", action: []})
+
       assert html =~ "Welcome"
     end
 
@@ -61,23 +64,51 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
 
   describe "empty_state/1" do
     test "renders icon and title" do
-      html = render_component(&empty_state/1, %{icon: "hero-photo", title: "No items", subtitle: nil, action: []})
+      html =
+        render_component(&empty_state/1, %{
+          icon: "hero-photo",
+          title: "No items",
+          subtitle: nil,
+          action: []
+        })
+
       assert html =~ "No items"
       assert html =~ "hero-photo"
     end
 
     test "renders subtitle when provided" do
-      html = render_component(&empty_state/1, %{icon: "hero-photo", title: "No items", subtitle: "Add some items.", action: []})
+      html =
+        render_component(&empty_state/1, %{
+          icon: "hero-photo",
+          title: "No items",
+          subtitle: "Add some items.",
+          action: []
+        })
+
       assert html =~ "Add some items."
     end
 
     test "omits subtitle when nil" do
-      html = render_component(&empty_state/1, %{icon: "hero-photo", title: "No items", subtitle: nil, action: []})
+      html =
+        render_component(&empty_state/1, %{
+          icon: "hero-photo",
+          title: "No items",
+          subtitle: nil,
+          action: []
+        })
+
       refute html =~ "text-xs text-neutral"
     end
 
     test "omits action wrapper when no action given" do
-      html = render_component(&empty_state/1, %{icon: "hero-photo", title: "No items", subtitle: nil, action: []})
+      html =
+        render_component(&empty_state/1, %{
+          icon: "hero-photo",
+          title: "No items",
+          subtitle: nil,
+          action: []
+        })
+
       refute html =~ "mt-4 flex justify-center"
     end
   end
@@ -177,25 +208,67 @@ defmodule ScientiaCognitaWeb.CoreComponentsTest do
 
   describe "item_card/1" do
     @item %{id: 1, title: "Test Item", author: "Alice", thumbnail_image: nil, final_image: nil}
-    @item_no_author %{id: 2, title: "No Author", author: nil, thumbnail_image: nil, final_image: nil}
+    @item_no_author %{
+      id: 2,
+      title: "No Author",
+      author: nil,
+      thumbnail_image: nil,
+      final_image: nil
+    }
 
     test "renders item title" do
-      html = render_component(&item_card/1, %{item: @item, id: nil, on_remove: nil, on_click: nil, failed: false, uploaded: false})
+      html =
+        render_component(&item_card/1, %{
+          item: @item,
+          id: nil,
+          on_remove: nil,
+          on_click: nil,
+          failed: false,
+          uploaded: false
+        })
+
       assert html =~ "Test Item"
     end
 
     test "renders author when present" do
-      html = render_component(&item_card/1, %{item: @item, id: nil, on_remove: nil, on_click: nil, failed: false, uploaded: false})
+      html =
+        render_component(&item_card/1, %{
+          item: @item,
+          id: nil,
+          on_remove: nil,
+          on_click: nil,
+          failed: false,
+          uploaded: false
+        })
+
       assert html =~ "Alice"
     end
 
     test "omits author paragraph when author is nil" do
-      html = render_component(&item_card/1, %{item: @item_no_author, id: nil, on_remove: nil, on_click: nil, failed: false, uploaded: false})
+      html =
+        render_component(&item_card/1, %{
+          item: @item_no_author,
+          id: nil,
+          on_remove: nil,
+          on_click: nil,
+          failed: false,
+          uploaded: false
+        })
+
       refute html =~ "text-base-content/50"
     end
 
     test "applies ring-error when failed" do
-      html = render_component(&item_card/1, %{item: @item, id: nil, on_remove: nil, on_click: nil, failed: true, uploaded: false})
+      html =
+        render_component(&item_card/1, %{
+          item: @item,
+          id: nil,
+          on_remove: nil,
+          on_click: nil,
+          failed: true,
+          uploaded: false
+        })
+
       assert html =~ "ring-2 ring-error"
     end
   end

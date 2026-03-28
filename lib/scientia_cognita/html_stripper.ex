@@ -33,9 +33,16 @@ defmodule ScientiaCognita.HTMLStripper do
     "a" => ["href"],
     "figure" => ["src", "alt", "srcset", "data-src", "data-srcset"],
     "img" => [
-      "src", "alt", "srcset", "data-src", "data-srcset",
-      "data-lazy-src", "data-lazy", "data-original",
-      "data-hi-res-src", "data-full-src"
+      "src",
+      "alt",
+      "srcset",
+      "data-src",
+      "data-srcset",
+      "data-lazy-src",
+      "data-lazy",
+      "data-original",
+      "data-hi-res-src",
+      "data-full-src"
     ]
   }
 

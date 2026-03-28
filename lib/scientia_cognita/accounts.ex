@@ -363,7 +363,11 @@ defmodule ScientiaCognita.Accounts do
 
   @doc "Returns all passkeys for a user, newest first."
   def list_passkeys(%User{} = user) do
-    Repo.all(from p in UserPasskey, where: p.user_id == ^user.id, order_by: [desc: p.inserted_at, desc: p.id])
+    Repo.all(
+      from p in UserPasskey,
+        where: p.user_id == ^user.id,
+        order_by: [desc: p.inserted_at, desc: p.id]
+    )
   end
 
   @doc "Returns true if the user has at least one registered passkey."

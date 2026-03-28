@@ -24,6 +24,13 @@ defmodule ScientiaCognita.WebAuthn do
   defdelegate register(attestation_object, client_data_json, challenge), to: Wax
 
   @impl true
-  defdelegate authenticate(credential_id, auth_data, sig, client_data_json, challenge, credentials),
-    to: Wax
+  defdelegate authenticate(
+                credential_id,
+                auth_data,
+                sig,
+                client_data_json,
+                challenge,
+                credentials
+              ),
+              to: Wax
 end

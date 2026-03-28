@@ -36,7 +36,10 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
     export =
       if is_nil(export.album_id) do
         {:ok, album_id, album_url} = create_album!(token, catalog.name)
-        {:ok, export} = Photos.set_export_status(export, "running", album_id: album_id, album_url: album_url)
+
+        {:ok, export} =
+          Photos.set_export_status(export, "running", album_id: album_id, album_url: album_url)
+
         export
       else
         export
@@ -112,10 +115,11 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       # catalog_id and user_id are local variables from the function head — use them directly.
       # Do NOT use Map.get(e, :catalog_id) — exception structs don't carry job args.
       try do
-        if export = Photos.get_export_for_user(
-             Accounts.get_user!(user_id),
-             Catalog.get_catalog!(catalog_id)
-           ) do
+        if export =
+             Photos.get_export_for_user(
+               Accounts.get_user!(user_id),
+               Catalog.get_catalog!(catalog_id)
+             ) do
           Photos.set_export_status(export, "failed", error: Exception.message(e))
         end
       rescue
@@ -145,8 +149,11 @@ defmodule ScientiaCognita.Workers.ExportAlbumWorker do
       )
 
     case response.status do
-      200 -> {:ok, response.body["id"], response.body["productUrl"]}
-      status -> raise "Failed to create Google Photos album: HTTP #{status} — #{inspect(response.body)}"
+      200 ->
+        {:ok, response.body["id"], response.body["productUrl"]}
+
+      status ->
+        raise "Failed to create Google Photos album: HTTP #{status} — #{inspect(response.body)}"
     end
   end
 

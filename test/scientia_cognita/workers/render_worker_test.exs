@@ -32,7 +32,9 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/processed.jpg"
+      end)
 
       expect(MockHttp, :get, fn _url, _opts ->
         {:ok, %{status: 200, body: jpeg, headers: %{}}}
@@ -61,8 +63,12 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/processed.jpg"
+      end)
+
       expect(MockHttp, :get, fn _url, _opts -> {:ok, %{status: 200, body: jpeg, headers: %{}}} end)
+
       expect(MockUploader, :store, fn {_upload, _item} -> {:ok, "final.jpg"} end)
 
       assert :ok = perform_job(RenderWorker, %{item_id: item.id})
@@ -85,8 +91,12 @@ defmodule ScientiaCognita.Workers.RenderWorkerTest do
 
       jpeg = File.read!("test/fixtures/test_image.jpg")
 
-      expect(MockUploader, :url, fn _ -> "http://localhost:9000/images/items/#{item.id}/processed.jpg" end)
+      expect(MockUploader, :url, fn _ ->
+        "http://localhost:9000/images/items/#{item.id}/processed.jpg"
+      end)
+
       expect(MockHttp, :get, fn _url, _opts -> {:ok, %{status: 200, body: jpeg, headers: %{}}} end)
+
       expect(MockUploader, :store, fn {_upload, _item} -> {:ok, "final.jpg"} end)
 
       assert :ok = perform_job(RenderWorker, %{item_id: item.id})

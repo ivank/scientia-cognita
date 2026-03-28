@@ -56,20 +56,34 @@ defmodule ScientiaCognita.PhotosTest do
 
     test "stores optional fields like album_id and album_url", %{user: user, catalog: catalog} do
       {:ok, export} = Photos.get_or_create_export(user, catalog)
-      {:ok, updated} = Photos.set_export_status(export, "running", album_id: "abc123", album_url: "https://photos.google.com/album/abc123")
+
+      {:ok, updated} =
+        Photos.set_export_status(export, "running",
+          album_id: "abc123",
+          album_url: "https://photos.google.com/album/abc123"
+        )
+
       assert updated.album_id == "abc123"
       assert updated.album_url == "https://photos.google.com/album/abc123"
     end
   end
 
   describe "set_item_uploaded/2 and list_uploaded_item_ids/1" do
-    test "marks an item as uploaded and includes it in the id list", %{user: user, catalog: catalog, item: item} do
+    test "marks an item as uploaded and includes it in the id list", %{
+      user: user,
+      catalog: catalog,
+      item: item
+    } do
       {:ok, export} = Photos.get_or_create_export(user, catalog)
       {:ok, _} = Photos.set_item_uploaded(export, item)
       assert item.id in Photos.list_uploaded_item_ids(export)
     end
 
-    test "does not include failed items in uploaded id list", %{user: user, catalog: catalog, item: item} do
+    test "does not include failed items in uploaded id list", %{
+      user: user,
+      catalog: catalog,
+      item: item
+    } do
       {:ok, export} = Photos.get_or_create_export(user, catalog)
       {:ok, _} = Photos.set_item_failed(export, item, "upload error")
       refute item.id in Photos.list_uploaded_item_ids(export)
@@ -77,14 +91,22 @@ defmodule ScientiaCognita.PhotosTest do
   end
 
   describe "set_item_failed/3" do
-    test "records the error message on the export item", %{user: user, catalog: catalog, item: item} do
+    test "records the error message on the export item", %{
+      user: user,
+      catalog: catalog,
+      item: item
+    } do
       {:ok, export} = Photos.get_or_create_export(user, catalog)
       {:ok, export_item} = Photos.set_item_failed(export, item, "timeout")
       assert export_item.status == "failed"
       assert export_item.error == "timeout"
     end
 
-    test "updating a failed item to uploaded works (upsert)", %{user: user, catalog: catalog, item: item} do
+    test "updating a failed item to uploaded works (upsert)", %{
+      user: user,
+      catalog: catalog,
+      item: item
+    } do
       {:ok, export} = Photos.get_or_create_export(user, catalog)
       {:ok, _} = Photos.set_item_failed(export, item, "first attempt failed")
       {:ok, _} = Photos.set_item_uploaded(export, item)

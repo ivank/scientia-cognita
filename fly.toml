@@ -8,6 +8,8 @@ primary_region = "bom"
 [env]
   PHX_HOST = "sc.ikerin.com"
   PORT = "4000"
+  WEBAUTHN_ORIGIN = "https://sc.ikerin.com"
+  WEBAUTHN_RP_ID = "sc.ikerin.com"
 
 [http_service]
   internal_port = 4000

@@ -633,24 +633,24 @@ defmodule ScientiaCognitaWeb.CoreComponents do
   defp status_badge_class(status) do
     case status do
       # Source statuses
-      "pending"       -> "badge-ghost"
-      "fetching"      -> "badge-warning animate-pulse"
-      "extracting"    -> "badge-warning animate-pulse"
+      "pending" -> "badge-ghost"
+      "fetching" -> "badge-warning animate-pulse"
+      "extracting" -> "badge-warning animate-pulse"
       "items_loading" -> "badge-info animate-pulse"
-      "done"          -> "badge-success"
-      "ready"         -> "badge-success"
-      "failed"        -> "badge-error"
-      "discarded"     -> "badge-warning"
-      "downloading"   -> "badge-info"
-      "thumbnail"     -> "badge-info animate-pulse"
-      "analyze"       -> "badge-info animate-pulse"
-      "resize"        -> "badge-info animate-pulse"
-      "render"        -> "badge-info animate-pulse"
+      "done" -> "badge-success"
+      "ready" -> "badge-success"
+      "failed" -> "badge-error"
+      "discarded" -> "badge-warning"
+      "downloading" -> "badge-info"
+      "thumbnail" -> "badge-info animate-pulse"
+      "analyze" -> "badge-info animate-pulse"
+      "resize" -> "badge-info animate-pulse"
+      "render" -> "badge-info animate-pulse"
       # Role values
-      "owner"         -> "badge-accent font-semibold"
-      "admin"         -> "badge-primary"
+      "owner" -> "badge-accent font-semibold"
+      "admin" -> "badge-primary"
       # Default
-      _               -> "badge-ghost"
+      _ -> "badge-ghost"
     end
   end
 
@@ -775,9 +775,14 @@ defmodule ScientiaCognitaWeb.CoreComponents do
 
   defp item_thumb_url(item) do
     cond do
-      item.thumbnail_image -> ScientiaCognita.Uploaders.ItemImageUploader.url({item.thumbnail_image, item})
-      item.final_image     -> ScientiaCognita.Uploaders.ItemImageUploader.url({item.final_image, item})
-      true                 -> nil
+      item.thumbnail_image ->
+        ScientiaCognita.Uploaders.ItemImageUploader.url({item.thumbnail_image, item})
+
+      item.final_image ->
+        ScientiaCognita.Uploaders.ItemImageUploader.url({item.final_image, item})
+
+      true ->
+        nil
     end
   end
 

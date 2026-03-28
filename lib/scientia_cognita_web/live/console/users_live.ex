@@ -21,16 +21,27 @@ defmodule ScientiaCognitaWeb.Console.UsersLive do
           <table class="table w-full">
             <thead>
               <tr class="bg-base-200 border-b border-base-300">
-                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Email</th>
-                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Role</th>
-                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Joined</th>
-                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">Confirmed</th>
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">
+                  Email
+                </th>
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">
+                  Role
+                </th>
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">
+                  Joined
+                </th>
+                <th class="text-[10px] uppercase tracking-[0.07em] text-neutral/70 font-bold">
+                  Confirmed
+                </th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={user <- @users} id={"user-#{user.id}"}
-                  class="border-b border-base-300 last:border-0 hover:bg-base-200/60 transition-colors duration-[150ms]">
+              <tr
+                :for={user <- @users}
+                id={"user-#{user.id}"}
+                class="border-b border-base-300 last:border-0 hover:bg-base-200/60 transition-colors duration-[150ms]"
+              >
                 <td class="font-mono text-sm">{user.email}</td>
                 <td><.status_badge status={user.role} /></td>
                 <td class="text-sm text-base-content/60">

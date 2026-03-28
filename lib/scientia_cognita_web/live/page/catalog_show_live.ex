@@ -118,8 +118,7 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
       <div class="modal-box">
         <h3 class="font-bold text-lg">Delete album from Google Photos?</h3>
         <p class="py-4 text-base-content/70">
-          This will permanently delete the album
-          <strong>{@catalog.name}</strong>
+          This will permanently delete the album <strong>{@catalog.name}</strong>
           from your Google Photos library. The photos in this catalog will not be affected.
         </p>
         <div class="modal-action">
@@ -160,7 +159,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </.link>
           </div>
         </div>
-
       <% !has_google_token?(@current_scope) -> %>
         <div class="rounded-xl p-5 bg-slate-800 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -188,7 +186,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </.link>
           </div>
         </div>
-
       <% is_nil(@export) or @export.status == "deleted" -> %>
         <div class="rounded-xl p-5 bg-slate-900 border border-slate-700 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -212,7 +209,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </button>
           </div>
         </div>
-
       <% @export.status == "running" -> %>
         <div class="rounded-xl p-5 bg-slate-900 border border-blue-900 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
@@ -236,7 +232,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             <span>0</span><span>{@export_progress} / {@export_total}</span><span>{@export_total}</span>
           </div>
         </div>
-
       <% @export.status == "done" -> %>
         <div class="rounded-xl p-5 bg-emerald-950 border border-emerald-800 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -276,7 +271,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </div>
           </div>
         </div>
-
       <% @export.status == "failed" -> %>
         <div class="rounded-xl p-5 bg-red-950 border border-red-800 text-white">
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -309,7 +303,6 @@ defmodule ScientiaCognitaWeb.Page.CatalogShowLive do
             </div>
           </div>
         </div>
-
       <% true -> %>
         <%!-- Fallback: shouldn't occur in practice --%>
     <% end %>

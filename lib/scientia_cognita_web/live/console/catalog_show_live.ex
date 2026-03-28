@@ -192,7 +192,10 @@ defmodule ScientiaCognitaWeb.Console.CatalogShowLive do
           </div>
         </div>
 
-        <div :if={!@picker_source_id and @picker_suggestions == []} class="text-center py-8 text-base-content/40">
+        <div
+          :if={!@picker_source_id and @picker_suggestions == []}
+          class="text-center py-8 text-base-content/40"
+        >
           No sources with ready items found.
         </div>
       </div>
