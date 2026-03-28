@@ -1,0 +1,181 @@
+<Layouts.flash_group flash={@flash} />
+
+<%!-- Page hero --%>
+<div class="bg-[oklch(13%_0.025_222)] px-4 sm:px-8 pt-14 pb-16">
+  <div class="max-w-6xl mx-auto">
+    <p class="text-[oklch(64%_0.115_218)] text-xs font-semibold tracking-[0.2em] uppercase mb-5">
+      Legal
+    </p>
+    <h1 class="font-serif-display text-5xl lg:text-7xl text-white leading-[1.05] tracking-tight">
+      Privacy Policy
+    </h1>
+    <p class="text-white/50 text-lg mt-5 max-w-xl leading-relaxed">
+      What we collect, how we use it, and your rights under GDPR.
+    </p>
+  </div>
+</div>
+
+<%!-- Content --%>
+<div class="mx-auto max-w-3xl px-6 py-12 space-y-10">
+
+  <%!-- TL;DR callout --%>
+  <div class="rounded-2xl bg-primary/10 border border-primary/20 px-6 py-5">
+    <p class="font-semibold text-base-content mb-1">The short version</p>
+    <p class="text-base-content/70 text-sm leading-relaxed">
+      We store your email and nothing else. We will never sell, share, or misuse your personal information. Ever.
+    </p>
+  </div>
+
+  <%!-- Section: What we collect --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">What we collect</h2>
+    <div class="prose prose-sm max-w-none">
+      <p>
+        When you create an account we store your email address and, if you sign in with Google,
+        your Google account ID. If you connect Google Photos, we store the OAuth tokens needed
+        to write to your library on your behalf.
+      </p>
+      <p>
+        We do not collect names, phone numbers, payment information, or any other personal data.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: How we use it --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">How we use it</h2>
+    <ul class="space-y-2">
+      <li class="flex items-start gap-3">
+        <span class="mt-0.5 size-5 rounded-full bg-success/20 text-success flex items-center justify-center shrink-0">
+          <.icon name="hero-check" class="size-3" />
+        </span>
+        <span class="text-sm text-base-content/80">To send you a magic sign-in link when you request one.</span>
+      </li>
+      <li class="flex items-start gap-3">
+        <span class="mt-0.5 size-5 rounded-full bg-success/20 text-success flex items-center justify-center shrink-0">
+          <.icon name="hero-check" class="size-3" />
+        </span>
+        <span class="text-sm text-base-content/80">To authenticate your session.</span>
+      </li>
+      <li class="flex items-start gap-3">
+        <span class="mt-0.5 size-5 rounded-full bg-success/20 text-success flex items-center justify-center shrink-0">
+          <.icon name="hero-check" class="size-3" />
+        </span>
+        <span class="text-sm text-base-content/80">To push images to your Google Photos account at your explicit request.</span>
+      </li>
+    </ul>
+    <p class="mt-4 text-sm text-base-content/60 italic">That's it. We use your data for nothing else.</p>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: What we never do --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">What we never do</h2>
+    <ul class="space-y-2">
+      <%= for item <- [
+        "Sell, rent, or share your email or any other personal information with third parties.",
+        "Send you marketing emails.",
+        "Use your data to train AI models.",
+        "Show you ads."
+      ] do %>
+        <li class="flex items-start gap-3">
+          <span class="mt-0.5 size-5 rounded-full bg-error/15 text-error flex items-center justify-center shrink-0">
+            <.icon name="hero-x-mark" class="size-3" />
+          </span>
+          <span class="text-sm text-base-content/80">We will never <%= item %></span>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Third-party services --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Third-party services</h2>
+    <div class="prose prose-sm max-w-none">
+      <p>
+        Scientia Cognita is hosted on infrastructure that may process requests on our behalf
+        (server hosting, transactional email). These processors act only on our instructions and
+        are not permitted to use your data for their own purposes.
+      </p>
+      <p>
+        If you connect Google Photos, you are also subject to
+        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Data retention --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Data retention</h2>
+    <div class="prose prose-sm max-w-none">
+      <p>
+        Your data is kept for as long as your account is active. You may delete your account
+        at any time from your account settings, which will permanently remove your email and
+        tokens from our systems.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Your rights (GDPR) --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Your rights</h2>
+    <p class="text-sm text-base-content/70 mb-4">
+      Under the General Data Protection Regulation (GDPR) and similar laws, you have the
+      following rights over your personal data:
+    </p>
+    <ul class="space-y-3 mb-4">
+      <%= for {title, body} <- [
+        {"Access", "You can download a copy of all data we hold about you at any time from your account settings."},
+        {"Portability", "Your data export is provided as a standard JSON file you can read with any text editor."},
+        {"Erasure", "You can permanently delete your account and all associated data from your account settings. Deletion is immediate and irreversible."},
+        {"Rectification", "You can update your email address at any time from your account settings."}
+      ] do %>
+        <li class="flex items-start gap-3">
+          <span class="mt-0.5 size-5 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0">
+            <.icon name="hero-shield-check" class="size-3" />
+          </span>
+          <span class="text-sm text-base-content/80">
+            <span class="font-medium text-base-content"><%= title %></span>
+            — <%= body %>
+          </span>
+        </li>
+      <% end %>
+    </ul>
+    <p class="text-sm text-base-content/60">
+      These rights are exercised directly in
+      <.link navigate={~p"/users/settings"} class="link">Account Settings</.link>
+      and require no form or manual request.
+    </p>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Contact --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Contact</h2>
+    <p class="text-sm text-base-content/70">
+      Questions or concerns? Open an issue on the
+      <a
+        href="https://github.com/ivank/scientia-cognita"
+        target="_blank"
+        rel="noopener"
+        class="link"
+      >GitHub repository</a>.
+    </p>
+  </div>
+
+  <%!-- Nav footer --%>
+  <div class="pt-4 flex items-center gap-4 text-sm">
+    <.link navigate={~p"/terms"} class="link link-primary">Terms of Service →</.link>
+  </div>
+
+</div>

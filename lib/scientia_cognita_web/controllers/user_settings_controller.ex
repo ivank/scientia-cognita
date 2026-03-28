@@ -53,6 +53,34 @@ defmodule ScientiaCognitaWeb.UserSettingsController do
     end
   end
 
+  def export_data(conn, _params) do
+    user = conn.assigns.current_scope.user
+    data = Accounts.export_user_data(user)
+    json = Jason.encode!(data, pretty: true)
+    filename = "scientia-cognita-data-#{Date.utc_today()}.json"
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+    |> send_resp(200, json)
+  end
+
+  def delete_account(conn, %{"confirm" => "delete my account"}) do
+    user = conn.assigns.current_scope.user
+    Accounts.delete_user(user)
+
+    conn
+    |> UserAuth.clear_user_session()
+    |> put_flash(:info, "Your account has been permanently deleted.")
+    |> redirect(to: ~p"/")
+  end
+
+  def delete_account(conn, _params) do
+    conn
+    |> put_flash(:error, "Please type \"delete my account\" to confirm deletion.")
+    |> redirect(to: ~p"/users/settings")
+  end
+
   def confirm_email(conn, %{"token" => token}) do
     case Accounts.update_user_email(conn.assigns.current_scope.user, token) do
       {:ok, _user} ->

@@ -166,4 +166,61 @@
     </button>
     <p id="passkey-register-error" class="text-error text-xs mt-2" role="alert"></p>
   </div>
+
+  <div class="divider" />
+
+  <%!-- Your data (GDPR) --%>
+  <div>
+    <h2 class="font-serif-display text-lg text-base-content">Your data</h2>
+    <p class="text-neutral text-sm mt-1 mb-4">
+      Download a copy of everything we hold about you, or permanently delete your account.
+    </p>
+
+    <.link
+      href={~p"/users/settings/export-data"}
+      class="btn btn-outline btn-sm gap-2"
+    >
+      <.icon name="hero-arrow-down-tray" class="size-4" />
+      Download my data
+    </.link>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Danger zone --%>
+  <div class="rounded-2xl border border-error/30 bg-error/5 p-5">
+    <h2 class="font-serif-display text-lg text-error mb-1">Delete account</h2>
+    <p class="text-sm text-base-content/70 mb-4">
+      Permanently deletes your account, all session tokens, and any Google Photos export
+      records. This cannot be undone. Your Google Photos albums are not affected.
+    </p>
+
+    <details class="group">
+      <summary class="btn btn-error btn-outline btn-sm cursor-pointer select-none list-none">
+        <.icon name="hero-trash" class="size-4" />
+        Delete my account
+      </summary>
+
+      <.form
+        :let={f}
+        for={%{}}
+        as={:delete}
+        action={~p"/users/settings"}
+        method="delete"
+        class="mt-4 space-y-3"
+      >
+        <.input
+          field={f[:confirm]}
+          type="text"
+          label='Type "delete my account" to confirm'
+          placeholder="delete my account"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <.button class="btn btn-error btn-sm" phx-disable-with="Deleting...">
+          Permanently delete my account
+        </.button>
+      </.form>
+    </details>
+  </div>
 </Layouts.app>

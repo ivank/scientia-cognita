@@ -72,6 +72,20 @@ defmodule ScientiaCognitaWeb.UserAuth do
   end
 
   @doc """
+  Clears the user session and remember-me cookie without redirecting.
+  Use this when the caller needs to set a flash or redirect to a custom path.
+  """
+  def clear_user_session(conn) do
+    if live_socket_id = get_session(conn, :live_socket_id) do
+      ScientiaCognitaWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+    end
+
+    conn
+    |> renew_session(nil)
+    |> delete_resp_cookie(@remember_me_cookie, @remember_me_options)
+  end
+
+  @doc """
   Authenticates the user by looking into the session and remember me token.
 
   Will reissue the session token if it is older than the configured age.

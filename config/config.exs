@@ -94,7 +94,9 @@ config :waffle, storage: Waffle.Storage.S3
 # T06 — Gemini API (key set via GEMINI_API_KEY env var in runtime.exs)
 config :scientia_cognita, :gemini, model: "gemini-3.1-flash-lite-preview"
 
-# T09 — Ueberauth Google OAuth (for Google Photos)
+# T09 — Ueberauth Google OAuth
+# google: for connecting Google Photos (requires auth, full Photos scopes)
+# google_login: for social login/signup (public, email+profile only)
 config :ueberauth, Ueberauth,
   providers: [
     google: {
@@ -104,6 +106,13 @@ config :ueberauth, Ueberauth,
           "email profile https://www.googleapis.com/auth/photoslibrary.appendonly https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata",
         access_type: "offline",
         prompt: "consent"
+      ]
+    },
+    google_login: {
+      Ueberauth.Strategy.Google,
+      [
+        default_scope: "email profile",
+        access_type: "online"
       ]
     }
   ]

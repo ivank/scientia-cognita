@@ -1,0 +1,125 @@
+<Layouts.flash_group flash={@flash} />
+
+<%!-- Page hero --%>
+<div class="bg-[oklch(13%_0.025_222)] px-4 sm:px-8 pt-14 pb-16">
+  <div class="max-w-6xl mx-auto">
+    <p class="text-[oklch(64%_0.115_218)] text-xs font-semibold tracking-[0.2em] uppercase mb-5">
+      Legal
+    </p>
+    <h1 class="font-serif-display text-5xl lg:text-7xl text-white leading-[1.05] tracking-tight">
+      Terms of Service
+    </h1>
+    <p class="text-white/50 text-lg mt-5 max-w-xl leading-relaxed">
+      Rules of the road for using Scientia Cognita.
+    </p>
+  </div>
+</div>
+
+<%!-- Content --%>
+<div class="mx-auto max-w-3xl px-6 py-12 space-y-10">
+
+  <%!-- TL;DR callout --%>
+  <div class="rounded-2xl bg-base-200 border border-base-300 px-6 py-5">
+    <p class="font-semibold text-base-content mb-1">The short version</p>
+    <p class="text-base-content/70 text-sm leading-relaxed">
+      Scientia Cognita is a free personal project. Use it as intended, don't abuse it,
+      and understand it comes with no guarantees of uptime or continued availability.
+    </p>
+  </div>
+
+  <%!-- Section: Your account --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Your account</h2>
+    <div class="prose prose-sm max-w-none">
+      <p>
+        You are responsible for maintaining the security of your account. We are not liable
+        for any loss or damage resulting from unauthorized access to your account.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Acceptable use --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Acceptable use</h2>
+    <p class="text-sm text-base-content/70 mb-4">You agree not to use Scientia Cognita to:</p>
+    <ul class="space-y-2">
+      <%= for item <- [
+        "Upload or distribute illegal, harmful, or infringing content.",
+        "Attempt to gain unauthorized access to the service or other users' accounts.",
+        "Interfere with or disrupt the service."
+      ] do %>
+        <li class="flex items-start gap-3">
+          <span class="mt-0.5 size-5 rounded-full bg-warning/15 text-warning flex items-center justify-center shrink-0">
+            <.icon name="hero-exclamation-triangle" class="size-3" />
+          </span>
+          <span class="text-sm text-base-content/80"><%= item %></span>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Service availability --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Service availability</h2>
+    <div class="prose prose-sm max-w-none">
+      <p>
+        This is a free service provided as-is, with no guarantee of uptime or continued
+        availability. We may change, suspend, or discontinue the service at any time without
+        prior notice.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Limitation of liability --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Limitation of liability</h2>
+    <div class="prose prose-sm max-w-none">
+      <p>
+        To the maximum extent permitted by law, Scientia Cognita is provided "as is" without
+        warranties of any kind. We are not liable for any indirect, incidental, or consequential
+        damages arising from your use of the service.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Changes --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Changes to these terms</h2>
+    <div class="prose prose-sm max-w-none">
+      <p>
+        We may update these terms from time to time. Continued use of the service after
+        changes are posted constitutes acceptance of the revised terms.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider" />
+
+  <%!-- Section: Contact --%>
+  <div>
+    <h2 class="font-serif-display text-2xl text-base-content mb-4">Contact</h2>
+    <p class="text-sm text-base-content/70">
+      Questions? Open an issue on the
+      <a
+        href="https://github.com/ivank/scientia-cognita"
+        target="_blank"
+        rel="noopener"
+        class="link"
+      >GitHub repository</a>.
+    </p>
+  </div>
+
+  <%!-- Nav footer --%>
+  <div class="pt-4 flex items-center gap-4 text-sm">
+    <.link navigate={~p"/privacy"} class="link link-primary">Privacy Policy →</.link>
+  </div>
+
+</div>

@@ -80,6 +80,30 @@ defmodule ScientiaCognita.Accounts do
   end
 
   @doc """
+  Gets a user by their Google ID.
+  """
+  def get_user_by_google_id(google_id) when is_binary(google_id) do
+    Repo.get_by(User, google_id: google_id)
+  end
+
+  @doc """
+  Registers a new user via Google OAuth (auto-confirmed, no password).
+  """
+  def register_user_from_google(attrs) do
+    User.google_registration_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Links a Google ID to an existing user account.
+  """
+  def link_google_account(user, google_id) do
+    user
+    |> User.google_id_changeset(%{google_id: google_id})
+    |> Repo.update()
+  end
+
+  @doc """
   Gets a user by email and password.
 
   ## Examples
@@ -332,6 +356,42 @@ defmodule ScientiaCognita.Accounts do
   def delete_user_session_token(token) do
     Repo.delete_all(from(UserToken, where: [token: ^token, context: "session"]))
     :ok
+  end
+
+  ## Account deletion / data export
+
+  @doc """
+  Permanently deletes the user and all associated data (tokens, passkeys, photo
+  exports, export items) via database CASCADE. Irreversible.
+  """
+  def delete_user(%User{} = user), do: Repo.delete(user)
+
+  @doc """
+  Returns a minimal map suitable for JSON export (GDPR Article 20 portability).
+
+  Includes only data the user directly provided or that was generated on their
+  behalf: email and their Google Photos album links per catalog.
+  """
+  def export_user_data(%User{} = user) do
+    alias ScientiaCognita.Photos.PhotoExport
+    alias ScientiaCognita.Catalog.Catalog
+
+    import Ecto.Query
+
+    catalogs =
+      Repo.all(
+        from pe in PhotoExport,
+          where: pe.user_id == ^user.id and not is_nil(pe.album_url),
+          join: c in Catalog,
+          on: c.id == pe.catalog_id,
+          select: %{name: c.name, google_photos_album_url: pe.album_url}
+      )
+
+    %{
+      exported_at: DateTime.utc_now(:second) |> DateTime.to_iso8601(),
+      email: user.email,
+      catalogs: catalogs
+    }
   end
 
   ## Google OAuth tokens

@@ -33,6 +33,15 @@ defmodule ScientiaCognitaWeb.Router do
     get "/google/callback", GoogleAuthController, :callback
   end
 
+  ## Google social login/signup (public)
+
+  scope "/auth", ScientiaCognitaWeb do
+    pipe_through [:browser]
+
+    get "/google_login", GoogleLoginController, :request
+    get "/google_login/callback", GoogleLoginController, :callback
+  end
+
   ## Public routes
 
   scope "/", ScientiaCognitaWeb do
@@ -40,6 +49,8 @@ defmodule ScientiaCognitaWeb.Router do
 
     live "/", Page.CatalogsIndexLive
     live "/catalogs/:slug", Page.CatalogShowLive
+    get "/privacy", PageController, :privacy
+    get "/terms", PageController, :terms
   end
 
   ## Console — admin/owner only
@@ -97,6 +108,8 @@ defmodule ScientiaCognitaWeb.Router do
     get "/users/settings", UserSettingsController, :edit
     put "/users/settings", UserSettingsController, :update
     get "/users/settings/confirm-email/:token", UserSettingsController, :confirm_email
+    get "/users/settings/export-data", UserSettingsController, :export_data
+    delete "/users/settings", UserSettingsController, :delete_account
   end
 
   scope "/", ScientiaCognitaWeb do

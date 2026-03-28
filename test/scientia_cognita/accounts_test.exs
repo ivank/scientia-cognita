@@ -545,4 +545,105 @@ defmodule ScientiaCognita.AccountsTest do
       assert {:error, :unauthorized} = Accounts.delete_passkey(user, passkey.id)
     end
   end
+
+  describe "delete_user/1" do
+    test "removes the user from the database" do
+      user = user_fixture()
+      assert {:ok, _} = Accounts.delete_user(user)
+      assert_raise Ecto.NoResultsError, fn -> Accounts.get_user!(user.id) end
+    end
+
+    test "cascades to user tokens" do
+      user = user_fixture()
+      Accounts.generate_user_session_token(user)
+
+      assert ScientiaCognita.Repo.exists?(
+               from t in UserToken, where: t.user_id == ^user.id
+             )
+
+      Accounts.delete_user(user)
+
+      refute ScientiaCognita.Repo.exists?(
+               from t in UserToken, where: t.user_id == ^user.id
+             )
+    end
+
+    test "cascades to passkeys" do
+      user = user_fixture()
+      passkey_fixture(user)
+      assert Accounts.list_passkeys(user) != []
+
+      Accounts.delete_user(user)
+
+      # Passkey rows are gone — querying by user_id returns nothing
+      assert ScientiaCognita.Repo.all(
+               from p in ScientiaCognita.Accounts.UserPasskey,
+                 where: p.user_id == ^user.id
+             ) == []
+    end
+  end
+
+  describe "export_user_data/1" do
+    import ScientiaCognita.CatalogFixtures
+
+    test "returns email and exported_at" do
+      user = user_fixture()
+      data = Accounts.export_user_data(user)
+
+      assert data.email == user.email
+      assert is_binary(data.exported_at)
+      # ISO 8601
+      assert {:ok, _, _} = DateTime.from_iso8601(data.exported_at)
+    end
+
+    test "catalogs is empty when user has no exports" do
+      user = user_fixture()
+      data = Accounts.export_user_data(user)
+      assert data.catalogs == []
+    end
+
+    test "catalogs is empty when export has no album yet" do
+      user = user_fixture()
+      catalog = catalog_fixture()
+      {:ok, _export} = ScientiaCognita.Photos.get_or_create_export(user, catalog)
+
+      data = Accounts.export_user_data(user)
+      assert data.catalogs == []
+    end
+
+    test "includes catalog name and google_photos_album_url when album exists" do
+      user = user_fixture()
+      catalog = catalog_fixture()
+      {:ok, export} = ScientiaCognita.Photos.get_or_create_export(user, catalog)
+
+      {:ok, _} =
+        ScientiaCognita.Photos.set_export_status(export, "done",
+          album_id: "album-123",
+          album_url: "https://photos.google.com/album/album-123"
+        )
+
+      data = Accounts.export_user_data(user)
+
+      assert [%{name: name, google_photos_album_url: url}] = data.catalogs
+      assert name == catalog.name
+      assert url == "https://photos.google.com/album/album-123"
+    end
+
+    test "only includes albums belonging to the requesting user" do
+      user = user_fixture()
+      other = user_fixture()
+      catalog = catalog_fixture()
+
+      {:ok, other_export} = ScientiaCognita.Photos.get_or_create_export(other, catalog)
+
+      {:ok, _} =
+        ScientiaCognita.Photos.set_export_status(other_export, "done",
+          album_id: "album-other",
+          album_url: "https://photos.google.com/album/album-other"
+        )
+
+      data = Accounts.export_user_data(user)
+      assert data.catalogs == []
+    end
+  end
 end

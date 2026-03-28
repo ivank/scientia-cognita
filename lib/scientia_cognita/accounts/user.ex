@@ -11,6 +11,7 @@ defmodule ScientiaCognita.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
     field :role, :string, default: "user"
+    field :google_id, :string
     field :google_access_token, :string, redact: true
     field :google_refresh_token, :string, redact: true
     field :google_token_expires_at, :utc_datetime
@@ -31,6 +32,27 @@ defmodule ScientiaCognita.Accounts.User do
     user
     |> cast(attrs, [:google_access_token, :google_refresh_token, :google_token_expires_at])
     |> validate_required([:google_access_token, :google_token_expires_at])
+  end
+
+  def google_id_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:google_id])
+    |> validate_required([:google_id])
+    |> unique_constraint(:google_id)
+  end
+
+  def google_registration_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:email, :google_id])
+    |> validate_required([:email, :google_id])
+    |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
+      message: "must have the @ sign and no spaces"
+    )
+    |> validate_length(:email, max: 160)
+    |> unsafe_validate_unique(:email, ScientiaCognita.Repo)
+    |> unique_constraint(:email)
+    |> unique_constraint(:google_id)
+    |> put_change(:confirmed_at, DateTime.utc_now(:second))
   end
 
   @doc """
