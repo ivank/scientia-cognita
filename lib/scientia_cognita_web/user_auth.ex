@@ -43,6 +43,16 @@ defmodule ScientiaCognitaWeb.UserAuth do
   end
 
   @doc """
+  Creates or extends the user session without redirecting.
+  Used by JSON endpoints (e.g., passkey authentication) that need to
+  establish a session and return JSON instead of performing a redirect.
+  Returns the updated conn with session token written.
+  """
+  def create_user_session(conn, user) do
+    create_or_extend_session(conn, user, %{})
+  end
+
+  @doc """
   Logs the user out.
 
   It clears all session data for safety. See renew_session.

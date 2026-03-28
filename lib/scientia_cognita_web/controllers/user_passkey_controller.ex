@@ -21,7 +21,7 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
     |> put_session(:wax_registration_challenge, challenge)
     |> json(%{
       challenge: Base.url_encode64(challenge.bytes, padding: false),
-      user_id: Base.url_encode64(Integer.to_string(user.id), padding: false),
+      user_id: Base.url_encode64(<<user.id::big-integer-size(64)>>, padding: false),
       user_name: user.email,
       rp_id: rp_id(),
       rp_name: rp_name()
@@ -100,7 +100,12 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
              [{credential_id, public_key}]
            ) do
       Accounts.update_passkey_after_auth(passkey, result.sign_count, DateTime.utc_now(:second))
-      UserAuth.log_in_user(conn, passkey.user)
+      user_return_to = get_session(conn, :user_return_to)
+      redirect_to = user_return_to || "/"
+
+      conn
+      |> UserAuth.create_user_session(passkey.user)
+      |> json(%{ok: true, redirect: redirect_to})
     else
       nil ->
         conn
@@ -121,25 +126,31 @@ defmodule ScientiaCognitaWeb.UserPasskeyController do
   def update_label(conn, %{"id" => id, "label" => label}) do
     user = conn.assigns.current_scope.user
 
-    case Accounts.get_passkey_for_user(user, String.to_integer(id)) do
-      nil ->
-        conn |> put_status(:not_found) |> json(%{error: "Passkey not found."})
-
-      passkey ->
-        case Accounts.update_passkey_label(passkey, label) do
-          {:ok, updated} -> json(conn, %{ok: true, label: updated.label})
-          {:error, _} -> conn |> put_status(:unprocessable_entity) |> json(%{error: "Could not update label."})
-        end
+    with {int_id, ""} <- Integer.parse(id),
+         passkey when not is_nil(passkey) <- Accounts.get_passkey_for_user(user, int_id) do
+      case Accounts.update_passkey_label(passkey, label) do
+        {:ok, updated} -> json(conn, %{ok: true, label: updated.label})
+        {:error, _} -> conn |> put_status(:unprocessable_entity) |> json(%{error: "Could not update label."})
+      end
+    else
+      :error -> conn |> put_status(:bad_request) |> json(%{error: "Invalid ID."})
+      nil -> conn |> put_status(:not_found) |> json(%{error: "Passkey not found."})
     end
   end
 
   def delete(conn, %{"id" => id}) do
     user = conn.assigns.current_scope.user
 
-    case Accounts.delete_passkey(user, String.to_integer(id)) do
-      {:ok, _} -> json(conn, %{ok: true})
-      {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: "Passkey not found."})
-      {:error, :unauthorized} -> conn |> put_status(:forbidden) |> json(%{error: "Not your passkey."})
+    case Integer.parse(id) do
+      {int_id, ""} ->
+        case Accounts.delete_passkey(user, int_id) do
+          {:ok, _} -> json(conn, %{ok: true})
+          {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: "Passkey not found."})
+          {:error, :unauthorized} -> conn |> put_status(:forbidden) |> json(%{error: "Not your passkey."})
+        end
+
+      _ ->
+        conn |> put_status(:bad_request) |> json(%{error: "Invalid ID."})
     end
   end
 
